@@ -18,12 +18,20 @@ The stack is composed of three layered specifications, each addressing one conce
 └─────────────────────────────────────────────────────────┘
 ```
 
+Plus a practical companion to the specs:
+
+```
+  CAPSULES.md            how-to: add capsule sharing to any tool      practical guide
+                         (single-file ethos · the q: gotcha · checklist)
+```
+
 ## Reading order
 
 Read top-down for the conceptual story (what does cradle do?) or bottom-up for the implementation story (how does it work?).
 
 - **Top-down (concept first):** `SPEC-menu.md` → `SPEC-cradle.md` → `SPEC-capsule.md`. Start with a concrete payload format; see how dispatch picks it up; see how the bytes got there.
 - **Bottom-up (mechanics first):** `SPEC-capsule.md` → `SPEC-cradle.md` → `SPEC-menu.md`. Start with the byte-level grammar; see what dispatches on it; see what a real renderer does with the bytes.
+- **Just building it:** start with **`CAPSULES.md`** — the paste-ready producer/consumer, the `q:` URL-fragment gotcha that will otherwise bite you, the magic-line format for cradle compatibility, and a conformance checklist. Reach for the specs when you need normative detail.
 
 ## Quick summary
 
