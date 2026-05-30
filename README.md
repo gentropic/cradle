@@ -74,9 +74,7 @@ These are working code, not normative — the specs are the contract. The capsul
 
 ## Status
 
-All four specs are draft **v0.1**, and the reference implementations above are present and functional (the menu round-trips editor → QR/URL → bootloader; the doorbell envelope round-trips JS encrypt → Python decrypt). Not yet done: a live deployment, the `lostfound` format, dictionary `.bin` assets for `deflate-dict` (the bootloader currently inlines the menu dictionaries), and a redrawn brand icon (the current one is a simple capsule-in-cradle mark).
-
-> **One known inconsistency to reconcile:** the implementation files and this README use the chosen deploy URL **`gentropic.org/cradle`**, but the spec documents still say **`gentropic.org/c`** (a holdover from when a single-char path was planned). Treat `gentropic.org/cradle` as the intended target; the specs need a `/c` → `/cradle` pass.
+All four specs are draft **v0.1**, and the reference implementations above are present and functional (the menu round-trips editor → QR/URL → bootloader; the doorbell envelope round-trips JS encrypt → Python decrypt). Everything — specs and code — uses the deploy URL **`gentropic.org/cradle`**. Not yet done: a live deployment, the `lostfound` format, dictionary `.bin` assets for `deflate-dict` (the bootloader currently inlines the menu dictionaries), and a more refined brand icon (the current one is a simple capsule-in-cradle mark).
 
 ## License
 

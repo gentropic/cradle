@@ -7,7 +7,7 @@
 
 ## Abstract
 
-`@gcu/cradle` defines a static bootloader and renderer dispatch shell that consumes capsules (per `SPEC-capsule.md`) and renders resolved content according to its declared payload type. The bootloader is a single-file HTML deploy hosted at `gentropic.org/c`; share URLs of the form `gentropic.org/c#<capsule>` resolve the capsule, inspect a magic-byte prefix on the resulting bytes, and dispatch to a curated renderer (menu, doorbell, lost-and-found, etc.).
+`@gcu/cradle` defines a static bootloader and renderer dispatch shell that consumes capsules (per `SPEC-capsule.md`) and renders resolved content according to its declared payload type. The bootloader is a single-file HTML deploy hosted at `gentropic.org/cradle`; share URLs of the form `gentropic.org/cradle#<capsule>` resolve the capsule, inspect a magic-byte prefix on the resulting bytes, and dispatch to a curated renderer (menu, doorbell, lost-and-found, etc.).
 
 The name *cradle* is the receiving dock a capsule settles into — it accepts the capsule, reads the tag stamped on what it carries, and brings the contents to life, the way a charging cradle receives a device and powers it up. The bootloader is exactly this: it resolves a capsule's bytes blindly, reads the magic-byte tag to learn what they claim to be, and serves the matching renderer.
 
@@ -19,7 +19,7 @@ Cradle is opinionated where capsule is open. Capsule is shell-agnostic — many 
 
 #### 1.1 Goals
 
-- Provide a single static URL (`gentropic.org/c`) that resolves capsules and renders their content, with no per-payload server state.
+- Provide a single static URL (`gentropic.org/cradle`) that resolves capsules and renders their content, with no per-payload server state.
 - Support multiple payload types — restaurant menus, doorbell ping pages, lost-and-found tags, conference reference cards, recipes, and similar — through a uniform dispatch surface.
 - Keep the bootloader small enough to function as a PWA. Once the bootloader has loaded once online, every registered renderer MUST be available offline; the bootloader makes printed objects with inline payloads work permanently, network or not.
 - Use `@gcu/capsule` for all addressing and encoding concerns. Add nothing capsule doesn't already provide except a dispatch layer.
@@ -63,13 +63,13 @@ If any step fails, the bootloader renders a classified error and preserves the f
 The canonical URL is:
 
 ```
-https://gentropic.org/c
+https://gentropic.org/cradle
 ```
 
 Share URLs append a capsule in the fragment:
 
 ```
-https://gentropic.org/c#<capsule>
+https://gentropic.org/cradle#<capsule>
 ```
 
 Where `<capsule>` is any valid capsule per `SPEC-capsule.md` §3. Both reference and inline capsules are supported, but inline capsules (especially the `q:` scheme) are the typical case for QR-bound usage.
@@ -125,7 +125,7 @@ const RENDERERS = {
 };
 ```
 
-**B. Pre-cached** — renderers are separate modules under `/c/renderers/*.js`, and the service worker pre-caches all of them during its `install` event. The registry uses dynamic import; after the service worker is installed, dynamic imports resolve from cache without network.
+**B. Pre-cached** — renderers are separate modules under `/cradle/renderers/*.js`, and the service worker pre-caches all of them during its `install` event. The registry uses dynamic import; after the service worker is installed, dynamic imports resolve from cache without network.
 
 ```js
 const RENDERERS = {
@@ -137,9 +137,9 @@ const RENDERERS = {
 // In sw.js:
 self.addEventListener('install', e => {
   e.waitUntil(caches.open('cradle-v1').then(c => c.addAll([
-    '/c/',
-    '/c/renderers/menu.js',
-    '/c/renderers/doorbell.js',
+    '/cradle/',
+    '/cradle/renderers/menu.js',
+    '/cradle/renderers/doorbell.js',
     // ...all renderers, no exceptions
   ])));
 });
@@ -148,9 +148,9 @@ self.addEventListener('install', e => {
 // In sw.js:
 self.addEventListener('install', e => {
   e.waitUntil(caches.open('cradle-v1').then(c => c.addAll([
-    '/c/',
-    '/c/renderers/menu.js',
-    '/c/renderers/doorbell.js',
+    '/cradle/',
+    '/cradle/renderers/menu.js',
+    '/cradle/renderers/doorbell.js',
     // ...all renderers, no exceptions
   ])));
 });
@@ -247,7 +247,7 @@ The service worker MUST NOT cache reference-capsule-resolved content (`gh:`, `ze
 
 A `manifest.webmanifest` SHOULD be included so the bootloader can be added to a home screen. Recommended fields: `name: "cradle"`, `short_name: "c"`, no theme color override (defer to system).
 
-The offline guarantee is total for inline capsules: a user who has loaded `gentropic.org/c` once while online may scan any QR-encoded inline capsule of any registered format anywhere offline and have it render. The bootloader's purpose is precisely this — to make printed objects with embedded payloads function as durable, network-independent UIs.
+The offline guarantee is total for inline capsules: a user who has loaded `gentropic.org/cradle` once while online may scan any QR-encoded inline capsule of any registered format anywhere offline and have it render. The bootloader's purpose is precisely this — to make printed objects with embedded payloads function as durable, network-independent UIs.
 
 #### 9.1 Cache versioning and update strategy
 
@@ -257,10 +257,10 @@ The service worker MUST use version-prefixed cache names: `cradle-v<n>` where `<
 const CACHE = 'cradle-v3';
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll([
-    '/c/',
-    '/c/manifest.webmanifest',
-    '/c/renderers/menu.js',
-    '/c/renderers/doorbell.js',
+    '/cradle/',
+    '/cradle/manifest.webmanifest',
+    '/cradle/renderers/menu.js',
+    '/cradle/renderers/doorbell.js',
     // ...
   ])));
 });
@@ -323,13 +323,13 @@ The doorbell format (the canonical sealed-box use case described in capsule §21
 
 ### 14. Service worker scope
 
-The service worker SHOULD scope to the bootloader path (`/c`) only. It MUST NOT intercept fetches to other paths on the same origin (e.g., `/auditable`, `/lugarcomum`, the gentropic.org root). Improper scoping is a common PWA mistake; explicit scope declaration in registration is required.
+The service worker SHOULD scope to the bootloader path (`/cradle`) only. It MUST NOT intercept fetches to other paths on the same origin (e.g., `/auditable`, `/lugarcomum`, the gentropic.org root). Improper scoping is a common PWA mistake; explicit scope declaration in registration is required.
 
 ## Appendices
 
 ### Appendix A — Renderer registry (canonical)
 
-The renderers shipped with the canonical bootloader at `gentropic.org/c`, as of this spec version:
+The renderers shipped with the canonical bootloader at `gentropic.org/cradle`, as of this spec version:
 
 | format-name | versions | spec | description |
 |-------------|----------|------|-------------|
@@ -377,7 +377,7 @@ Capsule changes (e.g., new schemes, new codecs) propagate to cradle automaticall
 
 ### Appendix D — Changelog
 
-- **v0.1** (2026-05-16) — Initial draft. Establishes bootloader URL (`gentropic.org/c`), magic-byte dispatch grammar (`!<format-name><version>+<params>\n<body>`, parsed up to 4 KB or first newline), renderer interface (default-export function taking parsed header + body bytes + context with `mount`, `bootloaderUrl`, `capsule`, optional `signal`), curated-registry model (no runtime extensibility — fork the source if you want different renderers), and total offline guarantee (all registered renderers MUST be available offline after first online load, via either embedded inlining or service-worker pre-cache; opportunistic / on-demand caching is non-conformant). Service worker requires version-prefixed cache names (`cradle-v<n>`) with explicit invalidation on `activate`. Lists `menu` as the first registered format; `doorbell` and `lostfound` as planned. Encryption-layer support deferred pending the same in `SPEC-capsule.md`.
+- **v0.1** (2026-05-16) — Initial draft. Establishes bootloader URL (`gentropic.org/cradle`), magic-byte dispatch grammar (`!<format-name><version>+<params>\n<body>`, parsed up to 4 KB or first newline), renderer interface (default-export function taking parsed header + body bytes + context with `mount`, `bootloaderUrl`, `capsule`, optional `signal`), curated-registry model (no runtime extensibility — fork the source if you want different renderers), and total offline guarantee (all registered renderers MUST be available offline after first online load, via either embedded inlining or service-worker pre-cache; opportunistic / on-demand caching is non-conformant). Service worker requires version-prefixed cache names (`cradle-v<n>`) with explicit invalidation on `activate`. Lists `menu` as the first registered format; `doorbell` and `lostfound` as planned. Encryption-layer support deferred pending the same in `SPEC-capsule.md`.
 
 ### Appendix E — Deliberately not in this spec
 

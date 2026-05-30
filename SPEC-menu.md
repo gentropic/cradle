@@ -13,7 +13,7 @@
 This spec covers *only* the content format. Addressing, encoding, dispatch, and rendering infrastructure are handled by sibling specs:
 
 - **Addressing & encoding** — `SPEC-capsule.md`. The menu payload travels as bytes resolved through a capsule (typically `q:d.menu-ptbr_<base45>` for QR usage).
-- **Dispatch & bootloader** — `SPEC-cradle.md`. The bootloader at `gentropic.org/c` inspects the magic line, dispatches to the menu renderer, which then parses per this spec.
+- **Dispatch & bootloader** — `SPEC-cradle.md`. The bootloader at `gentropic.org/cradle` inspects the magic line, dispatches to the menu renderer, which then parses per this spec.
 
 The format was originally specified as `q1` ("QR version 1") in `q1-spec.md`. That naming conflated the content format with its QR deployment. The evolution preserves the grammar and locale model exactly; only the format name and its surrounding infrastructure changed. Existing `q1`-encoded payloads do not interoperate with `menu1` decoders — the magic line differs — but the body grammar is byte-identical, so migration is mechanical (rewrite `!q1+` to `!menu1+`).
 
@@ -45,8 +45,8 @@ The dictionary identifier (the `dict-id` consumed by capsule's `q:d.<dict-id>_` 
 
 | locale (magic-line) | dict-id (capsule) | dictionary file (canonical) |
 |---------------------|-------------------|------------------------------|
-| `pt-BR`             | `menu-ptbr`       | `/c/dicts/menu-ptbr.bin`    |
-| `en-US`             | `menu-enus`       | `/c/dicts/menu-enus.bin`    |
+| `pt-BR`             | `menu-ptbr`       | `/cradle/dicts/menu-ptbr.bin`    |
+| `en-US`             | `menu-enus`       | `/cradle/dicts/menu-enus.bin`    |
 
 Implementations MUST NOT attempt to derive a different dict-id from the locale. If a locale is added in a future spec version, its dict-id MUST follow the same lowercase-no-hyphens rule (e.g., `es-MX` → `menu-esmx`). This keeps the mapping mechanical and removes any ambiguity in capsule/renderer coordination.
 
@@ -155,7 +155,7 @@ The renderer MUST:
 3. Display the staleness banner if `@valid_until` is set and the current date is past it. The banner MUST be visually prominent and MUST appear above the menu content.
 4. Display `@service` and `@couvert` in the footer area, in the locale's prescribed phrasing.
 5. Treat unknown directive keys, unknown pipe-row tags, and unknown `@social` prefixes as silently ignored (forward compatibility).
-6. Render a discreet attribution line indicating the menu came from a QR/capsule and naming the bootloader (e.g., "decoded · gentropic.org/c").
+6. Render a discreet attribution line indicating the menu came from a QR/capsule and naming the bootloader (e.g., "decoded · gentropic.org/cradle").
 
 The renderer MUST NOT:
 
@@ -183,7 +183,7 @@ For payloads previously encoded under `q1-spec`:
 
 - The body grammar is unchanged. No content transformation is needed.
 - The magic line changes from `!q1+<locale>` to `!menu1+<locale>`. One byte-pair substitution per payload.
-- The dispatch URL changes from `gentropic.org/q` to `gentropic.org/c`. Old `/q` URLs will not be served once the cradle deployment goes live; if any `q1` payloads exist in the wild (none are known to), they can be re-encoded by editor tooling.
+- The dispatch URL changes from `gentropic.org/q` to `gentropic.org/cradle`. Old `/q` URLs will not be served once the cradle deployment goes live; if any `q1` payloads exist in the wild (none are known to), they can be re-encoded by editor tooling.
 - The capsule scheme is now explicit: `q:d.menu-ptbr_<base45>` rather than a bare base45 fragment with implicit deflate-dict. Encoders gain a small framing overhead (`q:d.menu-ptbr_`, ~16 chars) but participate in the unified capsule grammar.
 
 There is no `q1` deployment to preserve compatibility against; the migration is a clean break.
@@ -224,7 +224,7 @@ After dictionary-deflate with `menu-ptbr` (compresses to 182 bytes) and base45 e
 q:d.menu-ptbr_H%DZIPSKGEP2LFVM06WQ9TPKO C$EM0ON05WWMDP9IJ%0FECF381:8$S2VPN0BUF5D+0R4GH$WQIZQM9O$7LYCRSC9694*J5G9JLEU5O97WN4RBFCU/WEB4R$ O%336X4*LGN%O0AM1+1LXM*TP44HMC20YCWR9+H0THJ* 5J3W+%F /C:VCP30Q106LT8C0 IJ+62QT0HJGYM9F/NO+AMDUSU53LF4/HJ0B+A23X1- O2NSKJN7:CXDL6VV96N2NRQ94I18XDA8HOAJQ
 ```
 
-Concatenated with `https://gentropic.org/c#` (24 chars) produces a 311-character URL. This fits comfortably in a QR v15 with ECC M (alphanumeric capacity ~758 chars). In practice the QR encoder should use alphanumeric mode for the base45 portion of the fragment and byte mode only for the URL prefix; modern QR encoders that auto-detect mixed modes do this without manual intervention.
+Concatenated with `https://gentropic.org/cradle#` (24 chars) produces a 311-character URL. This fits comfortably in a QR v15 with ECC M (alphanumeric capacity ~758 chars). In practice the QR encoder should use alphanumeric mode for the base45 portion of the fragment and byte mode only for the URL prefix; modern QR encoders that auto-detect mixed modes do this without manual intervention.
 
 Compression performance:
 
