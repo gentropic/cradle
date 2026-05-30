@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>doorbell config — cradle</title>
+<style>
+  :root { --fg:#1a1a1a; --fg-muted:#666; --rule:rgba(0,0,0,0.12); --bg:#fff;
+          --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--fg); line-height: 1.5; padding: 1.5rem 1rem 4rem; }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+  .sub { color: var(--fg-muted); margin: 0 0 1.5rem; }
+  fieldset { border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1.25rem 1.25rem; margin: 0 0 1.25rem; }
+  legend { padding: 0 0.4rem; font-weight: 600; color: var(--fg-muted); font-size: 0.85rem;
+           text-transform: uppercase; letter-spacing: 0.05em; }
+  label { display: block; margin-top: 0.75rem; font-size: 0.9rem; font-weight: 500; }
+  label small { color: var(--fg-muted); font-weight: 400; margin-left: 0.4rem; }
+  input[type=text], textarea, select { width: 100%; padding: 0.5rem 0.6rem; margin-top: 0.25rem;
+                                       border: 1px solid var(--rule); border-radius: 4px; font-family: inherit;
+                                       font-size: 0.95rem; box-sizing: border-box; }
+  textarea { resize: vertical; min-height: 60px; }
+  button { padding: 0.55rem 1rem; font-family: inherit; font-size: 0.9rem; border-radius: 4px;
+           background: var(--fg); color: var(--bg); border: none; cursor: pointer; margin-right: 0.5rem; }
+  button.secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--rule); }
+  button:hover { opacity: 0.85; }
+  .key-display { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem;
+                 background: rgba(0,0,0,0.04); padding: 0.5rem 0.6rem; border-radius: 4px; word-break: break-all;
+                 margin-top: 0.4rem; }
+  .warn { background: #fef3c7; border: 1px solid #fbbf24; color: #78350f;
+          padding: 0.75rem 1rem; border-radius: 4px; font-size: 0.88rem; margin-top: 0.75rem; }
+  .url-out { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem;
+             background: rgba(0,0,0,0.04); padding: 0.6rem 0.7rem; border-radius: 4px; word-break: break-all;
+             margin: 0.4rem 0; }
+  .stats { color: var(--fg-muted); font-size: 0.82rem; margin-top: 0.4rem; }
+  .qr-container { text-align: center; margin: 1rem 0; }
+  .qr-container canvas { max-width: 100%; height: auto; border: 1px solid var(--rule); padding: 8px; background: white; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+  .checkbox-row label { margin-top: 0; }
+  .buttons-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.4rem; margin-top: 0.3rem; }
+  .btn-toggle { padding: 0.4rem 0.5rem; border: 1px solid var(--rule); background: var(--bg);
+                border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+  .btn-toggle.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 1.5rem 0; }
+  .receiver-info { font-size: 0.85rem; color: var(--fg-muted); margin-top: 0.5rem; }
+  .receiver-info code { background: rgba(0,0,0,0.04); padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>doorbell config</h1>
+  <p class="sub">Generate a QR-coded doorbell sticker that pings you (and only you) when scanned.</p>
+
+  <fieldset>
+    <legend>1 · Your key</legend>
+    <p class="sub" style="margin: 0 0 0.5rem; font-size: 0.85rem;">
+      Generated locally in your browser. The private key never leaves this device.
+    </p>
+    <button id="gen-key">Generate new keypair</button>
+    <button id="export-priv" class="secondary" disabled>Show private key</button>
+    <div style="margin-top: 0.75rem;">
+      <label>Public key <small>goes in the QR; visitors will encrypt to this</small></label>
+      <div class="key-display" id="pubkey-display">—</div>
+    </div>
+    <div id="priv-section" style="display:none;">
+      <div class="warn">
+        <strong>Save this somewhere safe.</strong> If you lose it, you lose access to all messages sent to this doorbell — there is no recovery. We recommend writing it down or saving it to a password manager. It's stored in this browser's localStorage but that can disappear (private windows, cache clears, etc.).
+      </div>
+      <label>Private key <small>keep this secret</small></label>
+      <div class="key-display" id="privkey-display"></div>
+      <button class="secondary" id="copy-priv" style="margin-top: 0.5rem;">Copy private key</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>2 · Relay</legend>
+    <label>Topic name <small>a long, hard-to-guess string; this is your channel</small></label>
+    <input type="text" id="topic" value="">
+    <button class="secondary" id="random-topic" style="margin-top: 0.4rem;">Generate random topic</button>
+    <label>Relay host <small>default: ntfy.sh</small></label>
+    <input type="text" id="relay" value="ntfy.sh">
+    <div class="receiver-info">
+      Subscribe to <code id="subscribe-url">ntfy.sh/&lt;topic&gt;</code> in your phone's ntfy app to receive ciphertexts. A separate receiver page (with your private key) decrypts them.
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>3 · Content</legend>
+    <label>Locale</label>
+    <select id="locale">
+      <option value="en-US">English (US)</option>
+      <option value="pt-BR">Português (BR)</option>
+    </select>
+    <label>Title <small>shown at the top of the page, e.g. "Apt 5B — Maria &amp; Tom"</small></label>
+    <input type="text" id="title" value="">
+    <label>Info text <small>tell visitors what to do</small></label>
+    <textarea id="info" placeholder="Use side entrance. Leave packages with the neighbor at #12."></textarea>
+    <label>Buttons</label>
+    <div class="buttons-grid" id="buttons-grid"></div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="allow-text">
+      <label for="allow-text" style="margin: 0;">Also allow free-text messages</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>4 · Output</legend>
+    <label>URL <small><span id="url-len">0</span> chars</small></label>
+    <div class="url-out" id="url-out">—</div>
+    <button class="secondary" id="copy-url">Copy URL</button>
+    <div class="stats" id="stats"></div>
+    <div class="qr-container" id="qr-container"></div>
+    <button class="secondary" id="download-qr">Download QR (PNG)</button>
+  </fieldset>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+"use strict";
+
+// base45 encode (RFC 9285)
+const B45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+function base45Encode(bytes) {
+  let out = "";
+  for (let i = 0; i + 2 <= bytes.length; i += 2) {
+    let n = (bytes[i] << 8) | bytes[i+1];
+    out += B45[n % 45]; n = Math.floor(n / 45);
+    out += B45[n % 45]; n = Math.floor(n / 45);
+    out += B45[n];
+  }
+  if (bytes.length % 2 === 1) {
+    let n = bytes[bytes.length - 1];
+    out += B45[n % 45]; n = Math.floor(n / 45);
+    out += B45[n];
+  }
+  return out;
+}
+
+function b64url(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+// ============================================================
+// Key management
+// ============================================================
+const STORE_PRIV = "doorbell:privkey";
+const STORE_PUB  = "doorbell:pubkey";
+
+let currentKeyPair = null;
+let currentPubBytes = null;
+let currentPrivJWK = null;  // exported JWK for re-import
+
+async function generateKeyPair() {
+  const kp = await crypto.subtle.generateKey({ name: "X25519" }, true, ["deriveBits"]);
+  const pubBuf = await crypto.subtle.exportKey("raw", kp.publicKey);
+  const privJWK = await crypto.subtle.exportKey("jwk", kp.privateKey);
+  currentKeyPair = kp;
+  currentPubBytes = new Uint8Array(pubBuf);
+  currentPrivJWK = privJWK;
+  localStorage.setItem(STORE_PRIV, JSON.stringify(privJWK));
+  localStorage.setItem(STORE_PUB, b64url(currentPubBytes));
+  refreshUI();
+  rebuildOutput();
+}
+
+async function loadStoredKey() {
+  const privStr = localStorage.getItem(STORE_PRIV);
+  const pubStr = localStorage.getItem(STORE_PUB);
+  if (!privStr || !pubStr) return false;
+  try {
+    const privJWK = JSON.parse(privStr);
+    const priv = await crypto.subtle.importKey("jwk", privJWK, { name: "X25519" }, true, ["deriveBits"]);
+    // Re-derive pub from stored pubStr; we won't fully reconstruct the kp object but that's fine
+    // since we only need the public bytes for the QR.
+    currentPubBytes = b64urlToBytes(pubStr);
+    currentPrivJWK = privJWK;
+    currentKeyPair = { privateKey: priv, publicKey: null };
+    refreshUI();
+    return true;
+  } catch (e) {
+    console.warn("Failed to load stored key:", e);
+    return false;
+  }
+}
+
+function b64urlToBytes(s) {
+  const pad = (4 - s.length % 4) % 4;
+  const norm = (s + "=".repeat(pad)).replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(norm);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function refreshUI() {
+  document.getElementById("pubkey-display").textContent =
+    currentPubBytes ? b64url(currentPubBytes) : "—";
+  document.getElementById("export-priv").disabled = !currentPubBytes;
+}
+
+// ============================================================
+// Button vocabulary
+// ============================================================
+const BUTTON_KEYS = ["delivery", "visitor", "service", "urgent", "other"];
+const BUTTON_LABELS = {
+  "en-US": { delivery: "📦 Delivery", visitor: "👋 Visitor", service: "🔧 Service", urgent: "⚠️ Urgent", other: "✋ Other" },
+  "pt-BR": { delivery: "📦 Entrega",  visitor: "👋 Visita",  service: "🔧 Serviço", urgent: "⚠️ Urgente", other: "✋ Outro" },
+};
+
+function buildButtonsGrid() {
+  const grid = document.getElementById("buttons-grid");
+  const locale = document.getElementById("locale").value;
+  const labels = BUTTON_LABELS[locale];
+  grid.innerHTML = "";
+  for (const k of BUTTON_KEYS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-toggle";
+    btn.dataset.key = k;
+    btn.textContent = labels[k];
+    if (["delivery", "visitor", "other"].includes(k)) btn.classList.add("on");
+    btn.addEventListener("click", () => { btn.classList.toggle("on"); rebuildOutput(); });
+    grid.appendChild(btn);
+  }
+}
+
+function getSelectedButtons() {
+  return Array.from(document.querySelectorAll(".btn-toggle.on")).map(b => b.dataset.key);
+}
+
+// ============================================================
+// Payload assembly
+// ============================================================
+function buildSource() {
+  const locale = document.getElementById("locale").value;
+  const lines = [`!doorbell1+${locale}`];
+  if (!currentPubBytes) return null;
+  lines.push(`@pubkey: ${b64url(currentPubBytes)}`);
+  const topic = document.getElementById("topic").value.trim();
+  if (!topic) return null;
+  lines.push(`@topic: ${topic}`);
+  const relay = document.getElementById("relay").value.trim() || "ntfy.sh";
+  if (relay !== "ntfy.sh") lines.push(`@relay: ${relay}`);
+  const buttons = getSelectedButtons();
+  if (buttons.length) lines.push(`@buttons: ${buttons.join(",")}`);
+  const allowText = document.getElementById("allow-text").checked;
+  if (allowText) lines.push("@allow_text: true");
+  const title = document.getElementById("title").value.trim();
+  if (title) lines.push(`@title: ${title}`);
+  const info = document.getElementById("info").value.trim();
+  if (info) lines.push(`@info: ${info}`);
+  return lines.join("\n") + "\n";
+}
+
+function encodePayload(source) {
+  const bytes = new TextEncoder().encode(source);
+  const deflated = pako.deflateRaw(bytes, { level: 9 });
+  const b45 = base45Encode(deflated);
+  const escaped = b45.replace(/%/g, "%25").replace(/ /g, "%20");
+  return {
+    capsule: "q:d" + escaped,
+    url: "https://gentropic.org/cradle#q:d" + escaped,
+    rawLen: bytes.length,
+    deflatedLen: deflated.length,
+    base45Len: b45.length,
+  };
+}
+
+function rebuildOutput() {
+  const source = buildSource();
+  const out = document.getElementById("url-out");
+  const stats = document.getElementById("stats");
+  const qrContainer = document.getElementById("qr-container");
+  const subscribeUrl = document.getElementById("subscribe-url");
+
+  const topic = document.getElementById("topic").value.trim();
+  const relay = document.getElementById("relay").value.trim() || "ntfy.sh";
+  subscribeUrl.textContent = `${relay}/${topic || "<topic>"}`;
+
+  if (!source) {
+    out.textContent = "(generate a key and set a topic to see the URL)";
+    document.getElementById("url-len").textContent = "0";
+    stats.textContent = "";
+    qrContainer.innerHTML = "";
+    return;
+  }
+  const enc = encodePayload(source);
+  out.textContent = enc.url;
+  document.getElementById("url-len").textContent = enc.url.length;
+  stats.textContent =
+    `Source: ${enc.rawLen} bytes · Deflate: ${enc.deflatedLen} bytes · Base45: ${enc.base45Len} chars`;
+
+  // Render QR
+  qrContainer.innerHTML = "";
+  try {
+    let qr = null;
+    for (let v = 5; v <= 40; v++) {
+      try { qr = qrcode(v, "M"); qr.addData(enc.url, "Byte"); qr.make(); break; }
+      catch (e) { qr = null; }
+    }
+    if (!qr) { qrContainer.textContent = "URL too long for QR"; return; }
+    const canvas = document.createElement("canvas");
+    const cell = 4;
+    const margin = 4;
+    const size = (qr.getModuleCount() + margin * 2) * cell;
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#000";
+    for (let r = 0; r < qr.getModuleCount(); r++)
+      for (let c = 0; c < qr.getModuleCount(); c++)
+        if (qr.isDark(r, c))
+          ctx.fillRect((c + margin) * cell, (r + margin) * cell, cell, cell);
+    qrContainer.appendChild(canvas);
+  } catch (e) {
+    qrContainer.textContent = "QR error: " + e.message;
+  }
+}
+
+// ============================================================
+// Wire up
+// ============================================================
+document.getElementById("gen-key").addEventListener("click", generateKeyPair);
+document.getElementById("export-priv").addEventListener("click", () => {
+  const sec = document.getElementById("priv-section");
+  const display = document.getElementById("privkey-display");
+  if (sec.style.display === "none") {
+    display.textContent = currentPrivJWK ? JSON.stringify(currentPrivJWK) : "(no key)";
+    sec.style.display = "block";
+  } else {
+    sec.style.display = "none";
+  }
+});
+document.getElementById("copy-priv").addEventListener("click", () => {
+  if (currentPrivJWK) navigator.clipboard.writeText(JSON.stringify(currentPrivJWK));
+});
+document.getElementById("random-topic").addEventListener("click", () => {
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  const topic = b64url(bytes).replace(/[-_]/g, "");
+  document.getElementById("topic").value = topic;
+  rebuildOutput();
+});
+document.getElementById("copy-url").addEventListener("click", () => {
+  const url = document.getElementById("url-out").textContent;
+  if (url && url !== "—" && !url.startsWith("(")) navigator.clipboard.writeText(url);
+});
+document.getElementById("download-qr").addEventListener("click", () => {
+  const canvas = document.querySelector("#qr-container canvas");
+  if (!canvas) return;
+  const a = document.createElement("a");
+  a.download = "doorbell-qr.png";
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+});
+
+["topic","relay","title","info","locale","allow-text"].forEach(id => {
+  document.getElementById(id).addEventListener("input", rebuildOutput);
+});
+document.getElementById("locale").addEventListener("change", () => { buildButtonsGrid(); rebuildOutput(); });
+
+// Init
+buildButtonsGrid();
+loadStoredKey().then(loaded => { if (!loaded) refreshUI(); rebuildOutput(); });
+</script>
+</body>
+</html>

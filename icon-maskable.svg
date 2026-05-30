@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" fill="#1a1a1a"/>
+  <!-- Same capsule-in-cradle glyph, shrunk into the 80% safe zone for maskable icons -->
+  <g transform="translate(25.6 25.6) scale(0.8)">
+    <path d="M 56 128 Q 128 204 200 128" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+    <rect x="86" y="76" width="84" height="40" rx="20" fill="#ffffff"/>
+  </g>
+</svg>

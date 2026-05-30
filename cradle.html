@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>cradle</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a1a1a">
+<style>
+  /* ---------- base ---------- */
+  :root {
+    --accent: #444;
+    --bg: #fff;
+    --fg: #1a1a1a;
+    --fg-muted: #666;
+    --fg-faint: #999;
+    --rule: rgba(0,0,0,0.1);
+    --tag-bg: rgba(0,0,0,0.06);
+    --banner-bg: #fef3c7;
+    --banner-fg: #78350f;
+    --banner-border: #fbbf24;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-serif: Georgia, "Times New Roman", serif;
+    --maxw: 640px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+    -webkit-text-size-adjust: 100%;
+  }
+  main {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 3rem;
+  }
+
+  /* ---------- menu renderer styles ---------- */
+  h1 { font-size: 1.6rem; font-weight: 600; margin: 0 0 0.5rem; color: var(--accent); }
+  h2 { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+       color: var(--fg-muted); margin: 1.75rem 0 0.5rem; padding-bottom: 0.4rem;
+       border-bottom: 1px solid var(--rule); }
+  p { margin: 0.6rem 0; color: var(--fg); }
+  p em { color: var(--fg-muted); font-style: italic; }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2rem 0 1rem; }
+  .item { display: flex; gap: 1rem; align-items: baseline;
+          padding: 0.65rem 0; border-bottom: 1px dotted var(--rule); }
+  .item:last-child { border-bottom: none; }
+  .item-body { flex: 1; min-width: 0; }
+  .item-name { font-size: 1rem; font-weight: 500; }
+  .item-desc { font-size: 0.85rem; color: var(--fg-muted); margin-top: 0.15rem; line-height: 1.4; }
+  .item-price { font-size: 0.95rem; font-weight: 500; white-space: nowrap;
+                font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .tag { display: inline-block; font-size: 0.7rem; padding: 0.05rem 0.4rem;
+         border-radius: 3px; background: var(--tag-bg); color: var(--fg-muted);
+         margin-left: 0.3rem; vertical-align: 1px; letter-spacing: 0.02em; }
+  .stale { background: var(--banner-bg); color: var(--banner-fg);
+           border: 1px solid var(--banner-border); padding: 0.75rem 1rem;
+           border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.9rem; }
+  footer { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule);
+           font-size: 0.8rem; color: var(--fg-muted); }
+  .footer-line { margin: 0.25rem 0; }
+  .socials { display: flex; gap: 0.6rem; margin: 0.75rem 0; flex-wrap: wrap; }
+  .socials a { display: inline-flex; align-items: center; gap: 0.3rem;
+               text-decoration: none; color: var(--fg-muted);
+               padding: 0.3rem 0.6rem; border: 1px solid var(--rule);
+               border-radius: 3px; font-size: 0.8rem; }
+  .socials a:hover { color: var(--accent); border-color: var(--accent); }
+  .socials svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .attribution { font-size: 0.7rem; color: var(--fg-faint); text-align: center;
+                 margin-top: 1.5rem; letter-spacing: 0.04em; }
+  .error { padding: 1.25rem; background: #fee; border: 1px solid #fcc;
+           border-radius: 4px; color: #800; }
+  .error pre { background: rgba(0,0,0,0.04); padding: 0.5rem; overflow-x: auto;
+               font-size: 0.8rem; }
+  body.tmpl-bistro h1 { font-family: var(--font-serif); font-style: italic; }
+  body.tmpl-bistro .item-name { font-family: var(--font-serif); font-size: 1.05rem; }
+  body.tmpl-serif { font-family: var(--font-serif); }
+  body.tmpl-serif h2 { font-family: var(--font-sans); }
+  body.tmpl-dark { background: #1a1a1a; color: #e8e8e8;
+                    --fg: #e8e8e8; --fg-muted: #aaa; --fg-faint: #666;
+                    --rule: rgba(255,255,255,0.15); --tag-bg: rgba(255,255,255,0.08); }
+
+  /* ---------- doorbell renderer styles ---------- */
+  .doorbell-title { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; color: var(--fg); }
+  .doorbell-info { background: var(--tag-bg); padding: 0.85rem 1rem; border-radius: 6px;
+                   margin: 1rem 0 1.5rem; font-size: 0.95rem; line-height: 1.45; }
+  .doorbell-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 1.25rem 0; }
+  @media (min-width: 480px) { .doorbell-buttons { grid-template-columns: 1fr 1fr 1fr; } }
+  .ring-btn { display: flex; flex-direction: column; align-items: center; justify-content: center;
+              gap: 0.35rem; min-height: 90px; padding: 0.85rem 0.5rem;
+              border: 2px solid var(--rule); background: var(--bg); color: var(--fg);
+              border-radius: 10px; font-size: 1rem; font-weight: 500; cursor: pointer;
+              transition: border-color 0.15s, background 0.15s, transform 0.05s;
+              font-family: inherit; }
+  .ring-btn .ring-emoji { font-size: 1.8rem; line-height: 1; }
+  .ring-btn:hover, .ring-btn:focus-visible { border-color: var(--fg); outline: none; }
+  .ring-btn:active { transform: scale(0.97); }
+  .ring-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .doorbell-text { width: 100%; min-height: 60px; padding: 0.65rem 0.8rem; margin: 0.75rem 0 0.5rem;
+                   border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--fg);
+                   font-family: inherit; font-size: 0.95rem; resize: vertical; box-sizing: border-box; }
+  .doorbell-text:focus { outline: 1px solid var(--fg); border-color: var(--fg); }
+  .doorbell-send { display: block; width: 100%; padding: 0.85rem; border-radius: 6px;
+                   border: 2px solid var(--fg); background: var(--fg); color: var(--bg);
+                   font-size: 1rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .doorbell-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .doorbell-status { margin: 1rem 0; padding: 0.75rem 1rem; border-radius: 6px;
+                     font-size: 0.95rem; text-align: center; display: none; }
+  .doorbell-status.show { display: block; }
+  .doorbell-status.sending { background: #fef3c7; color: #78350f; }
+  .doorbell-status.success { background: #d1fae5; color: #065f46; }
+  .doorbell-status.error   { background: #fee2e2; color: #7f1d1d; }
+</style>
+</head>
+<body>
+<main id="root"></main>
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js"></script>
+<script>
+"use strict";
+
+// ============================================================
+// @gcu/capsule — inline subset (only inline schemes used here;
+// the full reference dispatcher in capsule.js handles ref schemes)
+// ============================================================
+
+// base64url decode
+function b64urlDecode(s) {
+  const pad = (4 - (s.length % 4)) % 4;
+  const norm = (s + "=".repeat(pad)).replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(norm);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// base45 decode (RFC 9285)
+const B45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+const B45_REV = (() => { const r = {}; for (let i = 0; i < B45.length; i++) r[B45[i]] = i; return r; })();
+function base45Decode(s) {
+  const out = [];
+  for (let i = 0; i < s.length; i += 3) {
+    const chunk = s.slice(i, i + 3);
+    let n = 0;
+    for (let j = chunk.length - 1; j >= 0; j--) {
+      const v = B45_REV[chunk[j]];
+      if (v === undefined) throw new Error("invalid base45 character: " + chunk[j]);
+      n = n * 45 + v;
+    }
+    if (chunk.length === 3) out.push((n >> 8) & 0xff, n & 0xff);
+    else if (chunk.length === 2) out.push(n & 0xff);
+  }
+  return new Uint8Array(out);
+}
+
+// Inline scheme parsers. Returns { bytes, dictId } or throws.
+function parseInline(body, dicts) {
+  // body is the part after "inline:"
+  // e.g. "raw:aGVsbG8gd29ybGQK" or "deflate:..." or "deflate-dict.menu-ptbr:..."
+  const colonIdx = body.indexOf(":");
+  if (colonIdx < 0) throw new Error("EBADBODY: missing codec separator");
+  const codecPart = body.slice(0, colonIdx);
+  const payload = body.slice(colonIdx + 1);
+  const raw = b64urlDecode(payload);
+  return inflateByCodec(codecPart, raw, dicts);
+}
+
+function parseI(body, dicts) {
+  // body is the part after "i:"
+  // e.g. "raGVsbG8gd29ybGQK" or "dK8lI..."
+  if (body.length < 1) throw new Error("EBADBODY: empty i: body");
+  const codecChar = body[0];
+  const payload = body.slice(1);
+  const codec = compactCodec(codecChar);
+  const raw = b64urlDecode(payload);
+  return inflateByCodec(codec, raw, dicts);
+}
+
+function parseQ(body, dicts) {
+  // body is the part after "q:"
+  // e.g. "dPAYLOAD" or "d.menu-ptbr_PAYLOAD"
+  if (body.length < 1) throw new Error("EBADBODY: empty q: body");
+  const codecChar = body[0];
+  let codec = compactCodec(codecChar);
+  let payloadStart = 1;
+  if (body[1] === ".") {
+    // dict-id present; find terminating _
+    const us = body.indexOf("_", 2);
+    if (us < 0) throw new Error("EBADBODY: q: dict-id missing underscore terminator");
+    const dictId = body.slice(2, us);
+    codec = codec + "-dict." + dictId;
+    payloadStart = us + 1;
+  }
+  const payload = body.slice(payloadStart);
+  const raw = base45Decode(payload);
+  return inflateByCodec(codec, raw, dicts);
+}
+
+function compactCodec(c) {
+  if (c === "r") return "raw";
+  if (c === "d") return "deflate";
+  if (c === "b") return "brotli";
+  throw new Error("EUNSUPPORTEDCODEC: unknown compact codec char '" + c + "'");
+}
+
+function inflateByCodec(codec, raw, dicts) {
+  if (codec === "raw") return raw;
+  if (codec === "deflate") return pako.inflateRaw(raw);
+  if (codec === "brotli") throw new Error("EUNSUPPORTEDCODEC: brotli not implemented in this build");
+  if (codec.startsWith("deflate-dict.")) {
+    const dictId = codec.slice("deflate-dict.".length);
+    const dict = dicts[dictId];
+    if (!dict) throw new Error("EUNSUPPORTEDCODEC: unknown dict-id '" + dictId + "'");
+    const dictBytes = new TextEncoder().encode(dict);
+    return pako.inflateRaw(raw, { dictionary: dictBytes });
+  }
+  throw new Error("EUNSUPPORTEDCODEC: " + codec);
+}
+
+function resolveCapsule(capsule, dicts) {
+  const colonIdx = capsule.indexOf(":");
+  if (colonIdx < 0) throw new Error("EBADCAPSULE: missing scheme separator");
+  const scheme = capsule.slice(0, colonIdx);
+  const body = capsule.slice(colonIdx + 1);
+  switch (scheme) {
+    case "inline": return parseInline(body, dicts);
+    case "i":      return parseI(body, dicts);
+    case "q":      return parseQ(body, dicts);
+    default:       throw new Error("EUNKNOWN-SCHEME: " + scheme);
+  }
+}
+
+// ============================================================
+// Embedded dictionaries
+// ============================================================
+
+const DICT_MENU_PTBR =
+  "|garrafa\n" +
+  "|6 unidades\n|8 unidades\n" +
+  "## Vinhos brancos\n## Vinhos tintos\n## Espumantes\n" +
+  "## Entradas\n## Principais\n## Massas\n## Sobremesas\n## Sushi\n## Sashimi\n" +
+  "## Hot rolls\n## Combinados\n## Pratos quentes\n## Bebidas\n## Cafés\n" +
+  "manjericão, " +
+  "molho de tomate, parmesão reggiano, azeite extra virgem, " +
+  "salmão grelhado, filé mignon, picanha, frango à parmegiana, " +
+  "risoto de cogumelos, sorvete de creme, " +
+  "frutas vermelhas, leite de coco, " +
+  "calda de caramelo, calda de chocolate, " +
+  "molho madeira, molho de pimenta, " +
+  "carpaccio, bruschetta, tiramisù, cheesecake, petit gateau, pudim, " +
+  "spaghetti, linguine, ravioli, lasanha, nhoque, fettuccine, " +
+  "queijo, presunto, alho, cebola, tomate, batata, arroz, " +
+  "salmão, atum, camarão, filé, frango, carne, peixe, polvo, lula, " +
+  "yakisoba, niguiri, sashimi, uramaki, hot roll, harumaki, gyoza, tempura, " +
+  "philadelphia, california, " +
+  "espresso, cappuccino, café com leite, mocha, chocolate quente, " +
+  "tapioca, pão de queijo, brigadeiro, beijinho, " +
+  "porção, unidades, garrafa, taça, copo, " +
+  "@template: minimal\n@template: bistro\n@template: serif\n@template: dark\n" +
+  "@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
+const DICT_MENU_ENUS =
+  "|bottle\n" +
+  "|6 pack\n|case of 12\n" +
+  "## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n" +
+  "## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n" +
+  "## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n" +
+  "## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n" +
+  "## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\n" +
+  "extra virgin olive oil, " +
+  "fresh mozzarella, parmesan reggiano, aged cheddar, " +
+  "grilled salmon, grilled chicken, ribeye steak, filet mignon, " +
+  "mushroom risotto, vanilla ice cream, " +
+  "mixed berries, coconut milk, " +
+  "caramel sauce, chocolate sauce, " +
+  "red wine reduction, lemon butter sauce, " +
+  "carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, " +
+  "spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, " +
+  "cheese, ham, garlic, onion, tomato, potato, rice, " +
+  "salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, " +
+  "yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, " +
+  "philadelphia, california, dragon roll, spicy tuna, " +
+  "espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, " +
+  "cheeseburger, hamburger, club sandwich, caesar salad, greek salad, " +
+  "french fries, sweet potato fries, onion rings, mashed potatoes, " +
+  "served with, comes with, side of, choice of, " +
+  "@template: minimal\n@template: bistro\n@template: serif\n@template: dark\n" +
+  "@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
+const DICTS = {
+  "menu-ptbr": DICT_MENU_PTBR,
+  "menu-enus": DICT_MENU_ENUS,
+};
+
+// ============================================================
+// Helpers shared by renderers
+// ============================================================
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+}
+
+function renderInline(text) {
+  text = escapeHtml(text);
+  text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  return text;
+}
+
+// ============================================================
+// Renderer: menu
+// ============================================================
+
+const MENU_LOCALES = {
+  "pt-BR": {
+    currency: "R$ ",
+    decimal: ",",
+    stale: (date) => `Este cardápio expirou em ${formatDate(date, "pt-BR")}. Confirme os preços com o garçom.`,
+    service: (pct) => `Serviço (${pct}) não incluso.`,
+    couvert: (val) => `Couvert ${formatMoney(val, "pt-BR")}.`,
+    tags: { v: "vegano", vg: "vegetariano", g: "sem glúten", l: "sem lactose", p: "picante" },
+  },
+  "en-US": {
+    currency: "$",
+    decimal: ".",
+    stale: (date) => `This menu expired on ${formatDate(date, "en-US")}. Please confirm prices with your server.`,
+    service: (pct) => `Service charge: ${pct}.`,
+    couvert: (val) => `Cover: ${formatMoney(val, "en-US")}.`,
+    tags: { v: "vegan", vg: "vegetarian", gf: "gluten-free", df: "dairy-free", sp: "spicy" },
+  },
+};
+
+function formatMoney(value, locale) {
+  const num = parseFloat(value);
+  if (isNaN(num)) return value;
+  if (locale === "pt-BR") return "R$ " + num.toFixed(2).replace(".", ",");
+  return "$" + num.toFixed(2);
+}
+function formatPrice(price, locale) {
+  const m = String(price == null ? "" : price).match(/^(\d+(?:\.\d+)?)(\/(?:kg|un))?$/);
+  if (!m) return price;
+  return formatMoney(m[1], locale) + (m[2] || "");
+}
+function formatDate(iso, locale) {
+  try {
+    const d = new Date(iso + "T12:00:00");
+    if (isNaN(d)) return iso;
+    return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(d);
+  } catch { return iso; }
+}
+
+function parseMenuBody(body) {
+  const lines = body.split("\n");
+  const directives = {};
+  const blocks = [];
+  let inDirective = true;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { inDirective = false; continue; }
+    if (inDirective && line.startsWith("@") && line.includes(":")) {
+      const idx = line.indexOf(":");
+      directives[line.slice(1, idx).trim()] = line.slice(idx + 1).trim();
+      continue;
+    }
+    inDirective = false;
+    if (line === "---") { blocks.push({ type: "hr" }); continue; }
+    if (line.startsWith("## ")) { blocks.push({ type: "h2", text: line.slice(3) }); continue; }
+    if (line.startsWith("# ")) { blocks.push({ type: "h1", text: line.slice(2) }); continue; }
+    if (line.includes("|")) {
+      const parts = line.split("|").map(p => p.trim());
+      blocks.push({
+        type: "item",
+        name: parts[0] || "", price: parts[1] || "", desc: parts[2] || "",
+        tags: (parts[3] || "").split(",").map(t => t.trim()).filter(Boolean),
+      });
+      continue;
+    }
+    blocks.push({ type: "p", text: line });
+  }
+  return { directives, blocks };
+}
+
+const SOCIAL_ICON = (paths) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+const SOCIAL = {
+  ig:  { icon: SOCIAL_ICON('<rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>'), url: h => `https://instagram.com/${h}`, label: h => `@${h}` },
+  fb:  { icon: SOCIAL_ICON('<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>'), url: h => `https://facebook.com/${h}`, label: h => h },
+  x:   { icon: SOCIAL_ICON('<path d="M4 4l16 16M20 4L4 20"/>'), url: h => `https://x.com/${h}`, label: h => `@${h}` },
+  tk:  { icon: SOCIAL_ICON('<path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>'), url: h => `https://tiktok.com/@${h}`, label: h => `@${h}` },
+  ws:  { icon: SOCIAL_ICON('<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>'), url: h => `https://wa.me/${h}`, label: () => "WhatsApp" },
+  web: { icon: SOCIAL_ICON('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'), url: h => `https://${h}`, label: h => h },
+};
+
+function menuRenderer(header, body, ctx) {
+  const locale = header.params;
+  const strings = MENU_LOCALES[locale] || MENU_LOCALES["pt-BR"];
+  const text = new TextDecoder("utf-8").decode(body);
+  const parsed = parseMenuBody(text);
+  const dirs = parsed.directives;
+
+  document.documentElement.lang = locale;
+  document.body.className = "tmpl-" + (dirs.template || "minimal");
+  if (dirs.accent) document.documentElement.style.setProperty("--accent", dirs.accent);
+
+  const parts = [];
+
+  if (dirs.valid_until) {
+    const expiry = new Date(dirs.valid_until + "T23:59:59");
+    if (!isNaN(expiry) && expiry < new Date()) {
+      parts.push(`<div class="stale">${escapeHtml(strings.stale(dirs.valid_until))}</div>`);
+    }
+  }
+
+  for (const b of parsed.blocks) {
+    if (b.type === "h1") parts.push(`<h1>${renderInline(b.text)}</h1>`);
+    else if (b.type === "h2") parts.push(`<h2>${renderInline(b.text)}</h2>`);
+    else if (b.type === "p") parts.push(`<p>${renderInline(b.text)}</p>`);
+    else if (b.type === "hr") parts.push(`<hr>`);
+    else if (b.type === "item") {
+      const tagsHtml = b.tags
+        .filter(t => strings.tags[t])
+        .map(t => `<span class="tag" title="${escapeHtml(strings.tags[t])}">${escapeHtml(t)}</span>`)
+        .join("");
+      const priceHtml = b.price ? `<div class="item-price">${escapeHtml(formatPrice(b.price, locale))}</div>` : "";
+      const descHtml = b.desc ? `<div class="item-desc">${renderInline(b.desc)}</div>` : "";
+      parts.push(
+        `<div class="item">` +
+        `<div class="item-body">` +
+        `<div class="item-name">${renderInline(b.name)}${tagsHtml}</div>` +
+        descHtml + `</div>` + priceHtml + `</div>`
+      );
+    }
+  }
+
+  const footerLines = [];
+  if (dirs.service) footerLines.push(strings.service(dirs.service));
+  if (dirs.couvert) footerLines.push(strings.couvert(dirs.couvert));
+  if (dirs.social || footerLines.length) {
+    let footer = '<footer>';
+    for (const l of footerLines) footer += `<div class="footer-line">${escapeHtml(l)}</div>`;
+    if (dirs.social) {
+      footer += '<div class="socials">';
+      for (const pair of dirs.social.split(",")) {
+        const [prefix, handle] = pair.split("=").map(s => s.trim());
+        const def = SOCIAL[prefix];
+        if (def && handle) {
+          footer += `<a href="${def.url(handle)}" target="_blank" rel="noopener noreferrer">${def.icon}<span>${escapeHtml(def.label(handle))}</span></a>`;
+        }
+      }
+      footer += '</div>';
+    }
+    footer += '</footer>';
+    parts.push(footer);
+  }
+  parts.push(`<div class="attribution">decoded · ${escapeHtml(ctx.bootloaderUrl)}</div>`);
+  ctx.mount.innerHTML = parts.join("");
+}
+
+// ============================================================
+// Renderer: doorbell
+// ============================================================
+
+const DOORBELL_LOCALES = {
+  "pt-BR": {
+    buttons: {
+      delivery: { emoji: "📦", label: "Entrega" },
+      visitor:  { emoji: "👋", label: "Visita" },
+      service:  { emoji: "🔧", label: "Serviço" },
+      urgent:   { emoji: "⚠️",  label: "Urgente" },
+      other:    { emoji: "✋", label: "Outro" },
+    },
+    sending: "Tocando a campainha…",
+    success: "Campainha tocada! Aguarde.",
+    error:   "Não foi possível tocar. Verifique sua conexão.",
+    placeholder: "Digite uma mensagem curta…",
+    sendBtn: "Tocar",
+  },
+  "en-US": {
+    buttons: {
+      delivery: { emoji: "📦", label: "Delivery" },
+      visitor:  { emoji: "👋", label: "Visitor" },
+      service:  { emoji: "🔧", label: "Service" },
+      urgent:   { emoji: "⚠️",  label: "Urgent" },
+      other:    { emoji: "✋", label: "Other" },
+    },
+    sending: "Ringing the bell…",
+    success: "Rang! Please wait.",
+    error:   "Couldn't ring. Check your connection.",
+    placeholder: "Type a short message…",
+    sendBtn: "Ring",
+  },
+};
+
+function parseDoorbellBody(body) {
+  const lines = body.split("\n");
+  const directives = {};
+  let title = "";
+  let inDirective = true;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { inDirective = false; continue; }
+    if (inDirective && line.startsWith("@") && line.includes(":")) {
+      const idx = line.indexOf(":");
+      directives[line.slice(1, idx).trim()] = line.slice(idx + 1).trim();
+      continue;
+    }
+    inDirective = false;
+    // First non-directive non-blank line is treated as bare-text title
+    if (!title) title = line;
+  }
+  return { directives, title };
+}
+
+// Base64url decode to Uint8Array
+function b64urlToBytes(s) {
+  const pad = (4 - (s.length % 4)) % 4;
+  const norm = (s + "=".repeat(pad)).replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(norm);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// Encrypt per SPEC-doorbell §5.2
+async function doorbellEncrypt(recipientPubBytes, plaintext) {
+  const ephemeral = await crypto.subtle.generateKey(
+    { name: "X25519" }, true, ["deriveBits", "deriveKey"]);
+  const ephemeralPubBuf = await crypto.subtle.exportKey("raw", ephemeral.publicKey);
+  const ephemeralPubBytes = new Uint8Array(ephemeralPubBuf);
+
+  const recipientPubKey = await crypto.subtle.importKey(
+    "raw", recipientPubBytes, { name: "X25519" }, false, []);
+
+  const sharedBits = await crypto.subtle.deriveBits(
+    { name: "X25519", public: recipientPubKey }, ephemeral.privateKey, 256);
+
+  const salt = new Uint8Array(64);
+  salt.set(ephemeralPubBytes, 0);
+  salt.set(recipientPubBytes, 32);
+
+  const sharedKey = await crypto.subtle.importKey(
+    "raw", sharedBits, "HKDF", false, ["deriveKey"]);
+  const aesKey = await crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: salt,
+      info: new TextEncoder().encode("cradle/doorbell-v1"),
+    },
+    sharedKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]);
+
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce, additionalData: ephemeralPubBytes },
+    aesKey, plaintext));
+
+  const wire = new Uint8Array(32 + 12 + ciphertext.length);
+  wire.set(ephemeralPubBytes, 0);
+  wire.set(nonce, 32);
+  wire.set(ciphertext, 44);
+  return wire;
+}
+
+async function doorbellSend(wire, relay, topic) {
+  const url = `https://${relay}/${encodeURIComponent(topic)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: wire,
+  });
+  if (!res.ok) throw new Error(`relay returned HTTP ${res.status}`);
+  return res;
+}
+
+function doorbellRenderer(header, body, ctx) {
+  const locale = header.params || "en-US";
+  const strings = DOORBELL_LOCALES[locale] || DOORBELL_LOCALES["en-US"];
+  const text = new TextDecoder("utf-8").decode(body);
+  const { directives: d, title: bareTitle } = parseDoorbellBody(text);
+
+  // Validate required directives
+  if (!d.pubkey) throw new Error("EDOORBELL: missing @pubkey directive");
+  if (!d.topic) throw new Error("EDOORBELL: missing @topic directive");
+
+  let pubBytes;
+  try {
+    pubBytes = b64urlToBytes(d.pubkey);
+    if (pubBytes.length !== 32) throw new Error("wrong length");
+  } catch (e) {
+    throw new Error("EDOORBELL: @pubkey must be a base64url 32-byte X25519 public key");
+  }
+
+  const relay = d.relay || "ntfy.sh";
+  const buttonKeys = (d.buttons || "delivery,visitor,other").split(",").map(s => s.trim()).filter(Boolean);
+  const allowText = (d.allow_text || "").toLowerCase() === "true";
+  const title = d.title || bareTitle || "";
+
+  // Build UI
+  document.documentElement.lang = locale;
+  document.body.className = "tmpl-minimal";
+
+  const parts = [];
+  if (title) parts.push(`<div class="doorbell-title">${escapeHtml(title)}</div>`);
+  if (d.info) parts.push(`<div class="doorbell-info">${renderInline(d.info)}</div>`);
+
+  parts.push(`<div class="doorbell-buttons">`);
+  for (const key of buttonKeys) {
+    const btn = strings.buttons[key];
+    if (!btn) continue;
+    parts.push(
+      `<button class="ring-btn" data-key="${escapeHtml(key)}" data-label="${escapeHtml(btn.emoji + " " + btn.label)}">` +
+      `<span class="ring-emoji">${btn.emoji}</span>` +
+      `<span>${escapeHtml(btn.label)}</span>` +
+      `</button>`
+    );
+  }
+  parts.push(`</div>`);
+
+  if (allowText) {
+    parts.push(`<textarea class="doorbell-text" placeholder="${escapeHtml(strings.placeholder)}" maxlength="200"></textarea>`);
+    parts.push(`<button class="doorbell-send">${escapeHtml(strings.sendBtn)}</button>`);
+  }
+
+  parts.push(`<div class="doorbell-status" id="doorbell-status"></div>`);
+  parts.push(`<div class="attribution">${escapeHtml(ctx.bootloaderUrl)}</div>`);
+  ctx.mount.innerHTML = parts.join("");
+
+  const status = ctx.mount.querySelector("#doorbell-status");
+  const allButtons = ctx.mount.querySelectorAll(".ring-btn, .doorbell-send");
+
+  function setStatus(state, msg) {
+    status.className = "doorbell-status show " + state;
+    status.textContent = msg;
+  }
+
+  async function ring(plaintext) {
+    for (const b of allButtons) b.disabled = true;
+    setStatus("sending", strings.sending);
+    try {
+      const wire = await doorbellEncrypt(pubBytes, new TextEncoder().encode(plaintext));
+      await doorbellSend(wire, relay, d.topic);
+      setStatus("success",
+        strings.success + " (" + new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) + ")");
+    } catch (err) {
+      console.error(err);
+      setStatus("error", strings.error);
+      for (const b of allButtons) b.disabled = false;
+    }
+  }
+
+  for (const btn of ctx.mount.querySelectorAll(".ring-btn")) {
+    btn.addEventListener("click", () => {
+      const key = btn.getAttribute("data-key");
+      const label = btn.getAttribute("data-label");
+      ring(key + "\n" + label);
+    });
+  }
+  const sendBtn = ctx.mount.querySelector(".doorbell-send");
+  const textarea = ctx.mount.querySelector(".doorbell-text");
+  if (sendBtn && textarea) {
+    sendBtn.addEventListener("click", () => {
+      const msg = textarea.value.trim();
+      if (!msg) return;
+      ring("text\n" + msg);
+    });
+  }
+}
+
+// ============================================================
+// Renderer registry
+// ============================================================
+const RENDERERS = {
+  menu:     menuRenderer,
+  doorbell: doorbellRenderer,
+};
+
+// ============================================================
+// Magic-byte dispatch
+// ============================================================
+
+function parseMagicLine(bytes) {
+  // Read up to 4096 bytes or first 0x0A
+  const cap = Math.min(bytes.length, 4096);
+  let nl = -1;
+  for (let i = 0; i < cap; i++) {
+    if (bytes[i] === 0x0a) { nl = i; break; }
+  }
+  if (nl < 0) throw new Error("EMAGIC: no newline within first 4 KB");
+  const line = new TextDecoder("utf-8").decode(bytes.slice(0, nl));
+  const m = line.match(/^!([a-z]+)(\d+)\+(.*)$/);
+  if (!m) throw new Error("EMAGIC: malformed magic line: " + line);
+  return {
+    header: { formatName: m[1], version: parseInt(m[2], 10), params: m[3] },
+    body: bytes.slice(nl + 1)
+  };
+}
+
+// ============================================================
+// Main
+// ============================================================
+
+const BOOTLOADER_URL = location.origin + location.pathname;
+
+async function main() {
+  const root = document.getElementById("root");
+  try {
+    const frag = decodeURIComponent(location.hash.slice(1));
+    if (!frag) {
+      root.innerHTML =
+        '<div class="error">No capsule. This page renders payloads addressed by cradle capsules in the URL fragment. See <a href="https://gentropic.org">gentropic.org</a>.</div>';
+      return;
+    }
+
+    const bytes = resolveCapsule(frag, DICTS);
+    const { header, body } = parseMagicLine(bytes);
+
+    const renderer = RENDERERS[header.formatName];
+    if (!renderer) throw new Error("EUNKNOWN-FORMAT: " + header.formatName);
+
+    await renderer(header, body, {
+      mount: root,
+      bootloaderUrl: BOOTLOADER_URL,
+      capsule: frag,
+    });
+  } catch (err) {
+    root.innerHTML =
+      `<div class="error"><strong>${escapeHtml(err.message.split(":")[0])}</strong>: ${escapeHtml(err.message.split(":").slice(1).join(":").trim() || err.message)}<pre>${escapeHtml(location.hash.slice(1, 200))}${location.hash.length > 201 ? "…" : ""}</pre></div>`;
+    console.error(err);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", main);
+} else {
+  main();
+}
+
+// Service worker registration (silent failure if SW not supported / not served from same origin)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(err => {
+      console.warn("SW registration failed:", err);
+    });
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>menu editor</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#fafaf8">
+<style>
+  :root {
+    --bg: #fafaf8; --pane: #fff; --fg: #1a1a1a; --fg-muted: #6b6b6b; --fg-faint: #999;
+    --border: #e5e5e0; --border-strong: #d0d0c8; --accent: #c4453a;
+    --warn: #b8860b; --warn-bg: #fef9c3; --err: #b91c1c; --err-bg: #fee2e2;
+    --ok: #166534; --code-bg: #f4f4ef; --field-bg: #fbfbf8;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body { font-family: var(--font-sans); background: var(--bg); color: var(--fg); font-size: 14px;
+         line-height: 1.5; display: flex; flex-direction: column; min-height: 100vh; }
+
+  header { padding: 0.5rem 1rem; background: var(--pane); border-bottom: 1px solid var(--border);
+           display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  header h1 { font-size: 0.95rem; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+  header .meta { font-size: 0.78rem; color: var(--fg-muted); }
+  header .spacer { flex: 1; }
+  header a, header button.h-btn {
+    color: var(--fg-muted); text-decoration: none; font-size: 0.78rem;
+    border: 1px solid transparent; background: transparent; cursor: pointer;
+    padding: 0.3rem 0.5rem; border-radius: 3px; font-family: inherit;
+  }
+  header a:hover, header button.h-btn:hover {
+    color: var(--accent); border-color: var(--border); background: var(--bg);
+  }
+
+  /* menu picker button */
+  .picker-wrap { position: relative; }
+  .picker-btn {
+    font-family: inherit; font-size: 0.85rem; padding: 0.35rem 0.7rem;
+    border: 1px solid var(--border-strong); background: white; color: var(--fg);
+    border-radius: 3px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+    max-width: 260px;
+  }
+  .picker-btn:hover { border-color: var(--accent); }
+  .picker-btn .picker-name {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;
+  }
+  .picker-btn .caret { font-size: 0.7rem; color: var(--fg-faint); }
+  .picker-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; min-width: 280px; max-width: 360px;
+    background: white; border: 1px solid var(--border-strong); border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08); z-index: 100; padding: 0.25rem 0; max-height: 70vh; overflow-y: auto;
+    display: none;
+  }
+  .picker-dropdown.open { display: block; }
+  .picker-item {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.75rem;
+    cursor: pointer; border-left: 2px solid transparent;
+  }
+  .picker-item:hover { background: var(--bg); }
+  .picker-item.current { border-left-color: var(--accent); background: var(--field-bg); }
+  .picker-item .pi-text { flex: 1; min-width: 0; }
+  .picker-item .pi-name { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .picker-item .pi-meta { font-size: 0.7rem; color: var(--fg-faint); }
+  .picker-item .pi-del {
+    border: none; background: transparent; color: var(--fg-faint); cursor: pointer;
+    padding: 0.2rem 0.4rem; border-radius: 3px; font-size: 0.85rem;
+  }
+  .picker-item .pi-del:hover { color: var(--err); background: var(--err-bg); }
+  .picker-divider { border-top: 1px solid var(--border); margin: 0.25rem 0; }
+  .picker-action {
+    display: block; width: 100%; text-align: left; padding: 0.45rem 0.75rem;
+    background: transparent; border: none; cursor: pointer; font: inherit; font-size: 0.85rem; color: var(--fg);
+  }
+  .picker-action:hover { background: var(--bg); color: var(--accent); }
+
+  /* modal for URL import */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200;
+    display: none; align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: white; border-radius: 6px; max-width: 540px; width: 100%;
+    padding: 1.25rem; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  }
+  .modal h2 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; }
+  .modal p { margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--fg-muted); }
+  .modal textarea {
+    width: 100%; min-height: 80px; resize: vertical;
+    font-family: var(--font-mono); font-size: 12px; padding: 0.5rem;
+    border: 1px solid var(--border-strong); border-radius: 3px;
+  }
+  .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.75rem; }
+  .modal-actions button {
+    font: inherit; font-size: 0.85rem; padding: 0.45rem 0.9rem;
+    border: 1px solid var(--border-strong); background: white; border-radius: 3px;
+    cursor: pointer; color: var(--fg);
+  }
+  .modal-actions button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .modal-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .modal-actions button.primary:hover { background: #a83b30; color: white; }
+
+  main.shell { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); min-height: 0; }
+  @media (max-width: 900px) { main.shell { grid-template-columns: 1fr; } }
+
+  .pane { background: var(--pane); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .pane-header { padding: 0; border-bottom: 1px solid var(--border); background: var(--bg);
+                 display: flex; align-items: stretch; }
+  .tabs { display: flex; }
+  .tab { padding: 0.55rem 1rem; font-size: 0.72rem; font-weight: 600;
+         text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted);
+         cursor: pointer; border: none; background: transparent;
+         border-right: 1px solid var(--border); border-bottom: 2px solid transparent;
+         margin-bottom: -1px; font-family: inherit; }
+  .tab:hover { color: var(--fg); }
+  .tab.active { color: var(--fg); background: var(--pane); border-bottom-color: var(--accent); }
+  .pane-header.label-only { padding: 0.5rem 1rem; font-size: 0.72rem; font-weight: 600;
+                             text-transform: uppercase; letter-spacing: 0.08em;
+                             color: var(--fg-muted); border-bottom: 1px solid var(--border); background: var(--bg); }
+
+  .mode-panel { flex: 1; display: none; flex-direction: column; min-height: 0; min-width: 0; }
+  .mode-panel.active { display: flex; }
+  textarea#src { flex: 1; min-height: 200px; border: none; padding: 1rem;
+                 font-family: var(--font-mono); font-size: 13px; line-height: 1.55;
+                 resize: none; outline: none; background: var(--pane); color: var(--fg); tab-size: 2; }
+
+  .form-panel { overflow-y: auto; padding: 0.5rem 0; }
+  .form-group { padding: 0.5rem 1rem; }
+  .form-group > details { border: 1px solid var(--border); border-radius: 4px; background: var(--field-bg); }
+  .form-group > details > summary {
+    cursor: pointer; padding: 0.6rem 0.85rem; font-size: 0.78rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted);
+    list-style: none; user-select: none;
+  }
+  .form-group > details > summary::-webkit-details-marker { display: none; }
+  .form-group > details > summary::before {
+    content: "▸"; display: inline-block; width: 1em; transition: transform 0.15s; color: var(--fg-faint);
+  }
+  .form-group > details[open] > summary::before { transform: rotate(90deg); }
+  .form-group > details > .group-body { padding: 0.5rem 0.85rem 0.85rem; }
+
+  .field-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.4rem 0; flex-wrap: wrap; }
+  .field-row > label { font-size: 0.78rem; color: var(--fg-muted); min-width: 110px; flex-shrink: 0; }
+  .field-row > input[type="text"], .field-row > input[type="date"],
+  .field-row > input[type="number"], .field-row > select, .field-row > textarea {
+    font: inherit; font-size: 0.85rem; padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border-strong); border-radius: 3px;
+    background: white; color: var(--fg); min-width: 0; flex: 1;
+  }
+  .field-row > textarea { font-family: var(--font-mono); font-size: 0.78rem; min-height: 60px; resize: vertical; flex-basis: 100%; }
+  .field-row > input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--border-strong); border-radius: 3px; cursor: pointer; }
+  .field-row > input:focus, .field-row > select:focus, .field-row > textarea:focus {
+    outline: none; border-color: var(--accent);
+  }
+
+  .social-row { display: flex; gap: 0.4rem; margin: 0.35rem 0; align-items: center; }
+  .social-row > select { flex-shrink: 0; width: 80px; font: inherit; font-size: 0.8rem; padding: 0.3rem; border: 1px solid var(--border-strong); border-radius: 3px; background: white; }
+  .social-row > input { flex: 1; font: inherit; font-size: 0.85rem; padding: 0.3rem 0.5rem; border: 1px solid var(--border-strong); border-radius: 3px; background: white; }
+  .social-row > button { flex-shrink: 0; }
+
+  .icon-btn { border: 1px solid var(--border); background: white; cursor: pointer;
+              padding: 0.25rem 0.45rem; font-size: 11px; border-radius: 3px;
+              color: var(--fg-muted); font-family: inherit; }
+  .icon-btn:hover { border-color: var(--err); color: var(--err); }
+  .icon-btn.up-down { padding: 0.15rem 0.35rem; font-size: 10px; line-height: 1; }
+  .icon-btn.up-down:hover { color: var(--accent); border-color: var(--accent); }
+  .add-btn { display: inline-block; padding: 0.35rem 0.75rem; margin-top: 0.5rem;
+             font: inherit; font-size: 0.8rem; border: 1px dashed var(--border-strong);
+             background: transparent; color: var(--fg-muted); cursor: pointer; border-radius: 3px; }
+  .add-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  .section-block { border: 1px solid var(--border); border-radius: 4px;
+                   margin: 0.5rem 0; background: var(--pane); }
+  .section-block-header { padding: 0.5rem 0.75rem; display: flex; align-items: center; gap: 0.5rem;
+                          background: var(--field-bg); border-bottom: 1px solid var(--border);
+                          border-radius: 4px 4px 0 0; }
+  .section-block-header > input.section-name {
+    flex: 1; font: inherit; font-size: 0.95rem; font-weight: 600;
+    border: none; background: transparent; padding: 0.2rem 0;
+    color: var(--accent); border-bottom: 1px dotted transparent;
+  }
+  .section-block-header > input.section-name:focus { outline: none; border-bottom-color: var(--accent); }
+  .section-block-header > .reorder { display: flex; flex-direction: column; gap: 1px; }
+  .section-block-body { padding: 0.5rem 0.75rem; }
+
+  .item-row { display: grid; grid-template-columns: 1fr auto auto;
+              gap: 0.4rem 0.5rem; padding: 0.4rem 0; border-bottom: 1px dotted var(--border);
+              align-items: start; }
+  .item-row:last-child { border-bottom: none; }
+  .item-row .item-fields { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+  .item-row input.item-name { font: inherit; font-size: 0.9rem; font-weight: 500; padding: 0.25rem 0.4rem;
+                              border: 1px solid transparent; background: transparent; border-radius: 3px; }
+  .item-row input.item-name:focus, .item-row input.item-name:hover {
+    border-color: var(--border-strong); background: white; outline: none;
+  }
+  .item-row input.item-desc { font: inherit; font-size: 0.78rem; padding: 0.2rem 0.4rem;
+                              border: 1px solid transparent; background: transparent;
+                              color: var(--fg-muted); border-radius: 3px; width: 100%; }
+  .item-row input.item-desc:focus, .item-row input.item-desc:hover {
+    border-color: var(--border-strong); background: white; outline: none; color: var(--fg);
+  }
+  .item-row input.item-price { font: inherit; font-size: 0.9rem; font-weight: 500; padding: 0.25rem 0.4rem;
+                                border: 1px solid var(--border-strong); border-radius: 3px;
+                                background: white; width: 80px; text-align: right;
+                                font-variant-numeric: tabular-nums; }
+  .item-row input.item-price:focus { outline: none; border-color: var(--accent); }
+  .item-controls { display: flex; gap: 0.25rem; align-items: flex-start; }
+  .tag-chips { display: flex; gap: 0.25rem; flex-wrap: wrap; padding: 0.15rem 0.4rem 0; }
+  .tag-chip { font-size: 0.7rem; padding: 0.1rem 0.4rem; border: 1px solid var(--border-strong);
+              border-radius: 10px; cursor: pointer; user-select: none;
+              color: var(--fg-faint); background: transparent; font-family: inherit; }
+  .tag-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .tag-chip.on { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .diagnostics { border-top: 1px solid var(--border); padding: 0.5rem 1rem;
+                 display: flex; gap: 1.25rem; font-size: 0.78rem; color: var(--fg-muted);
+                 background: var(--bg); flex-wrap: wrap; }
+  .diagnostics .metric { display: flex; gap: 0.35rem; }
+  .diagnostics .metric strong { color: var(--fg); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .save-status { color: var(--ok); font-size: 0.72rem; }
+  .save-status.unsaved { color: var(--fg-faint); }
+  .warnings { border-top: 1px solid var(--border); padding: 0.5rem 1rem;
+              font-size: 0.78rem; background: var(--warn-bg); color: var(--warn);
+              max-height: 100px; overflow-y: auto; }
+  .warnings.empty { display: none; }
+  .warnings.error { background: var(--err-bg); color: var(--err); }
+  .warnings ul { margin: 0; padding-left: 1.2rem; }
+
+  .preview-pane { overflow-y: auto; }
+  .qr-section { padding: 1rem; border-bottom: 1px solid var(--border); background: var(--bg);
+                display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+  #qr-canvas { background: white; border: 1px solid var(--border-strong);
+               border-radius: 4px; padding: 8px; width: 200px; height: 200px;
+               image-rendering: pixelated; flex-shrink: 0; }
+  .qr-actions { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 160px; }
+  .qr-actions button { font: inherit; font-size: 0.85rem; padding: 0.45rem 0.75rem;
+                       border: 1px solid var(--border-strong); background: white;
+                       border-radius: 3px; cursor: pointer; color: var(--fg); text-align: left; }
+  .qr-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .qr-actions .url-display { font-family: var(--font-mono); font-size: 10px; color: var(--fg-faint);
+                             background: var(--code-bg); padding: 0.4rem 0.5rem; border-radius: 3px;
+                             border: 1px solid var(--border); word-break: break-all; max-height: 60px;
+                             overflow-y: auto; line-height: 1.4; }
+  .qr-actions .ecc-row { display: flex; gap: 0.35rem; align-items: center; font-size: 0.78rem; color: var(--fg-muted); }
+  .qr-actions .ecc-row select { font: inherit; font-size: 0.78rem; padding: 2px 6px;
+                                 border: 1px solid var(--border-strong); background: white; border-radius: 3px; }
+
+  .menu-preview { padding: 0; background: white; }
+  .menu-frame { padding: 1.5rem 1.25rem 2rem; max-width: 480px; margin: 0 auto;
+                --menu-accent: #444; --menu-fg: #1a1a1a; --menu-fg-muted: #666; --menu-fg-faint: #999;
+                --menu-rule: rgba(0,0,0,0.1); --menu-tag-bg: rgba(0,0,0,0.06); --menu-bg: #fff;
+                color: var(--menu-fg); background: var(--menu-bg); line-height: 1.55; }
+  .menu-frame.tmpl-bistro h1 { font-family: Georgia, serif; font-style: italic; }
+  .menu-frame.tmpl-bistro .item-name { font-family: Georgia, serif; font-size: 1.05rem; }
+  .menu-frame.tmpl-serif { font-family: Georgia, serif; }
+  .menu-frame.tmpl-serif h2 { font-family: var(--font-sans); }
+  .menu-frame.tmpl-dark { background: #1a1a1a; color: #e8e8e8;
+                          --menu-fg: #e8e8e8; --menu-fg-muted: #aaa; --menu-fg-faint: #666;
+                          --menu-rule: rgba(255,255,255,0.15); --menu-tag-bg: rgba(255,255,255,0.08); }
+  .menu-frame h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.4rem; color: var(--menu-accent); }
+  .menu-frame h2 { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+                   color: var(--menu-fg-muted); margin: 1.5rem 0 0.4rem; padding-bottom: 0.3rem;
+                   border-bottom: 1px solid var(--menu-rule); }
+  .menu-frame p { margin: 0.5rem 0; color: var(--menu-fg); }
+  .menu-frame p em { color: var(--menu-fg-muted); font-style: italic; }
+  .menu-frame a { color: var(--menu-accent); text-decoration: underline; text-underline-offset: 2px; }
+  .menu-frame hr { border: 0; border-top: 1px solid var(--menu-rule); margin: 1.75rem 0 1rem; }
+  .menu-frame .item { display: flex; gap: 1rem; align-items: baseline;
+                      padding: 0.55rem 0; border-bottom: 1px dotted var(--menu-rule); }
+  .menu-frame .item:last-child { border-bottom: none; }
+  .menu-frame .item-body { flex: 1; min-width: 0; }
+  .menu-frame .item-name { font-size: 0.95rem; font-weight: 500; }
+  .menu-frame .item-desc { font-size: 0.8rem; color: var(--menu-fg-muted); margin-top: 0.1rem; line-height: 1.4; }
+  .menu-frame .item-price { font-size: 0.9rem; font-weight: 500; white-space: nowrap;
+                             font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .menu-frame .tag { display: inline-block; font-size: 0.65rem; padding: 0.05rem 0.35rem;
+                     border-radius: 3px; background: var(--menu-tag-bg); color: var(--menu-fg-muted);
+                     margin-left: 0.3rem; vertical-align: 1px; }
+  .menu-frame .stale { background: #fef3c7; color: #78350f; border: 1px solid #fbbf24;
+                        padding: 0.6rem 0.8rem; border-radius: 4px; margin-bottom: 1.25rem; font-size: 0.85rem; }
+  .menu-frame footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--menu-rule);
+                        font-size: 0.75rem; color: var(--menu-fg-muted); }
+  .menu-frame .footer-line { margin: 0.2rem 0; }
+  .menu-frame .socials { display: flex; gap: 0.5rem; margin: 0.6rem 0; flex-wrap: wrap; }
+  .menu-frame .socials a { display: inline-flex; align-items: center; gap: 0.25rem;
+                            text-decoration: none; color: var(--menu-fg-muted);
+                            padding: 0.25rem 0.5rem; border: 1px solid var(--menu-rule);
+                            border-radius: 3px; font-size: 0.75rem; }
+  .menu-frame .socials svg { width: 12px; height: 12px; flex-shrink: 0; }
+  .menu-frame .attribution { font-size: 0.65rem; color: var(--menu-fg-faint); text-align: center;
+                              margin-top: 1.25rem; letter-spacing: 0.04em; }
+
+  .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+           background: var(--fg); color: white; padding: 0.5rem 1rem; border-radius: 4px;
+           font-size: 0.85rem; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 300; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>menu editor</h1>
+  <div class="picker-wrap">
+    <button class="picker-btn" id="picker-btn">
+      <span class="picker-name" id="picker-current">Untitled</span>
+      <span class="caret">▾</span>
+    </button>
+    <div class="picker-dropdown" id="picker-dropdown"></div>
+  </div>
+  <span class="meta save-status" id="save-status">saved</span>
+  <span class="spacer"></span>
+  <button class="h-btn" id="open-import">Import URL</button>
+  <button class="h-btn" id="load-sample">Load sample</button>
+  <a href="https://gentropic.org/cradle" target="_blank">decoder ↗</a>
+</header>
+
+<main class="shell">
+  <section class="pane">
+    <div class="pane-header">
+      <div class="tabs">
+        <button class="tab active" data-mode="form">Form</button>
+        <button class="tab" data-mode="source">Source</button>
+      </div>
+    </div>
+
+    <div class="mode-panel form-panel active" id="form-mode">
+      <div class="form-group"><details open><summary>Header</summary><div class="group-body">
+        <div class="field-row"><label>Locale</label>
+          <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
+        <div class="field-row"><label>Restaurant name</label>
+          <input type="text" id="f-title" placeholder="Cantina del Garibaldi"></div>
+        <div class="field-row"><label>Subtitle</label>
+          <input type="text" id="f-subtitle" placeholder="Cozinha italiana · cidade"></div>
+      </div></details></div>
+
+      <div class="form-group"><details open><summary>Style</summary><div class="group-body">
+        <div class="field-row"><label>Template</label>
+          <select id="f-template">
+            <option>minimal</option><option>bistro</option>
+            <option>serif</option><option>dark</option></select></div>
+        <div class="field-row"><label>Accent color</label>
+          <input type="color" id="f-accent-picker" value="#444444">
+          <input type="text" id="f-accent-text" placeholder="#c4453a or color name" style="flex: 1;"></div>
+      </div></details></div>
+
+      <div class="form-group"><details><summary>Status</summary><div class="group-body">
+        <div class="field-row"><label>Valid until</label><input type="date" id="f-valid-until"></div>
+        <div class="field-row"><label>Service charge</label><input type="text" id="f-service" placeholder="10%"></div>
+        <div class="field-row"><label>Couvert</label><input type="text" id="f-couvert" placeholder="8.00"></div>
+      </div></details></div>
+
+      <div class="form-group"><details><summary>Social</summary><div class="group-body">
+        <div id="f-socials"></div>
+        <button class="add-btn" id="add-social">+ Add link</button>
+      </div></details></div>
+
+      <div class="form-group"><details open><summary>Menu sections</summary><div class="group-body">
+        <div id="f-sections"></div>
+        <button class="add-btn" id="add-section">+ Add section</button>
+      </div></details></div>
+
+      <div class="form-group"><details><summary>Footer text</summary><div class="group-body">
+        <div class="field-row">
+          <textarea id="f-footer" placeholder="Closing notes, reservations, disclaimers — markdown supported."></textarea>
+        </div>
+      </div></details></div>
+    </div>
+
+    <div class="mode-panel" id="source-mode"><textarea id="src" spellcheck="false"></textarea></div>
+
+    <div class="diagnostics" id="diagnostics">
+      <div class="metric">raw <strong id="m-raw">—</strong></div>
+      <div class="metric">deflated <strong id="m-defl">—</strong></div>
+      <div class="metric">URL <strong id="m-url">—</strong></div>
+      <div class="metric">QR <strong id="m-qr">—</strong></div>
+    </div>
+    <div class="warnings empty" id="warnings"></div>
+  </section>
+
+  <section class="pane preview-pane">
+    <div class="pane-header label-only">Preview</div>
+    <div class="qr-section">
+      <canvas id="qr-canvas" width="200" height="200"></canvas>
+      <div class="qr-actions">
+        <div class="ecc-row">ECC:
+          <select id="ecc">
+            <option value="L">L (low, smallest)</option>
+            <option value="M" selected>M (default)</option>
+            <option value="Q">Q (high)</option>
+            <option value="H">H (highest)</option>
+          </select>
+        </div>
+        <button id="copy-url">copy URL</button>
+        <button id="download-qr">download QR (PNG)</button>
+        <button id="download-menu">download .menu source</button>
+        <div class="url-display" id="url-display">—</div>
+      </div>
+    </div>
+    <div class="menu-preview"><div class="menu-frame tmpl-minimal" id="menu-frame"></div></div>
+  </section>
+</main>
+
+<!-- Import modal -->
+<div class="modal-backdrop" id="import-modal">
+  <div class="modal">
+    <h2>Import a menu from URL</h2>
+    <p>Paste a <code>gentropic.org/cradle#…</code> URL (or any menu1-encoded URL) to decode it into the editor.</p>
+    <textarea id="import-url" placeholder="https://gentropic.org/cradle#BA4W96X9ELW..."></textarea>
+    <div class="modal-actions">
+      <button id="import-cancel">Cancel</button>
+      <button class="primary" id="import-confirm">Import</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">copied</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+"use strict";
+
+// ============================================================
+// Dictionary — MUST be byte-identical to bootloader & encoder.py
+// ============================================================
+const DICT_PT_BR =
+  "|garrafa\n" +
+  "|6 unidades\n|8 unidades\n" +
+  "## Vinhos brancos\n## Vinhos tintos\n## Espumantes\n" +
+  "## Entradas\n## Principais\n## Massas\n## Sobremesas\n## Sushi\n## Sashimi\n" +
+  "## Hot rolls\n## Combinados\n## Pratos quentes\n## Bebidas\n## Cafés\n" +
+  "manjericão, " +
+  "molho de tomate, parmesão reggiano, azeite extra virgem, " +
+  "salmão grelhado, filé mignon, picanha, frango à parmegiana, " +
+  "risoto de cogumelos, sorvete de creme, " +
+  "frutas vermelhas, leite de coco, " +
+  "calda de caramelo, calda de chocolate, " +
+  "molho madeira, molho de pimenta, " +
+  "carpaccio, bruschetta, tiramisù, cheesecake, petit gateau, pudim, " +
+  "spaghetti, linguine, ravioli, lasanha, nhoque, fettuccine, " +
+  "queijo, presunto, alho, cebola, tomate, batata, arroz, " +
+  "salmão, atum, camarão, filé, frango, carne, peixe, polvo, lula, " +
+  "yakisoba, niguiri, sashimi, uramaki, hot roll, harumaki, gyoza, tempura, " +
+  "philadelphia, california, " +
+  "espresso, cappuccino, café com leite, mocha, chocolate quente, " +
+  "tapioca, pão de queijo, brigadeiro, beijinho, " +
+  "porção, unidades, garrafa, taça, copo, " +
+  "@template: minimal\n@template: bistro\n@template: serif\n@template: dark\n" +
+  "@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+const DICT_EN_US =
+  "|bottle\n" +
+  "|6 pack\n|case of 12\n" +
+  "## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n" +
+  "## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n" +
+  "## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n" +
+  "## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n" +
+  "## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\n" +
+  "extra virgin olive oil, " +
+  "fresh mozzarella, parmesan reggiano, aged cheddar, " +
+  "grilled salmon, grilled chicken, ribeye steak, filet mignon, " +
+  "mushroom risotto, vanilla ice cream, " +
+  "mixed berries, coconut milk, " +
+  "caramel sauce, chocolate sauce, " +
+  "red wine reduction, lemon butter sauce, " +
+  "carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, " +
+  "spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, " +
+  "cheese, ham, garlic, onion, tomato, potato, rice, " +
+  "salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, " +
+  "yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, " +
+  "philadelphia, california, dragon roll, spicy tuna, " +
+  "espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, " +
+  "cheeseburger, hamburger, club sandwich, caesar salad, greek salad, " +
+  "french fries, sweet potato fries, onion rings, mashed potatoes, " +
+  "served with, comes with, side of, choice of, " +
+  "@template: minimal\n@template: bistro\n@template: serif\n@template: dark\n" +
+  "@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
+const DICTS = { "pt-BR": DICT_PT_BR, "en-US": DICT_EN_US };
+
+const LOCALE_STRINGS = {
+  "pt-BR": {
+    stale: (date) => `Este cardápio expirou em ${formatDate(date, "pt-BR")}. Confirme os preços com o garçom.`,
+    service: (pct) => `Serviço (${pct}) não incluso.`,
+    couvert: (val) => `Couvert ${formatMoney(val, "pt-BR")}.`,
+    tags: { v: "vegano", vg: "vegetariano", g: "sem glúten", l: "sem lactose", p: "picante" },
+  },
+  "en-US": {
+    stale: (date) => `This menu expired on ${formatDate(date, "en-US")}. Please confirm prices with your server.`,
+    service: (pct) => `Service charge: ${pct}.`,
+    couvert: (val) => `Cover: ${formatMoney(val, "en-US")}.`,
+    tags: { v: "vegan", vg: "vegetarian", gf: "gluten-free", df: "dairy-free", sp: "spicy" },
+  },
+};
+const VALID_TEMPLATES = ["minimal", "bistro", "serif", "dark"];
+const SOCIAL_PREFIXES = [
+  ["ig", "Instagram"], ["fb", "Facebook"], ["x", "X"],
+  ["tk", "TikTok"], ["ws", "WhatsApp"], ["web", "Website"],
+];
+
+// ============================================================
+// base45 encode + decode
+// ============================================================
+const B45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+const B45_REV = (() => { const r = {}; for (let i = 0; i < B45.length; i++) r[B45[i]] = i; return r; })();
+function base45Encode(bytes) {
+  const out = [];
+  for (let i = 0; i < bytes.length; i += 2) {
+    if (i + 1 < bytes.length) {
+      const n = bytes[i] * 256 + bytes[i + 1];
+      out.push(B45[n % 45], B45[Math.floor(n / 45) % 45], B45[Math.floor(n / (45 * 45))]);
+    } else {
+      const n = bytes[i];
+      out.push(B45[n % 45], B45[Math.floor(n / 45)]);
+    }
+  }
+  return out.join("");
+}
+function base45Decode(s) {
+  const out = [];
+  for (let i = 0; i < s.length; i += 3) {
+    const chunk = s.slice(i, i + 3);
+    let n = 0;
+    for (let j = chunk.length - 1; j >= 0; j--) {
+      const v = B45_REV[chunk[j]];
+      if (v === undefined) throw new Error("invalid base45 character: " + chunk[j]);
+      n = n * 45 + v;
+    }
+    if (chunk.length === 3) out.push((n >> 8) & 0xff, n & 0xff);
+    else if (chunk.length === 2) out.push(n & 0xff);
+  }
+  return new Uint8Array(out);
+}
+
+// ============================================================
+// helpers, parser, renderer (same as before)
+// ============================================================
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                                    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function renderInline(text) {
+  let s = escapeHtml(text);
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => {
+    const safe = u.startsWith("http://") || u.startsWith("https://") || u.startsWith("mailto:") ? u : "#";
+    return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${t}</a>`;
+  });
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  return s;
+}
+function formatMoney(value, locale) {
+  const n = parseFloat(value); if (isNaN(n)) return value;
+  if (locale === "pt-BR") return "R$ " + n.toFixed(2).replace(".", ",");
+  return "$" + n.toFixed(2);
+}
+function formatPrice(price, locale) {
+  const m = String(price == null ? "" : price).match(/^(\d+(?:\.\d+)?)(\/(?:kg|un))?$/);
+  if (!m) return price;
+  return formatMoney(m[1], locale) + (m[2] || "");
+}
+function formatDate(iso, locale) {
+  try { const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" });
+  } catch (e) { return iso; }
+}
+function parseBody(body) {
+  const lines = body.split("\n");
+  const directives = {}; const blocks = []; let inDirective = true;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { inDirective = false; continue; }
+    if (inDirective && line.startsWith("@") && line.includes(":")) {
+      const idx = line.indexOf(":");
+      directives[line.slice(1, idx).trim()] = line.slice(idx + 1).trim();
+      continue;
+    }
+    inDirective = false;
+    if (line === "---") { blocks.push({ type: "hr" }); continue; }
+    if (line.startsWith("## ")) { blocks.push({ type: "h2", text: line.slice(3) }); continue; }
+    if (line.startsWith("# ")) { blocks.push({ type: "h1", text: line.slice(2) }); continue; }
+    if (line.includes("|")) {
+      const parts = line.split("|").map(p => p.trim());
+      blocks.push({ type: "item", name: parts[0] || "", price: parts[1] || "",
+                    desc: parts[2] || "", tags: (parts[3] || "").split(",").map(t => t.trim()).filter(Boolean) });
+      continue;
+    }
+    blocks.push({ type: "p", text: line });
+  }
+  return { directives, blocks };
+}
+
+function parseToFormState(source) {
+  const text = source.trim();
+  const nl = text.indexOf("\n");
+  const prefixLine = nl >= 0 ? text.slice(0, nl) : text;
+  const body = nl >= 0 ? text.slice(nl + 1) : "";
+  const m = prefixLine.match(/^!menu1\+([A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?)$/);
+  const locale = m ? m[1] : "pt-BR";
+  const parsed = parseBody(body);
+  const socials = [];
+  if (parsed.directives.social) {
+    for (const pair of parsed.directives.social.split(",")) {
+      const [prefix, handle] = pair.split("=").map(s => s.trim());
+      if (prefix && handle) socials.push({ prefix, handle });
+    }
+  }
+  const state = {
+    locale, template: parsed.directives.template || "minimal",
+    accent: parsed.directives.accent || "",
+    valid_until: parsed.directives.valid_until || "",
+    service: parsed.directives.service || "",
+    couvert: parsed.directives.couvert || "",
+    socials, title: "", subtitle: "", sections: [], footer: "",
+  };
+  let phase = "header"; let currentSection = null; const footerLines = [];
+  for (const b of parsed.blocks) {
+    if (phase === "header") {
+      if (b.type === "h1" && !state.title) { state.title = b.text; continue; }
+      if (b.type === "p" && !state.subtitle && state.title) {
+        state.subtitle = b.text.replace(/^\*(.*)\*$/, "$1"); continue;
+      }
+      if (b.type === "h2" || (b.type === "h1" && state.title)) {
+        phase = "sections"; currentSection = { name: b.text, items: [] };
+        state.sections.push(currentSection); continue;
+      }
+    }
+    if (phase === "sections") {
+      if (b.type === "h2" || b.type === "h1") {
+        currentSection = { name: b.text, items: [] }; state.sections.push(currentSection); continue;
+      }
+      if (b.type === "item") {
+        if (!currentSection) { currentSection = { name: "Items", items: [] }; state.sections.push(currentSection); }
+        currentSection.items.push({ name: b.name, price: b.price, desc: b.desc, tags: b.tags });
+        continue;
+      }
+      if (b.type === "hr") { phase = "footer"; continue; }
+    }
+    if (phase === "footer") {
+      if (b.type === "p") footerLines.push(b.text);
+      else if (b.type === "h1" || b.type === "h2") footerLines.push((b.type === "h1" ? "# " : "## ") + b.text);
+    }
+  }
+  state.footer = footerLines.join("\n\n");
+  return state;
+}
+function serializeFromFormState(s) {
+  let out = `!menu1+${s.locale}\n`;
+  if (s.template && s.template !== "minimal") out += `@template: ${s.template}\n`;
+  if (s.accent) out += `@accent: ${s.accent}\n`;
+  if (s.valid_until) out += `@valid_until: ${s.valid_until}\n`;
+  if (s.service) out += `@service: ${s.service}\n`;
+  if (s.couvert) out += `@couvert: ${s.couvert}\n`;
+  if (s.socials && s.socials.length) {
+    const pairs = s.socials.filter(x => x.prefix && x.handle).map(x => `${x.prefix}=${x.handle}`);
+    if (pairs.length) out += `@social: ${pairs.join(", ")}\n`;
+  }
+  if (s.title) out += `\n# ${s.title}\n`;
+  if (s.subtitle) out += `\n*${s.subtitle}*\n`;
+  for (const sec of s.sections) {
+    out += `\n## ${sec.name || ""}\n`;
+    for (const it of sec.items) {
+      const parts = [it.name || "", it.price || ""];
+      const hasTags = it.tags && it.tags.length > 0;
+      if (it.desc || hasTags) parts.push(it.desc || "");
+      if (hasTags) parts.push(it.tags.join(", "));
+      out += parts.join("|") + "\n";
+    }
+  }
+  if (s.footer && s.footer.trim()) out += `\n---\n\n${s.footer.trim()}\n`;
+  return out;
+}
+
+const ICONS = {
+  ig: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>',
+  fb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>',
+  x:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l16 16M20 4L4 20"/></svg>',
+  tk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>',
+  ws: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+  web:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+};
+function socialLink(prefix, handle) {
+  if (!ICONS[prefix]) return null;
+  switch (prefix) {
+    case "ig":  return { url: `https://instagram.com/${handle}`, label: `@${handle}` };
+    case "fb":  return { url: `https://facebook.com/${handle}`,  label: handle };
+    case "x":   return { url: `https://x.com/${handle}`,         label: `@${handle}` };
+    case "tk":  return { url: `https://tiktok.com/@${handle}`,   label: `@${handle}` };
+    case "ws":  return { url: `https://wa.me/${handle}`,         label: "WhatsApp" };
+    case "web": return { url: `https://${handle}`,               label: handle };
+  }
+  return null;
+}
+function renderToFrame(parsed, locale, frameEl) {
+  const strings = LOCALE_STRINGS[locale] || LOCALE_STRINGS["pt-BR"];
+  const dirs = parsed.directives;
+  const tmpl = VALID_TEMPLATES.includes(dirs.template) ? dirs.template : "minimal";
+  frameEl.className = "menu-frame tmpl-" + tmpl;
+  frameEl.style.setProperty("--menu-accent", dirs.accent || "#444");
+  const parts = [];
+  if (dirs.valid_until) {
+    const expiry = new Date(dirs.valid_until + "T23:59:59");
+    if (!isNaN(expiry) && expiry < new Date()) {
+      parts.push(`<div class="stale">${escapeHtml(strings.stale(dirs.valid_until))}</div>`);
+    }
+  }
+  for (const b of parsed.blocks) {
+    if (b.type === "h1") parts.push(`<h1>${renderInline(b.text)}</h1>`);
+    else if (b.type === "h2") parts.push(`<h2>${renderInline(b.text)}</h2>`);
+    else if (b.type === "p") parts.push(`<p>${renderInline(b.text)}</p>`);
+    else if (b.type === "hr") parts.push(`<hr>`);
+    else if (b.type === "item") {
+      const tagsHtml = b.tags.filter(t => strings.tags[t])
+        .map(t => `<span class="tag" title="${escapeHtml(strings.tags[t])}">${escapeHtml(t)}</span>`).join("");
+      const priceHtml = b.price ? `<div class="item-price">${escapeHtml(formatPrice(b.price, locale))}</div>` : "";
+      const descHtml = b.desc ? `<div class="item-desc">${renderInline(b.desc)}</div>` : "";
+      parts.push(`<div class="item"><div class="item-body"><div class="item-name">${renderInline(b.name)}${tagsHtml}</div>${descHtml}</div>${priceHtml}</div>`);
+    }
+  }
+  const footerLines = [];
+  if (dirs.service) footerLines.push(strings.service(dirs.service));
+  if (dirs.couvert) footerLines.push(strings.couvert(dirs.couvert));
+  if (dirs.social || footerLines.length) {
+    let footer = '<footer>';
+    for (const l of footerLines) footer += `<div class="footer-line">${escapeHtml(l)}</div>`;
+    if (dirs.social) {
+      footer += '<div class="socials">';
+      for (const pair of dirs.social.split(",")) {
+        const [prefix, handle] = pair.split("=").map(s => s.trim());
+        const link = socialLink(prefix, handle);
+        if (link) footer += `<a href="${link.url}" target="_blank" rel="noopener noreferrer">${ICONS[prefix]}<span>${escapeHtml(link.label)}</span></a>`;
+      }
+      footer += '</div>';
+    }
+    footer += '</footer>';
+    parts.push(footer);
+  }
+  parts.push(`<div class="attribution">decoded from QR · gentropic.org/cradle</div>`);
+  frameEl.innerHTML = parts.join("");
+}
+
+const VALID_TAGS_BY_LOCALE = {
+  "pt-BR": new Set(["v", "vg", "g", "l", "p"]),
+  "en-US": new Set(["v", "vg", "gf", "df", "sp"]),
+};
+function validate(source) {
+  const warnings = [];
+  if (!source.trim()) return { warnings: ["empty source"], fatal: true };
+  const lines = source.split("\n");
+  const m = lines[0].match(/^!q(\d+)\+([A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?)$/);
+  if (!m) return { warnings: [`first line must be !menu1+<locale>, got ${JSON.stringify(lines[0])}`], fatal: true };
+  if (parseInt(m[1]) !== 1) return { warnings: [`unsupported q version: ${m[1]}`], fatal: true };
+  const locale = m[2];
+  if (!DICTS[locale]) return { warnings: [`unknown locale: ${locale}`], fatal: true };
+  const validTags = VALID_TAGS_BY_LOCALE[locale] || new Set();
+  let lineno = 1;
+  for (const raw of lines.slice(1)) {
+    lineno++;
+    const line = raw.trim();
+    if (!line || line.startsWith("@") || line.startsWith("#") || line === "---") continue;
+    if (line.includes("|")) {
+      const parts = line.split("|");
+      if (parts.length > 4) warnings.push(`line ${lineno}: too many fields (${parts.length})`);
+      if (parts.length >= 4 && parts[3].trim()) {
+        for (const t of parts[3].split(",").map(x => x.trim()).filter(Boolean)) {
+          if (!validTags.has(t)) warnings.push(`line ${lineno}: unknown tag "${t}" for ${locale}`);
+        }
+      }
+    }
+  }
+  return { warnings, fatal: false, locale };
+}
+
+// Locale → dict-id (lowercase, no hyphens, prefixed with menu-).
+// Mirror of SPEC-menu.md §2.1.
+function localeToDictId(locale) {
+  return "menu-" + locale.toLowerCase().replace(/-/g, "");
+}
+
+function encodeMenu(source) {
+  // Source includes the magic line. The whole thing (magic + body) is
+  // compressed as one stream under the locale's dictionary, base45-encoded,
+  // and prefixed with the q: scheme + dict-id framing.
+  const text = source.trim();
+  const nl = text.indexOf("\n");
+  const prefixLine = nl >= 0 ? text.slice(0, nl) : text;
+  const m = prefixLine.match(/^!menu(\d+)\+([A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?)$/);
+  if (!m) throw new Error("invalid magic line; expected !menu<version>+<locale>");
+  if (parseInt(m[1]) !== 1) throw new Error("unsupported menu version: " + m[1]);
+  const locale = m[2];
+  if (!DICTS[locale]) throw new Error("unknown locale: " + locale);
+
+  const dictId = localeToDictId(locale);
+  const dictBytes = new TextEncoder().encode(DICTS[locale]);
+  const payloadBytes = new TextEncoder().encode(text + "\n");
+  const deflated = pako.deflateRaw(payloadBytes, { level: 9, dictionary: dictBytes });
+  const b45 = base45Encode(deflated);
+  const escaped = b45.replace(/%/g, "%25").replace(/ /g, "%20");
+  const capsule = "q:d." + dictId + "_" + escaped;
+  return {
+    url: "https://gentropic.org/cradle#" + capsule,
+    raw: payloadBytes.length,
+    deflated: deflated.length,
+    locale,
+    dictId,
+  };
+}
+
+function decodeMenuFromUrl(urlOrFragment) {
+  // Accept full URL or just the fragment, with optional q: prefix.
+  let frag = urlOrFragment;
+  if (frag.includes("#")) frag = frag.split("#", 2)[1];
+  frag = decodeURIComponent(frag);
+
+  // Strip scheme if present
+  let body;
+  if (frag.startsWith("q:")) {
+    body = frag.slice(2);
+  } else {
+    throw new Error("expected q: scheme capsule in fragment");
+  }
+  if (body[0] !== "d") throw new Error("expected deflate codec");
+  if (body[1] !== ".") throw new Error("expected dict-id after codec");
+  const us = body.indexOf("_", 2);
+  if (us < 0) throw new Error("dict-id missing underscore terminator");
+  const dictId = body.slice(2, us);
+  const b45Payload = body.slice(us + 1);
+
+  // Map dict-id back to locale (reverse of localeToDictId).
+  const m = dictId.match(/^menu-([a-z]+)$/);
+  if (!m) throw new Error("unrecognized dict-id: " + dictId);
+  // We only support pt-BR and en-US in this build; locale lookup table:
+  const localeLookup = { ptbr: "pt-BR", enus: "en-US" };
+  const locale = localeLookup[m[1]];
+  if (!locale) throw new Error("unknown dict-id locale: " + dictId);
+
+  const compressed = base45Decode(b45Payload);
+  const dictBytes = new TextEncoder().encode(DICTS[locale]);
+  const inflated = pako.inflateRaw(compressed, { dictionary: dictBytes });
+  const fullText = new TextDecoder("utf-8").decode(inflated);
+
+  // Verify the magic line matches the locale derived from dict-id
+  const nlIdx = fullText.indexOf("\n");
+  if (nlIdx < 0) throw new Error("no magic line in decoded payload");
+  const magic = fullText.slice(0, nlIdx);
+  const mm = magic.match(/^!menu(\d+)\+([A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?)$/);
+  if (!mm) throw new Error("invalid magic line: " + magic);
+  if (mm[2] !== locale) console.warn("magic-line locale differs from dict-id locale: " + mm[2] + " vs " + locale);
+
+  return fullText;
+}
+
+function drawQR(text, eccLevel, canvas) {
+  let lastError;
+  for (let v = 1; v <= 40; v++) {
+    try {
+      const qr = qrcode(v, eccLevel); qr.addData(text, "Byte"); qr.make();
+      const moduleCount = qr.getModuleCount();
+      const ctx = canvas.getContext("2d");
+      const cssSize = 200; const dpr = window.devicePixelRatio || 1;
+      const scale = Math.floor((cssSize * dpr) / (moduleCount + 4));
+      const px = scale * (moduleCount + 4);
+      canvas.width = px; canvas.height = px;
+      canvas.style.width = cssSize + "px"; canvas.style.height = cssSize + "px";
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, px, px); ctx.fillStyle = "#000";
+      const off = scale * 2;
+      for (let r = 0; r < moduleCount; r++)
+        for (let c = 0; c < moduleCount; c++)
+          if (qr.isDark(r, c)) ctx.fillRect(off + c * scale, off + r * scale, scale, scale);
+      return { version: v, modules: moduleCount };
+    } catch (e) { lastError = e; }
+  }
+  throw lastError || new Error("payload too large for QR");
+}
+
+// ============================================================
+// Saved menus storage (localStorage)
+// ============================================================
+const STORE_PREFIX = "menu1:menu:";
+const STORE_CURRENT = "menu1:current_id";
+const STORE_NEXT_ID = "menu1:next_id";
+
+function listMenus() {
+  const menus = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith(STORE_PREFIX)) {
+      const raw = localStorage.getItem(key);
+      let source = raw, updated_at = 0;
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === "object" && "source" in obj) {
+          source = obj.source; updated_at = obj.updated_at || 0;
+        }
+      } catch (e) { /* legacy plain-string format, treat raw as source */ }
+      menus.push({ id: key.slice(STORE_PREFIX.length), source, updated_at });
+    }
+  }
+  return menus.sort((a, b) => b.updated_at - a.updated_at);
+}
+function nextMenuId() {
+  const n = parseInt(localStorage.getItem(STORE_NEXT_ID) || "1", 10);
+  localStorage.setItem(STORE_NEXT_ID, String(n + 1));
+  return String(n);
+}
+function getMenu(id) {
+  const raw = localStorage.getItem(STORE_PREFIX + id);
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === "object" && "source" in obj) return obj.source;
+  } catch (e) { /* legacy plain-string */ }
+  return raw;
+}
+function setMenu(id, source) {
+  localStorage.setItem(STORE_PREFIX + id, JSON.stringify({ source, updated_at: Date.now() }));
+}
+function deleteMenu(id) {
+  localStorage.removeItem(STORE_PREFIX + id);
+  if (localStorage.getItem(STORE_CURRENT) === id) localStorage.removeItem(STORE_CURRENT);
+}
+function getCurrentMenuId() { return localStorage.getItem(STORE_CURRENT); }
+function setCurrentMenuId(id) {
+  if (id) localStorage.setItem(STORE_CURRENT, id);
+  else localStorage.removeItem(STORE_CURRENT);
+}
+function menuTitle(source) {
+  if (!source) return "Untitled";
+  const lines = source.split("\n");
+  for (const ln of lines) {
+    const t = ln.trim();
+    if (t.startsWith("# ") && !t.startsWith("## ")) return t.slice(2);
+  }
+  return "Untitled";
+}
+
+// ============================================================
+// Form rendering (incremental, focus-stable)
+// ============================================================
+function buildSocialRow(prefix, handle) {
+  const div = document.createElement("div"); div.className = "social-row";
+  const sel = document.createElement("select");
+  for (const [p, label] of SOCIAL_PREFIXES) {
+    const opt = document.createElement("option"); opt.value = p; opt.textContent = label;
+    if (p === prefix) opt.selected = true; sel.appendChild(opt);
+  }
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.value = handle || ""; inp.placeholder = "handle";
+  const rm = document.createElement("button");
+  rm.className = "icon-btn"; rm.textContent = "✕"; rm.title = "remove";
+  rm.addEventListener("click", () => { div.remove(); flushFormToSource(); });
+  sel.addEventListener("change", flushFormToSource);
+  inp.addEventListener("input", flushFormToSource);
+  div.appendChild(sel); div.appendChild(inp); div.appendChild(rm);
+  return div;
+}
+function buildItemRow(it, locale) {
+  const tagDefs = (LOCALE_STRINGS[locale] || LOCALE_STRINGS["pt-BR"]).tags;
+  const div = document.createElement("div"); div.className = "item-row";
+  const fields = document.createElement("div"); fields.className = "item-fields";
+  const nameInput = document.createElement("input");
+  nameInput.type = "text"; nameInput.className = "item-name";
+  nameInput.value = it.name || ""; nameInput.placeholder = "Item name";
+  const descInput = document.createElement("input");
+  descInput.type = "text"; descInput.className = "item-desc";
+  descInput.value = it.desc || ""; descInput.placeholder = "Description (optional)";
+  const chips = document.createElement("div"); chips.className = "tag-chips";
+  for (const [code, label] of Object.entries(tagDefs)) {
+    const chip = document.createElement("button");
+    chip.type = "button"; chip.className = "tag-chip";
+    chip.textContent = code; chip.title = label; chip.dataset.tag = code;
+    if (it.tags && it.tags.includes(code)) chip.classList.add("on");
+    chip.addEventListener("click", () => { chip.classList.toggle("on"); flushFormToSource(); });
+    chips.appendChild(chip);
+  }
+  fields.appendChild(nameInput); fields.appendChild(descInput); fields.appendChild(chips);
+  const priceInput = document.createElement("input");
+  priceInput.type = "text"; priceInput.className = "item-price";
+  priceInput.value = it.price || ""; priceInput.placeholder = "0";
+  const controls = document.createElement("div"); controls.className = "item-controls";
+  const upBtn = document.createElement("button");
+  upBtn.className = "icon-btn up-down"; upBtn.textContent = "▲"; upBtn.title = "move up";
+  upBtn.addEventListener("click", () => {
+    const prev = div.previousElementSibling;
+    if (prev) { div.parentNode.insertBefore(div, prev); flushFormToSource(); }
+  });
+  const dnBtn = document.createElement("button");
+  dnBtn.className = "icon-btn up-down"; dnBtn.textContent = "▼"; dnBtn.title = "move down";
+  dnBtn.addEventListener("click", () => {
+    const next = div.nextElementSibling;
+    if (next) { div.parentNode.insertBefore(next, div); flushFormToSource(); }
+  });
+  const rmBtn = document.createElement("button");
+  rmBtn.className = "icon-btn"; rmBtn.textContent = "✕"; rmBtn.title = "remove item";
+  rmBtn.addEventListener("click", () => { div.remove(); flushFormToSource(); });
+  const reorderBox = document.createElement("div");
+  reorderBox.style.display = "flex"; reorderBox.style.flexDirection = "column"; reorderBox.style.gap = "1px";
+  reorderBox.appendChild(upBtn); reorderBox.appendChild(dnBtn);
+  controls.appendChild(reorderBox); controls.appendChild(rmBtn);
+  for (const el of [nameInput, descInput, priceInput]) el.addEventListener("input", flushFormToSource);
+  div.appendChild(fields); div.appendChild(priceInput); div.appendChild(controls);
+  return div;
+}
+function buildSectionBlock(sec, locale) {
+  const block = document.createElement("div"); block.className = "section-block";
+  const head = document.createElement("div"); head.className = "section-block-header";
+  const nameInp = document.createElement("input");
+  nameInp.type = "text"; nameInp.className = "section-name";
+  nameInp.value = sec.name || ""; nameInp.placeholder = "Section name";
+  nameInp.addEventListener("input", flushFormToSource);
+  const reorder = document.createElement("div"); reorder.className = "reorder";
+  const upBtn = document.createElement("button");
+  upBtn.className = "icon-btn up-down"; upBtn.textContent = "▲"; upBtn.title = "move section up";
+  upBtn.addEventListener("click", () => {
+    const prev = block.previousElementSibling;
+    if (prev) { block.parentNode.insertBefore(block, prev); flushFormToSource(); }
+  });
+  const dnBtn = document.createElement("button");
+  dnBtn.className = "icon-btn up-down"; dnBtn.textContent = "▼"; dnBtn.title = "move section down";
+  dnBtn.addEventListener("click", () => {
+    const next = block.nextElementSibling;
+    if (next) { block.parentNode.insertBefore(next, block); flushFormToSource(); }
+  });
+  reorder.appendChild(upBtn); reorder.appendChild(dnBtn);
+  const rmBtn = document.createElement("button");
+  rmBtn.className = "icon-btn"; rmBtn.textContent = "✕"; rmBtn.title = "remove section";
+  rmBtn.addEventListener("click", () => { block.remove(); flushFormToSource(); });
+  head.appendChild(nameInp); head.appendChild(reorder); head.appendChild(rmBtn);
+  const body = document.createElement("div"); body.className = "section-block-body";
+  const itemsContainer = document.createElement("div"); itemsContainer.className = "items-container";
+  for (const it of sec.items) itemsContainer.appendChild(buildItemRow(it, locale));
+  const addItem = document.createElement("button");
+  addItem.className = "add-btn"; addItem.textContent = "+ Add item";
+  addItem.addEventListener("click", () => {
+    itemsContainer.appendChild(buildItemRow({}, getCurrentLocale())); flushFormToSource();
+  });
+  body.appendChild(itemsContainer); body.appendChild(addItem);
+  block.appendChild(head); block.appendChild(body);
+  return block;
+}
+function populateForm(state) {
+  document.getElementById("f-locale").value = state.locale;
+  document.getElementById("f-title").value = state.title || "";
+  document.getElementById("f-subtitle").value = state.subtitle || "";
+  document.getElementById("f-template").value = VALID_TEMPLATES.includes(state.template) ? state.template : "minimal";
+  document.getElementById("f-accent-text").value = state.accent || "";
+  const colorPicker = document.getElementById("f-accent-picker");
+  if (state.accent && /^#[0-9a-fA-F]{6}$/.test(state.accent)) colorPicker.value = state.accent;
+  else colorPicker.value = "#444444";
+  document.getElementById("f-valid-until").value = state.valid_until || "";
+  document.getElementById("f-service").value = state.service || "";
+  document.getElementById("f-couvert").value = state.couvert || "";
+  const socials = document.getElementById("f-socials"); socials.innerHTML = "";
+  for (const s of state.socials) socials.appendChild(buildSocialRow(s.prefix, s.handle));
+  const sections = document.getElementById("f-sections"); sections.innerHTML = "";
+  for (const sec of state.sections) sections.appendChild(buildSectionBlock(sec, state.locale));
+  document.getElementById("f-footer").value = state.footer || "";
+}
+function readFormState() {
+  const state = {
+    locale: document.getElementById("f-locale").value,
+    template: document.getElementById("f-template").value,
+    accent: document.getElementById("f-accent-text").value.trim(),
+    valid_until: document.getElementById("f-valid-until").value.trim(),
+    service: document.getElementById("f-service").value.trim(),
+    couvert: document.getElementById("f-couvert").value.trim(),
+    socials: [],
+    title: document.getElementById("f-title").value.trim(),
+    subtitle: document.getElementById("f-subtitle").value.trim(),
+    sections: [], footer: document.getElementById("f-footer").value,
+  };
+  for (const row of document.querySelectorAll("#f-socials .social-row")) {
+    const prefix = row.querySelector("select").value;
+    const handle = row.querySelector("input").value.trim();
+    if (handle) state.socials.push({ prefix, handle });
+  }
+  for (const block of document.querySelectorAll("#f-sections .section-block")) {
+    const name = block.querySelector("input.section-name").value.trim();
+    const items = [];
+    for (const row of block.querySelectorAll(".item-row")) {
+      const tags = [];
+      for (const chip of row.querySelectorAll(".tag-chip.on")) tags.push(chip.dataset.tag);
+      items.push({
+        name: row.querySelector("input.item-name").value.trim(),
+        price: row.querySelector("input.item-price").value.trim(),
+        desc: row.querySelector("input.item-desc").value.trim(), tags,
+      });
+    }
+    state.sections.push({ name, items });
+  }
+  return state;
+}
+function getCurrentLocale() { return document.getElementById("f-locale").value; }
+
+// ============================================================
+// Source ↔ form bridging + autosave
+// ============================================================
+let saveTimer = null;
+function scheduleAutosave() {
+  clearTimeout(saveTimer);
+  document.getElementById("save-status").textContent = "saving…";
+  document.getElementById("save-status").classList.add("unsaved");
+  saveTimer = setTimeout(() => {
+    let id = getCurrentMenuId();
+    if (!id) { id = nextMenuId(); setCurrentMenuId(id); }
+    setMenu(id, document.getElementById("src").value);
+    document.getElementById("save-status").textContent = "saved";
+    document.getElementById("save-status").classList.remove("unsaved");
+    refreshPicker();
+  }, 400);
+}
+function flushFormToSource() {
+  const state = readFormState();
+  const source = serializeFromFormState(state);
+  document.getElementById("src").value = source;
+  update();
+  scheduleAutosave();
+}
+function flushSourceToForm() {
+  const source = document.getElementById("src").value;
+  try { populateForm(parseToFormState(source)); }
+  catch (e) { console.error("parse error:", e); }
+}
+
+// ============================================================
+// Main update — diagnostics, preview, QR
+// ============================================================
+function update() {
+  const source = document.getElementById("src").value;
+  const warningsEl = document.getElementById("warnings");
+  const frameEl = document.getElementById("menu-frame");
+  const eccLevel = document.getElementById("ecc").value;
+  const setMetric = (id, val) => document.getElementById(id).textContent = val;
+
+  document.getElementById("picker-current").textContent = menuTitle(source);
+
+  const v = validate(source);
+  if (v.fatal) {
+    warningsEl.classList.remove("empty"); warningsEl.classList.add("error");
+    warningsEl.innerHTML = "<ul>" + v.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join("") + "</ul>";
+    setMetric("m-raw", "—"); setMetric("m-defl", "—"); setMetric("m-url", "—"); setMetric("m-qr", "—");
+    frameEl.innerHTML = '<p style="color:#999;font-style:italic;padding:1rem">' + escapeHtml(v.warnings[0]) + '</p>';
+    document.getElementById("url-display").textContent = "—";
+    return;
+  }
+  if (v.warnings.length) {
+    warningsEl.classList.remove("empty", "error");
+    warningsEl.innerHTML = "<ul>" + v.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join("") + "</ul>";
+  } else { warningsEl.classList.add("empty"); warningsEl.innerHTML = ""; }
+
+  let enc;
+  try { enc = encodeMenu(source); }
+  catch (err) {
+    warningsEl.classList.remove("empty"); warningsEl.classList.add("error");
+    warningsEl.innerHTML = "<ul><li>encode error: " + escapeHtml(err.message) + "</li></ul>"; return;
+  }
+  const parsed = parseBody(source.split("\n").slice(1).join("\n"));
+  renderToFrame(parsed, enc.locale, frameEl);
+  let qrInfo;
+  try { qrInfo = drawQR(enc.url, eccLevel, document.getElementById("qr-canvas")); }
+  catch (err) {
+    warningsEl.classList.remove("empty"); warningsEl.classList.add("error");
+    warningsEl.innerHTML = "<ul><li>QR: " + escapeHtml(err.message) + " — try lower ECC or shorter menu</li></ul>";
+  }
+  setMetric("m-raw", enc.raw + " B");
+  setMetric("m-defl", enc.deflated + " B (" + Math.round(enc.deflated / Math.max(1, enc.raw) * 100) + "%)");
+  setMetric("m-url", enc.url.length + " chars");
+  setMetric("m-qr", qrInfo ? `V${qrInfo.version} ${eccLevel} (${qrInfo.modules}px)` : "—");
+  document.getElementById("url-display").textContent = enc.url;
+
+  // Mirror current state into the editor's URL hash so the address bar IS the
+  // shareable editor link. Same payload format as the bootloader URL — just a
+  // different page route. replaceState (not assignment) so we don't pollute history.
+  const hashIdx = enc.url.indexOf("#");
+  if (hashIdx >= 0) {
+    const frag = enc.url.slice(hashIdx + 1);
+    if (location.hash.slice(1) !== frag) {
+      history.replaceState({}, "", "#" + frag);
+    }
+  }
+}
+
+// ============================================================
+// Menu picker dropdown
+// ============================================================
+function refreshPicker() {
+  document.getElementById("picker-current").textContent = menuTitle(document.getElementById("src").value);
+}
+function openPicker() {
+  const dd = document.getElementById("picker-dropdown");
+  dd.innerHTML = "";
+  const currentId = getCurrentMenuId();
+  const menus = listMenus();
+  if (menus.length === 0) {
+    const empty = document.createElement("div");
+    empty.style.padding = "0.75rem"; empty.style.fontSize = "0.85rem"; empty.style.color = "var(--fg-faint)";
+    empty.textContent = "No saved menus yet.";
+    dd.appendChild(empty);
+  } else {
+    for (const m of menus) {
+      const item = document.createElement("div");
+      item.className = "picker-item" + (m.id === currentId ? " current" : "");
+      const text = document.createElement("div"); text.className = "pi-text";
+      const name = document.createElement("div"); name.className = "pi-name";
+      name.textContent = menuTitle(m.source);
+      text.appendChild(name);
+      item.appendChild(text);
+      const del = document.createElement("button");
+      del.className = "pi-del"; del.textContent = "✕"; del.title = "delete";
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete "${menuTitle(m.source)}"?`)) {
+          deleteMenu(m.id);
+          if (m.id === currentId) {
+            const remaining = listMenus();
+            if (remaining.length) loadMenuById(remaining[0].id);
+            else newMenu();
+          }
+          openPicker();
+        }
+      });
+      item.appendChild(del);
+      item.addEventListener("click", () => { loadMenuById(m.id); closePicker(); });
+      dd.appendChild(item);
+    }
+  }
+  const div = document.createElement("div"); div.className = "picker-divider"; dd.appendChild(div);
+  const newBtn = document.createElement("button");
+  newBtn.className = "picker-action"; newBtn.textContent = "+ New blank menu";
+  newBtn.addEventListener("click", () => { newMenu(); closePicker(); });
+  dd.appendChild(newBtn);
+  const importBtn = document.createElement("button");
+  importBtn.className = "picker-action"; importBtn.textContent = "↑ Import from URL…";
+  importBtn.addEventListener("click", () => { closePicker(); openImportModal(); });
+  dd.appendChild(importBtn);
+  dd.classList.add("open");
+}
+function closePicker() { document.getElementById("picker-dropdown").classList.remove("open"); }
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".picker-wrap");
+  if (!wrap.contains(e.target)) closePicker();
+});
+
+// ============================================================
+// Menu ops
+// ============================================================
+function loadMenuById(id) {
+  const src = getMenu(id);
+  if (!src) return;
+  setCurrentMenuId(id);
+  document.getElementById("src").value = src;
+  flushSourceToForm(); update();
+}
+function newMenu() {
+  const blank = `!menu1+pt-BR\n@template: minimal\n\n# New menu\n\n## Section\nItem|0|description\n`;
+  const id = nextMenuId(); setMenu(id, blank); setCurrentMenuId(id);
+  document.getElementById("src").value = blank;
+  flushSourceToForm(); update();
+}
+function importFromText(text) {
+  // Accept a full URL, a fragment, or raw menu1 source pasted directly
+  const t = text.trim();
+  let source;
+  if (t.startsWith("!menu1+")) {
+    source = t;  // raw source
+  } else {
+    // Try as URL or fragment
+    try { source = decodeMenuFromUrl(t); }
+    catch (err) { throw new Error("could not decode: " + err.message); }
+  }
+  const id = nextMenuId(); setMenu(id, source); setCurrentMenuId(id);
+  document.getElementById("src").value = source;
+  flushSourceToForm(); update();
+}
+function openImportModal() {
+  document.getElementById("import-url").value = "";
+  document.getElementById("import-modal").classList.add("open");
+  setTimeout(() => document.getElementById("import-url").focus(), 50);
+}
+function closeImportModal() { document.getElementById("import-modal").classList.remove("open"); }
+
+// ============================================================
+// SAMPLE
+// ============================================================
+const SAMPLE = `!menu1+pt-BR
+@template: bistro
+@accent: #c4453a
+@valid_until: 2026-10-31
+@service: 10%
+@couvert: 8.00
+@social: ig=cantinadelgaribaldi, ws=5531999998888, web=cantinadelgaribaldi.com.br
+
+# Cantina del Garibaldi
+
+*Cozinha italiana · Belo Horizonte · desde 1987*
+
+## Entradas
+Bruschetta|22|pão italiano, tomate, manjericão|v
+Carpaccio|34|fatias finas, parmesão, rúcula
+Polvo grelhado|48|azeite, pimentão
+Salada caprese|28|tomate, mussarela de búfala|vg
+Bolinho de bacalhau|26|6 unidades
+
+## Principais
+Filé mignon|78|180g, molho madeira, risoto de cogumelos
+Picanha na chapa|72|farofa, vinagrete, arroz
+Salmão grelhado|68|legumes salteados, purê de batata baroa|g
+Risoto de funghi|54|porcini, parmesão|vg, g
+Linguine ao pesto|46|manjericão fresco, pinoli|vg
+Frango à parmegiana|52|fettuccine ao sugo
+Moqueca de peixe|64|leite de coco, dendê, arroz|g
+
+## Sobremesas
+Pudim de leite|18|calda de caramelo|vg
+Petit gateau|24|sorvete de creme|vg
+Tiramisù|26|receita tradicional|vg
+
+---
+
+Reservas pelo [site](https://cantinadelgaribaldi.com.br) ou WhatsApp.
+*Pratos sujeitos à disponibilidade do dia.*`;
+
+// ============================================================
+// Wire-up
+// ============================================================
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".mode-panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    const mode = tab.dataset.mode;
+    document.getElementById(mode + "-mode").classList.add("active");
+    if (mode === "form") flushSourceToForm();
+  });
+});
+
+let updateTimer = null;
+document.getElementById("src").addEventListener("input", () => {
+  clearTimeout(updateTimer);
+  updateTimer = setTimeout(() => { update(); scheduleAutosave(); }, 150);
+});
+
+document.getElementById("f-locale").addEventListener("change", () => { flushFormToSource(); flushSourceToForm(); });
+for (const id of ["f-title", "f-subtitle", "f-template", "f-accent-text",
+                   "f-valid-until", "f-service", "f-couvert", "f-footer"]) {
+  document.getElementById(id).addEventListener("input", flushFormToSource);
+  document.getElementById(id).addEventListener("change", flushFormToSource);
+}
+document.getElementById("f-accent-picker").addEventListener("input", (e) => {
+  document.getElementById("f-accent-text").value = e.target.value; flushFormToSource();
+});
+document.getElementById("add-social").addEventListener("click", () => {
+  document.getElementById("f-socials").appendChild(buildSocialRow("ig", ""));
+});
+document.getElementById("add-section").addEventListener("click", () => {
+  document.getElementById("f-sections").appendChild(buildSectionBlock({ name: "New section", items: [] }, getCurrentLocale()));
+  flushFormToSource();
+});
+document.getElementById("ecc").addEventListener("change", update);
+
+document.getElementById("picker-btn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (document.getElementById("picker-dropdown").classList.contains("open")) closePicker();
+  else openPicker();
+});
+
+document.getElementById("load-sample").addEventListener("click", () => {
+  // Load sample as a new menu
+  const id = nextMenuId(); setMenu(id, SAMPLE); setCurrentMenuId(id);
+  document.getElementById("src").value = SAMPLE;
+  flushSourceToForm(); update();
+});
+
+document.getElementById("open-import").addEventListener("click", openImportModal);
+document.getElementById("import-cancel").addEventListener("click", closeImportModal);
+document.getElementById("import-confirm").addEventListener("click", () => {
+  const text = document.getElementById("import-url").value;
+  try { importFromText(text); closeImportModal(); showToast("imported"); }
+  catch (err) { showToast("import failed: " + err.message); }
+});
+document.getElementById("import-modal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("import-modal")) closeImportModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeImportModal(); closePicker(); }
+});
+
+document.getElementById("copy-url").addEventListener("click", async () => {
+  const url = document.getElementById("url-display").textContent;
+  if (!url || url === "—") return;
+  try { await navigator.clipboard.writeText(url); showToast("URL copied"); }
+  catch (e) { showToast("copy failed"); }
+});
+document.getElementById("download-qr").addEventListener("click", () => {
+  document.getElementById("qr-canvas").toBlob(blob => downloadBlob(blob, "menu-qr.png"), "image/png");
+});
+document.getElementById("download-menu").addEventListener("click", () => {
+  const src = document.getElementById("src").value;
+  if (!src) return;
+  downloadBlob(new Blob([src], { type: "text/plain;charset=utf-8" }), "menu.menu1");
+});
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1800);
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ============================================================
+// Init: ?shared_url= / ?from= → import; #hash → load; else → restore
+// ============================================================
+(function init() {
+  const params = new URLSearchParams(window.location.search);
+  const fromParam = params.get("from") || params.get("shared_url") || params.get("shared_text");
+  if (fromParam) {
+    try {
+      importFromText(fromParam);
+      // Clean only the search params; let the hash mirror set itself from update()
+      history.replaceState({}, "", window.location.pathname + window.location.hash);
+      return;
+    } catch (err) {
+      console.warn("could not import from URL params:", err);
+    }
+  }
+
+  // Hash present → it IS the current menu state
+  const hashContent = location.hash.startsWith("#") ? location.hash.slice(1) : "";
+  if (hashContent) {
+    try {
+      const source = decodeMenuFromUrl(hashContent);
+      // If hash matches the current localStorage menu, just load that one (preserve id)
+      const currentId = getCurrentMenuId();
+      if (currentId && getMenu(currentId) === source) {
+        document.getElementById("src").value = source;
+        flushSourceToForm(); update();
+        return;
+      }
+      // Otherwise check whether any saved menu has identical source
+      for (const m of listMenus()) {
+        if (m.source === source) {
+          setCurrentMenuId(m.id);
+          document.getElementById("src").value = source;
+          flushSourceToForm(); update();
+          return;
+        }
+      }
+      // Brand new menu from this URL
+      const id = nextMenuId(); setMenu(id, source); setCurrentMenuId(id);
+      document.getElementById("src").value = source;
+      flushSourceToForm(); update();
+      return;
+    } catch (err) {
+      console.warn("hash didn't decode, falling through:", err);
+    }
+  }
+
+  // Fall back: restore current menu, or sample on first run
+  const currentId = getCurrentMenuId();
+  if (currentId && getMenu(currentId)) {
+    document.getElementById("src").value = getMenu(currentId);
+    flushSourceToForm(); update();
+  } else {
+    const all = listMenus();
+    if (all.length) {
+      setCurrentMenuId(all[0].id);
+      document.getElementById("src").value = all[0].source;
+      flushSourceToForm(); update();
+    } else {
+      const id = nextMenuId(); setMenu(id, SAMPLE); setCurrentMenuId(id);
+      document.getElementById("src").value = SAMPLE;
+      flushSourceToForm(); update();
+    }
+  }
+})();
+
+// ============================================================
+// Service worker registration (graceful if missing)
+// ============================================================
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(() => { /* fine if missing */ });
+  });
+}
+</script>
+</body>
+</html>

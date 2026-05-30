@@ -59,22 +59,24 @@ The name is the receiving dock a capsule settles into — it accepts the capsule
 - **An open plugin protocol.** Renderers are curated by PR to the cradle repository, not loaded from arbitrary origins. To use a different set, fork — it's a single HTML file. The avoided complexity (signing, manifest formats, supply-chain attack surface) is the point.
 - **Server-side anything.** Cradle is client-only. The "host" is whoever serves the HTML; everything else is fragments and renderers.
 
-## Reference implementations — planned
+## Reference implementations
 
-This repo is **specs-first**: as of now it holds the four design documents and nothing else. The reference implementations described by the specs are still to be built. When they land, the intended shape is:
+Working reference code, deployed (when published) at `gentropic.org/cradle`:
 
-- `cradle.html` — the canonical bootloader, deployed at `gentropic.org/cradle` (GitHub Pages project path = repo name; a `c.gentropic.org` subdomain is the alternative if a short URL is wanted). Single HTML file; pulls in pako for dictionary deflate. Embeds the menu and doorbell renderers. Registers a service worker for offline PWA install.
+- `cradle.html` — the canonical bootloader. Single HTML file; pulls in pako for dictionary deflate. Resolves a capsule from the URL fragment, reads the magic line, and dispatches to an embedded **menu** or **doorbell** renderer. Registers the service worker for offline PWA install.
 - `menu-editor.html` — authoring tool for menus. Generates the `q:d.menu-<locale>_<base45>` capsule and renders a QR.
 - `doorbell-config.html` — authoring tool for doorbells. Generates the X25519 keypair (private stored locally only), the topic, the configuration, and a printable QR sticker.
 - `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-maskable.svg` — PWA assets enabling offline operation and home-screen install.
 - `verify_vectors.py` — generates the capsule / menu test vectors used in the specs.
 - `verify_doorbell.py` — reference Python implementation of the doorbell encryption envelope; produces test vectors and interops with the browser implementation.
 
-A working proof-of-concept of the capsule (transport) layer already ships inside ep — see `gentropic/ep`'s `src/js/capsule.js`, which implements the inline `inline:` / `i:` / `q:` schemes this repo's `SPEC-capsule.md` defines. That's the seed for an extracted `@gcu/capsule` package.
+These are working code, not normative — the specs are the contract. The capsule (transport) layer also has a separate, test-covered implementation inside ep (`gentropic/ep` → `src/js/capsule.js`), which is the seed for an extracted `@gcu/capsule` package; `cradle.html` re-inlines a subset of the same logic so it stays a single self-contained file.
 
 ## Status
 
-All four specs are draft **v0.1**. No bootloader, renderers, editors, or deployment exist in this repo yet — building them is the next chapter. The capsule layer is proven end-to-end in ep (encode → QR/URL → decode round-trips, with a conformance test suite); the cradle bootloader, the menu/doorbell renderers, and the doorbell encryption envelope are designed in the specs but not yet implemented here.
+All four specs are draft **v0.1**, and the reference implementations above are present and functional (the menu round-trips editor → QR/URL → bootloader; the doorbell envelope round-trips JS encrypt → Python decrypt). Not yet done: a live deployment, the `lostfound` format, dictionary `.bin` assets for `deflate-dict` (the bootloader currently inlines the menu dictionaries), and a redrawn brand icon (the current one is a simple capsule-in-cradle mark).
+
+> **One known inconsistency to reconcile:** the implementation files and this README use the chosen deploy URL **`gentropic.org/cradle`**, but the spec documents still say **`gentropic.org/c`** (a holdover from when a single-char path was planned). Treat `gentropic.org/cradle` as the intended target; the specs need a `/c` → `/cradle` pass.
 
 ## License
 
