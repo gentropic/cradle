@@ -1,0 +1,30 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.bak
+
+# Node (if/when a build script lands)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+*.tgz
+.eslintcache
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# NOTE: unlike sibling repos, CLAUDE.md here is COMMITTED on purpose —
+# it's the shared hand-off / orientation doc for whoever (human or agent)
+# picks this repo up. Keep it in version control.
