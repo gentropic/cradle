@@ -390,10 +390,10 @@ Read whichever matches your case:
   the URLs + QR, and `test/capsule.test.js` is a conformance suite with the spec's test
   vectors. The canonical reference for the transport layer.
 - **Cradle-compatible, render-only** — the `menu` format: `SPEC-menu.md` for the body
-  grammar, `cradle.html`'s `menuRenderer` for parsing/rendering, `menu-editor.html` for
+  grammar, `index.html`'s `menuRenderer` for parsing/rendering, `menu-editor.html` for
   the producer side (incl. the `%`/space escaping at the URL boundary).
 - **Cradle-compatible, with a side effect** — the `doorbell` format: `SPEC-doorbell.md`
-  + `cradle.html`'s `doorbellRenderer` (X25519 + HKDF + AES-GCM via `crypto.subtle`,
+  + `index.html`'s `doorbellRenderer` (X25519 + HKDF + AES-GCM via `crypto.subtle`,
   then a relay POST). Shows a magic line carrying inline crypto material in `params`.
 
 ---

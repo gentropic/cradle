@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>cradle</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a1a1a">
+<style>
+  /* ---------- base ---------- */
+  :root {
+    --accent: #444;
+    --bg: #fff;
+    --fg: #1a1a1a;
+    --fg-muted: #666;
+    --fg-faint: #999;
+    --rule: rgba(0,0,0,0.1);
+    --tag-bg: rgba(0,0,0,0.06);
+    --banner-bg: #fef3c7;
+    --banner-fg: #78350f;
+    --banner-border: #fbbf24;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-serif: Georgia, "Times New Roman", serif;
+    --maxw: 640px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+    -webkit-text-size-adjust: 100%;
+  }
+  main {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 3rem;
+  }
+
+  /* ---------- menu renderer styles ---------- */
+  h1 { font-size: 1.6rem; font-weight: 600; margin: 0 0 0.5rem; color: var(--accent); }
+  h2 { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+       color: var(--fg-muted); margin: 1.75rem 0 0.5rem; padding-bottom: 0.4rem;
+       border-bottom: 1px solid var(--rule); }
+  p { margin: 0.6rem 0; color: var(--fg); }
+  p em { color: var(--fg-muted); font-style: italic; }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2rem 0 1rem; }
+  .item { display: flex; gap: 1rem; align-items: baseline;
+          padding: 0.65rem 0; border-bottom: 1px dotted var(--rule); }
+  .item:last-child { border-bottom: none; }
+  .item-body { flex: 1; min-width: 0; }
+  .item-name { font-size: 1rem; font-weight: 500; }
+  .item-desc { font-size: 0.85rem; color: var(--fg-muted); margin-top: 0.15rem; line-height: 1.4; }
+  .item-price { font-size: 0.95rem; font-weight: 500; white-space: nowrap;
+                font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .tag { display: inline-block; font-size: 0.7rem; padding: 0.05rem 0.4rem;
+         border-radius: 3px; background: var(--tag-bg); color: var(--fg-muted);
+         margin-left: 0.3rem; vertical-align: 1px; letter-spacing: 0.02em; }
+  .stale { background: var(--banner-bg); color: var(--banner-fg);
+           border: 1px solid var(--banner-border); padding: 0.75rem 1rem;
+           border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.9rem; }
+  footer { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule);
+           font-size: 0.8rem; color: var(--fg-muted); }
+  .footer-line { margin: 0.25rem 0; }
+  .socials { display: flex; gap: 0.6rem; margin: 0.75rem 0; flex-wrap: wrap; }
+  .socials a { display: inline-flex; align-items: center; gap: 0.3rem;
+               text-decoration: none; color: var(--fg-muted);
+               padding: 0.3rem 0.6rem; border: 1px solid var(--rule);
+               border-radius: 3px; font-size: 0.8rem; }
+  .socials a:hover { color: var(--accent); border-color: var(--accent); }
+  .socials svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .attribution { font-size: 0.7rem; color: var(--fg-faint); text-align: center;
+                 margin-top: 1.5rem; letter-spacing: 0.04em; }
+  .error { padding: 1.25rem; background: #fee; border: 1px solid #fcc;
+           border-radius: 4px; color: #800; }
+  .error pre { background: rgba(0,0,0,0.04); padding: 0.5rem; overflow-x: auto;
+               font-size: 0.8rem; }
+  body.tmpl-bistro h1 { font-family: var(--font-serif); font-style: italic; }
+  body.tmpl-bistro .item-name { font-family: var(--font-serif); font-size: 1.05rem; }
+  body.tmpl-serif { font-family: var(--font-serif); }
+  body.tmpl-serif h2 { font-family: var(--font-sans); }
+  body.tmpl-dark { background: #1a1a1a; color: #e8e8e8;
+                    --fg: #e8e8e8; --fg-muted: #aaa; --fg-faint: #666;
+                    --rule: rgba(255,255,255,0.15); --tag-bg: rgba(255,255,255,0.08); }
+
+  /* ---------- doorbell renderer styles ---------- */
+  .doorbell-title { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; color: var(--fg); }
+  .doorbell-info { background: var(--tag-bg); padding: 0.85rem 1rem; border-radius: 6px;
+                   margin: 1rem 0 1.5rem; font-size: 0.95rem; line-height: 1.45; }
+  .doorbell-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 1.25rem 0; }
+  @media (min-width: 480px) { .doorbell-buttons { grid-template-columns: 1fr 1fr 1fr; } }
+  .ring-btn { display: flex; flex-direction: column; align-items: center; justify-content: center;
+              gap: 0.35rem; min-height: 90px; padding: 0.85rem 0.5rem;
+              border: 2px solid var(--rule); background: var(--bg); color: var(--fg);
+              border-radius: 10px; font-size: 1rem; font-weight: 500; cursor: pointer;
+              transition: border-color 0.15s, background 0.15s, transform 0.05s;
+              font-family: inherit; }
+  .ring-btn .ring-emoji { font-size: 1.8rem; line-height: 1; }
+  .ring-btn:hover, .ring-btn:focus-visible { border-color: var(--fg); outline: none; }
+  .ring-btn:active { transform: scale(0.97); }
+  .ring-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .doorbell-text { width: 100%; min-height: 60px; padding: 0.65rem 0.8rem; margin: 0.75rem 0 0.5rem;
+                   border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--fg);
+                   font-family: inherit; font-size: 0.95rem; resize: vertical; box-sizing: border-box; }
+  .doorbell-text:focus { outline: 1px solid var(--fg); border-color: var(--fg); }
+  .doorbell-send { display: block; width: 100%; padding: 0.85rem; border-radius: 6px;
+                   border: 2px solid var(--fg); background: var(--fg); color: var(--bg);
+                   font-size: 1rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .doorbell-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .doorbell-status { margin: 1rem 0; padding: 0.75rem 1rem; border-radius: 6px;
+                     font-size: 0.95rem; text-align: center; display: none; }
+  .doorbell-status.show { display: block; }
+  .doorbell-status.sending { background: #fef3c7; color: #78350f; }
+  .doorbell-status.success { background: #d1fae5; color: #065f46; }
+  .doorbell-status.error   { background: #fee2e2; color: #7f1d1d; }
+</style>
+</head>
+<body>
+<main id="root"></main>
+<!-- pako 2.1.0 inflate (vendored, MIT) — github.com/nodeca/pako -->
+<script>
+/*! pako 2.1.0 https://github.com/nodeca/pako @license (MIT AND Zlib) */
+!function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).pako={})}(this,(function(e){"use strict";var t=(e,t,i,n)=>{let a=65535&e|0,r=e>>>16&65535|0,o=0;for(;0!==i;){o=i>2e3?2e3:i,i-=o;do{a=a+t[n++]|0,r=r+a|0}while(--o);a%=65521,r%=65521}return a|r<<16|0};const i=new Uint32Array((()=>{let e,t=[];for(var i=0;i<256;i++){e=i;for(var n=0;n<8;n++)e=1&e?3988292384^e>>>1:e>>>1;t[i]=e}return t})());var n=(e,t,n,a)=>{const r=i,o=a+n;e^=-1;for(let i=a;i<o;i++)e=e>>>8^r[255&(e^t[i])];return-1^e};const a=16209;var r=function(e,t){let i,n,r,o,s,l,d,f,c,h,u,w,b,m,k,_,g,p,v,x,y,E,R,A;const Z=e.state;i=e.next_in,R=e.input,n=i+(e.avail_in-5),r=e.next_out,A=e.output,o=r-(t-e.avail_out),s=r+(e.avail_out-257),l=Z.dmax,d=Z.wsize,f=Z.whave,c=Z.wnext,h=Z.window,u=Z.hold,w=Z.bits,b=Z.lencode,m=Z.distcode,k=(1<<Z.lenbits)-1,_=(1<<Z.distbits)-1;e:do{w<15&&(u+=R[i++]<<w,w+=8,u+=R[i++]<<w,w+=8),g=b[u&k];t:for(;;){if(p=g>>>24,u>>>=p,w-=p,p=g>>>16&255,0===p)A[r++]=65535&g;else{if(!(16&p)){if(0==(64&p)){g=b[(65535&g)+(u&(1<<p)-1)];continue t}if(32&p){Z.mode=16191;break e}e.msg="invalid literal/length code",Z.mode=a;break e}v=65535&g,p&=15,p&&(w<p&&(u+=R[i++]<<w,w+=8),v+=u&(1<<p)-1,u>>>=p,w-=p),w<15&&(u+=R[i++]<<w,w+=8,u+=R[i++]<<w,w+=8),g=m[u&_];i:for(;;){if(p=g>>>24,u>>>=p,w-=p,p=g>>>16&255,!(16&p)){if(0==(64&p)){g=m[(65535&g)+(u&(1<<p)-1)];continue i}e.msg="invalid distance code",Z.mode=a;break e}if(x=65535&g,p&=15,w<p&&(u+=R[i++]<<w,w+=8,w<p&&(u+=R[i++]<<w,w+=8)),x+=u&(1<<p)-1,x>l){e.msg="invalid distance too far back",Z.mode=a;break e}if(u>>>=p,w-=p,p=r-o,x>p){if(p=x-p,p>f&&Z.sane){e.msg="invalid distance too far back",Z.mode=a;break e}if(y=0,E=h,0===c){if(y+=d-p,p<v){v-=p;do{A[r++]=h[y++]}while(--p);y=r-x,E=A}}else if(c<p){if(y+=d+c-p,p-=c,p<v){v-=p;do{A[r++]=h[y++]}while(--p);if(y=0,c<v){p=c,v-=p;do{A[r++]=h[y++]}while(--p);y=r-x,E=A}}}else if(y+=c-p,p<v){v-=p;do{A[r++]=h[y++]}while(--p);y=r-x,E=A}for(;v>2;)A[r++]=E[y++],A[r++]=E[y++],A[r++]=E[y++],v-=3;v&&(A[r++]=E[y++],v>1&&(A[r++]=E[y++]))}else{y=r-x;do{A[r++]=A[y++],A[r++]=A[y++],A[r++]=A[y++],v-=3}while(v>2);v&&(A[r++]=A[y++],v>1&&(A[r++]=A[y++]))}break}}break}}while(i<n&&r<s);v=w>>3,i-=v,w-=v<<3,u&=(1<<w)-1,e.next_in=i,e.next_out=r,e.avail_in=i<n?n-i+5:5-(i-n),e.avail_out=r<s?s-r+257:257-(r-s),Z.hold=u,Z.bits=w};const o=15,s=new Uint16Array([3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258,0,0]),l=new Uint8Array([16,16,16,16,16,16,16,16,17,17,17,17,18,18,18,18,19,19,19,19,20,20,20,20,21,21,21,21,16,72,78]),d=new Uint16Array([1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577,0,0]),f=new Uint8Array([16,16,16,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,24,24,25,25,26,26,27,27,28,28,29,29,64,64]);var c=(e,t,i,n,a,r,c,h)=>{const u=h.bits;let w,b,m,k,_,g,p=0,v=0,x=0,y=0,E=0,R=0,A=0,Z=0,S=0,T=0,O=null;const U=new Uint16Array(16),D=new Uint16Array(16);let I,B,N,C=null;for(p=0;p<=o;p++)U[p]=0;for(v=0;v<n;v++)U[t[i+v]]++;for(E=u,y=o;y>=1&&0===U[y];y--);if(E>y&&(E=y),0===y)return a[r++]=20971520,a[r++]=20971520,h.bits=1,0;for(x=1;x<y&&0===U[x];x++);for(E<x&&(E=x),Z=1,p=1;p<=o;p++)if(Z<<=1,Z-=U[p],Z<0)return-1;if(Z>0&&(0===e||1!==y))return-1;for(D[1]=0,p=1;p<o;p++)D[p+1]=D[p]+U[p];for(v=0;v<n;v++)0!==t[i+v]&&(c[D[t[i+v]]++]=v);if(0===e?(O=C=c,g=20):1===e?(O=s,C=l,g=257):(O=d,C=f,g=0),T=0,v=0,p=x,_=r,R=E,A=0,m=-1,S=1<<E,k=S-1,1===e&&S>852||2===e&&S>592)return 1;for(;;){I=p-A,c[v]+1<g?(B=0,N=c[v]):c[v]>=g?(B=C[c[v]-g],N=O[c[v]-g]):(B=96,N=0),w=1<<p-A,b=1<<R,x=b;do{b-=w,a[_+(T>>A)+b]=I<<24|B<<16|N|0}while(0!==b);for(w=1<<p-1;T&w;)w>>=1;if(0!==w?(T&=w-1,T+=w):T=0,v++,0==--U[p]){if(p===y)break;p=t[i+c[v]]}if(p>E&&(T&k)!==m){for(0===A&&(A=E),_+=x,R=p-A,Z=1<<R;R+A<y&&(Z-=U[R+A],!(Z<=0));)R++,Z<<=1;if(S+=1<<R,1===e&&S>852||2===e&&S>592)return 1;m=T&k,a[m]=E<<24|R<<16|_-r|0}}return 0!==T&&(a[_+T]=p-A<<24|64<<16|0),h.bits=E,0},h={Z_NO_FLUSH:0,Z_PARTIAL_FLUSH:1,Z_SYNC_FLUSH:2,Z_FULL_FLUSH:3,Z_FINISH:4,Z_BLOCK:5,Z_TREES:6,Z_OK:0,Z_STREAM_END:1,Z_NEED_DICT:2,Z_ERRNO:-1,Z_STREAM_ERROR:-2,Z_DATA_ERROR:-3,Z_MEM_ERROR:-4,Z_BUF_ERROR:-5,Z_NO_COMPRESSION:0,Z_BEST_SPEED:1,Z_BEST_COMPRESSION:9,Z_DEFAULT_COMPRESSION:-1,Z_FILTERED:1,Z_HUFFMAN_ONLY:2,Z_RLE:3,Z_FIXED:4,Z_DEFAULT_STRATEGY:0,Z_BINARY:0,Z_TEXT:1,Z_UNKNOWN:2,Z_DEFLATED:8};const{Z_FINISH:u,Z_BLOCK:w,Z_TREES:b,Z_OK:m,Z_STREAM_END:k,Z_NEED_DICT:_,Z_STREAM_ERROR:g,Z_DATA_ERROR:p,Z_MEM_ERROR:v,Z_BUF_ERROR:x,Z_DEFLATED:y}=h,E=16180,R=16190,A=16191,Z=16192,S=16194,T=16199,O=16200,U=16206,D=16209,I=e=>(e>>>24&255)+(e>>>8&65280)+((65280&e)<<8)+((255&e)<<24);function B(){this.strm=null,this.mode=0,this.last=!1,this.wrap=0,this.havedict=!1,this.flags=0,this.dmax=0,this.check=0,this.total=0,this.head=null,this.wbits=0,this.wsize=0,this.whave=0,this.wnext=0,this.window=null,this.hold=0,this.bits=0,this.length=0,this.offset=0,this.extra=0,this.lencode=null,this.distcode=null,this.lenbits=0,this.distbits=0,this.ncode=0,this.nlen=0,this.ndist=0,this.have=0,this.next=null,this.lens=new Uint16Array(320),this.work=new Uint16Array(288),this.lendyn=null,this.distdyn=null,this.sane=0,this.back=0,this.was=0}const N=e=>{if(!e)return 1;const t=e.state;return!t||t.strm!==e||t.mode<E||t.mode>16211?1:0},C=e=>{if(N(e))return g;const t=e.state;return e.total_in=e.total_out=t.total=0,e.msg="",t.wrap&&(e.adler=1&t.wrap),t.mode=E,t.last=0,t.havedict=0,t.flags=-1,t.dmax=32768,t.head=null,t.hold=0,t.bits=0,t.lencode=t.lendyn=new Int32Array(852),t.distcode=t.distdyn=new Int32Array(592),t.sane=1,t.back=-1,m},z=e=>{if(N(e))return g;const t=e.state;return t.wsize=0,t.whave=0,t.wnext=0,C(e)},F=(e,t)=>{let i;if(N(e))return g;const n=e.state;return t<0?(i=0,t=-t):(i=5+(t>>4),t<48&&(t&=15)),t&&(t<8||t>15)?g:(null!==n.window&&n.wbits!==t&&(n.window=null),n.wrap=i,n.wbits=t,z(e))},L=(e,t)=>{if(!e)return g;const i=new B;e.state=i,i.strm=e,i.window=null,i.mode=E;const n=F(e,t);return n!==m&&(e.state=null),n};let M,H,j=!0;const K=e=>{if(j){M=new Int32Array(512),H=new Int32Array(32);let t=0;for(;t<144;)e.lens[t++]=8;for(;t<256;)e.lens[t++]=9;for(;t<280;)e.lens[t++]=7;for(;t<288;)e.lens[t++]=8;for(c(1,e.lens,0,288,M,0,e.work,{bits:9}),t=0;t<32;)e.lens[t++]=5;c(2,e.lens,0,32,H,0,e.work,{bits:5}),j=!1}e.lencode=M,e.lenbits=9,e.distcode=H,e.distbits=5},P=(e,t,i,n)=>{let a;const r=e.state;return null===r.window&&(r.wsize=1<<r.wbits,r.wnext=0,r.whave=0,r.window=new Uint8Array(r.wsize)),n>=r.wsize?(r.window.set(t.subarray(i-r.wsize,i),0),r.wnext=0,r.whave=r.wsize):(a=r.wsize-r.wnext,a>n&&(a=n),r.window.set(t.subarray(i-n,i-n+a),r.wnext),(n-=a)?(r.window.set(t.subarray(i-n,i),0),r.wnext=n,r.whave=r.wsize):(r.wnext+=a,r.wnext===r.wsize&&(r.wnext=0),r.whave<r.wsize&&(r.whave+=a))),0};var Y={inflateReset:z,inflateReset2:F,inflateResetKeep:C,inflateInit:e=>L(e,15),inflateInit2:L,inflate:(e,i)=>{let a,o,s,l,d,f,h,B,C,z,F,L,M,H,j,Y,G,X,W,q,J,Q,V=0;const $=new Uint8Array(4);let ee,te;const ie=new Uint8Array([16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15]);if(N(e)||!e.output||!e.input&&0!==e.avail_in)return g;a=e.state,a.mode===A&&(a.mode=Z),d=e.next_out,s=e.output,h=e.avail_out,l=e.next_in,o=e.input,f=e.avail_in,B=a.hold,C=a.bits,z=f,F=h,Q=m;e:for(;;)switch(a.mode){case E:if(0===a.wrap){a.mode=Z;break}for(;C<16;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(2&a.wrap&&35615===B){0===a.wbits&&(a.wbits=15),a.check=0,$[0]=255&B,$[1]=B>>>8&255,a.check=n(a.check,$,2,0),B=0,C=0,a.mode=16181;break}if(a.head&&(a.head.done=!1),!(1&a.wrap)||(((255&B)<<8)+(B>>8))%31){e.msg="incorrect header check",a.mode=D;break}if((15&B)!==y){e.msg="unknown compression method",a.mode=D;break}if(B>>>=4,C-=4,J=8+(15&B),0===a.wbits&&(a.wbits=J),J>15||J>a.wbits){e.msg="invalid window size",a.mode=D;break}a.dmax=1<<a.wbits,a.flags=0,e.adler=a.check=1,a.mode=512&B?16189:A,B=0,C=0;break;case 16181:for(;C<16;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(a.flags=B,(255&a.flags)!==y){e.msg="unknown compression method",a.mode=D;break}if(57344&a.flags){e.msg="unknown header flags set",a.mode=D;break}a.head&&(a.head.text=B>>8&1),512&a.flags&&4&a.wrap&&($[0]=255&B,$[1]=B>>>8&255,a.check=n(a.check,$,2,0)),B=0,C=0,a.mode=16182;case 16182:for(;C<32;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}a.head&&(a.head.time=B),512&a.flags&&4&a.wrap&&($[0]=255&B,$[1]=B>>>8&255,$[2]=B>>>16&255,$[3]=B>>>24&255,a.check=n(a.check,$,4,0)),B=0,C=0,a.mode=16183;case 16183:for(;C<16;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}a.head&&(a.head.xflags=255&B,a.head.os=B>>8),512&a.flags&&4&a.wrap&&($[0]=255&B,$[1]=B>>>8&255,a.check=n(a.check,$,2,0)),B=0,C=0,a.mode=16184;case 16184:if(1024&a.flags){for(;C<16;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}a.length=B,a.head&&(a.head.extra_len=B),512&a.flags&&4&a.wrap&&($[0]=255&B,$[1]=B>>>8&255,a.check=n(a.check,$,2,0)),B=0,C=0}else a.head&&(a.head.extra=null);a.mode=16185;case 16185:if(1024&a.flags&&(L=a.length,L>f&&(L=f),L&&(a.head&&(J=a.head.extra_len-a.length,a.head.extra||(a.head.extra=new Uint8Array(a.head.extra_len)),a.head.extra.set(o.subarray(l,l+L),J)),512&a.flags&&4&a.wrap&&(a.check=n(a.check,o,L,l)),f-=L,l+=L,a.length-=L),a.length))break e;a.length=0,a.mode=16186;case 16186:if(2048&a.flags){if(0===f)break e;L=0;do{J=o[l+L++],a.head&&J&&a.length<65536&&(a.head.name+=String.fromCharCode(J))}while(J&&L<f);if(512&a.flags&&4&a.wrap&&(a.check=n(a.check,o,L,l)),f-=L,l+=L,J)break e}else a.head&&(a.head.name=null);a.length=0,a.mode=16187;case 16187:if(4096&a.flags){if(0===f)break e;L=0;do{J=o[l+L++],a.head&&J&&a.length<65536&&(a.head.comment+=String.fromCharCode(J))}while(J&&L<f);if(512&a.flags&&4&a.wrap&&(a.check=n(a.check,o,L,l)),f-=L,l+=L,J)break e}else a.head&&(a.head.comment=null);a.mode=16188;case 16188:if(512&a.flags){for(;C<16;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(4&a.wrap&&B!==(65535&a.check)){e.msg="header crc mismatch",a.mode=D;break}B=0,C=0}a.head&&(a.head.hcrc=a.flags>>9&1,a.head.done=!0),e.adler=a.check=0,a.mode=A;break;case 16189:for(;C<32;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}e.adler=a.check=I(B),B=0,C=0,a.mode=R;case R:if(0===a.havedict)return e.next_out=d,e.avail_out=h,e.next_in=l,e.avail_in=f,a.hold=B,a.bits=C,_;e.adler=a.check=1,a.mode=A;case A:if(i===w||i===b)break e;case Z:if(a.last){B>>>=7&C,C-=7&C,a.mode=U;break}for(;C<3;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}switch(a.last=1&B,B>>>=1,C-=1,3&B){case 0:a.mode=16193;break;case 1:if(K(a),a.mode=T,i===b){B>>>=2,C-=2;break e}break;case 2:a.mode=16196;break;case 3:e.msg="invalid block type",a.mode=D}B>>>=2,C-=2;break;case 16193:for(B>>>=7&C,C-=7&C;C<32;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if((65535&B)!=(B>>>16^65535)){e.msg="invalid stored block lengths",a.mode=D;break}if(a.length=65535&B,B=0,C=0,a.mode=S,i===b)break e;case S:a.mode=16195;case 16195:if(L=a.length,L){if(L>f&&(L=f),L>h&&(L=h),0===L)break e;s.set(o.subarray(l,l+L),d),f-=L,l+=L,h-=L,d+=L,a.length-=L;break}a.mode=A;break;case 16196:for(;C<14;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(a.nlen=257+(31&B),B>>>=5,C-=5,a.ndist=1+(31&B),B>>>=5,C-=5,a.ncode=4+(15&B),B>>>=4,C-=4,a.nlen>286||a.ndist>30){e.msg="too many length or distance symbols",a.mode=D;break}a.have=0,a.mode=16197;case 16197:for(;a.have<a.ncode;){for(;C<3;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}a.lens[ie[a.have++]]=7&B,B>>>=3,C-=3}for(;a.have<19;)a.lens[ie[a.have++]]=0;if(a.lencode=a.lendyn,a.lenbits=7,ee={bits:a.lenbits},Q=c(0,a.lens,0,19,a.lencode,0,a.work,ee),a.lenbits=ee.bits,Q){e.msg="invalid code lengths set",a.mode=D;break}a.have=0,a.mode=16198;case 16198:for(;a.have<a.nlen+a.ndist;){for(;V=a.lencode[B&(1<<a.lenbits)-1],j=V>>>24,Y=V>>>16&255,G=65535&V,!(j<=C);){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(G<16)B>>>=j,C-=j,a.lens[a.have++]=G;else{if(16===G){for(te=j+2;C<te;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(B>>>=j,C-=j,0===a.have){e.msg="invalid bit length repeat",a.mode=D;break}J=a.lens[a.have-1],L=3+(3&B),B>>>=2,C-=2}else if(17===G){for(te=j+3;C<te;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}B>>>=j,C-=j,J=0,L=3+(7&B),B>>>=3,C-=3}else{for(te=j+7;C<te;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}B>>>=j,C-=j,J=0,L=11+(127&B),B>>>=7,C-=7}if(a.have+L>a.nlen+a.ndist){e.msg="invalid bit length repeat",a.mode=D;break}for(;L--;)a.lens[a.have++]=J}}if(a.mode===D)break;if(0===a.lens[256]){e.msg="invalid code -- missing end-of-block",a.mode=D;break}if(a.lenbits=9,ee={bits:a.lenbits},Q=c(1,a.lens,0,a.nlen,a.lencode,0,a.work,ee),a.lenbits=ee.bits,Q){e.msg="invalid literal/lengths set",a.mode=D;break}if(a.distbits=6,a.distcode=a.distdyn,ee={bits:a.distbits},Q=c(2,a.lens,a.nlen,a.ndist,a.distcode,0,a.work,ee),a.distbits=ee.bits,Q){e.msg="invalid distances set",a.mode=D;break}if(a.mode=T,i===b)break e;case T:a.mode=O;case O:if(f>=6&&h>=258){e.next_out=d,e.avail_out=h,e.next_in=l,e.avail_in=f,a.hold=B,a.bits=C,r(e,F),d=e.next_out,s=e.output,h=e.avail_out,l=e.next_in,o=e.input,f=e.avail_in,B=a.hold,C=a.bits,a.mode===A&&(a.back=-1);break}for(a.back=0;V=a.lencode[B&(1<<a.lenbits)-1],j=V>>>24,Y=V>>>16&255,G=65535&V,!(j<=C);){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(Y&&0==(240&Y)){for(X=j,W=Y,q=G;V=a.lencode[q+((B&(1<<X+W)-1)>>X)],j=V>>>24,Y=V>>>16&255,G=65535&V,!(X+j<=C);){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}B>>>=X,C-=X,a.back+=X}if(B>>>=j,C-=j,a.back+=j,a.length=G,0===Y){a.mode=16205;break}if(32&Y){a.back=-1,a.mode=A;break}if(64&Y){e.msg="invalid literal/length code",a.mode=D;break}a.extra=15&Y,a.mode=16201;case 16201:if(a.extra){for(te=a.extra;C<te;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}a.length+=B&(1<<a.extra)-1,B>>>=a.extra,C-=a.extra,a.back+=a.extra}a.was=a.length,a.mode=16202;case 16202:for(;V=a.distcode[B&(1<<a.distbits)-1],j=V>>>24,Y=V>>>16&255,G=65535&V,!(j<=C);){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(0==(240&Y)){for(X=j,W=Y,q=G;V=a.distcode[q+((B&(1<<X+W)-1)>>X)],j=V>>>24,Y=V>>>16&255,G=65535&V,!(X+j<=C);){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}B>>>=X,C-=X,a.back+=X}if(B>>>=j,C-=j,a.back+=j,64&Y){e.msg="invalid distance code",a.mode=D;break}a.offset=G,a.extra=15&Y,a.mode=16203;case 16203:if(a.extra){for(te=a.extra;C<te;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}a.offset+=B&(1<<a.extra)-1,B>>>=a.extra,C-=a.extra,a.back+=a.extra}if(a.offset>a.dmax){e.msg="invalid distance too far back",a.mode=D;break}a.mode=16204;case 16204:if(0===h)break e;if(L=F-h,a.offset>L){if(L=a.offset-L,L>a.whave&&a.sane){e.msg="invalid distance too far back",a.mode=D;break}L>a.wnext?(L-=a.wnext,M=a.wsize-L):M=a.wnext-L,L>a.length&&(L=a.length),H=a.window}else H=s,M=d-a.offset,L=a.length;L>h&&(L=h),h-=L,a.length-=L;do{s[d++]=H[M++]}while(--L);0===a.length&&(a.mode=O);break;case 16205:if(0===h)break e;s[d++]=a.length,h--,a.mode=O;break;case U:if(a.wrap){for(;C<32;){if(0===f)break e;f--,B|=o[l++]<<C,C+=8}if(F-=h,e.total_out+=F,a.total+=F,4&a.wrap&&F&&(e.adler=a.check=a.flags?n(a.check,s,F,d-F):t(a.check,s,F,d-F)),F=h,4&a.wrap&&(a.flags?B:I(B))!==a.check){e.msg="incorrect data check",a.mode=D;break}B=0,C=0}a.mode=16207;case 16207:if(a.wrap&&a.flags){for(;C<32;){if(0===f)break e;f--,B+=o[l++]<<C,C+=8}if(4&a.wrap&&B!==(4294967295&a.total)){e.msg="incorrect length check",a.mode=D;break}B=0,C=0}a.mode=16208;case 16208:Q=k;break e;case D:Q=p;break e;case 16210:return v;default:return g}return e.next_out=d,e.avail_out=h,e.next_in=l,e.avail_in=f,a.hold=B,a.bits=C,(a.wsize||F!==e.avail_out&&a.mode<D&&(a.mode<U||i!==u))&&P(e,e.output,e.next_out,F-e.avail_out),z-=e.avail_in,F-=e.avail_out,e.total_in+=z,e.total_out+=F,a.total+=F,4&a.wrap&&F&&(e.adler=a.check=a.flags?n(a.check,s,F,e.next_out-F):t(a.check,s,F,e.next_out-F)),e.data_type=a.bits+(a.last?64:0)+(a.mode===A?128:0)+(a.mode===T||a.mode===S?256:0),(0===z&&0===F||i===u)&&Q===m&&(Q=x),Q},inflateEnd:e=>{if(N(e))return g;let t=e.state;return t.window&&(t.window=null),e.state=null,m},inflateGetHeader:(e,t)=>{if(N(e))return g;const i=e.state;return 0==(2&i.wrap)?g:(i.head=t,t.done=!1,m)},inflateSetDictionary:(e,i)=>{const n=i.length;let a,r,o;return N(e)?g:(a=e.state,0!==a.wrap&&a.mode!==R?g:a.mode===R&&(r=1,r=t(r,i,n,0),r!==a.check)?p:(o=P(e,i,n,n),o?(a.mode=16210,v):(a.havedict=1,m)))},inflateInfo:"pako inflate (from Nodeca project)"};const G=(e,t)=>Object.prototype.hasOwnProperty.call(e,t);var X=function(e){const t=Array.prototype.slice.call(arguments,1);for(;t.length;){const i=t.shift();if(i){if("object"!=typeof i)throw new TypeError(i+"must be non-object");for(const t in i)G(i,t)&&(e[t]=i[t])}}return e},W=e=>{let t=0;for(let i=0,n=e.length;i<n;i++)t+=e[i].length;const i=new Uint8Array(t);for(let t=0,n=0,a=e.length;t<a;t++){let a=e[t];i.set(a,n),n+=a.length}return i};let q=!0;try{String.fromCharCode.apply(null,new Uint8Array(1))}catch(e){q=!1}const J=new Uint8Array(256);for(let e=0;e<256;e++)J[e]=e>=252?6:e>=248?5:e>=240?4:e>=224?3:e>=192?2:1;J[254]=J[254]=1;var Q=e=>{if("function"==typeof TextEncoder&&TextEncoder.prototype.encode)return(new TextEncoder).encode(e);let t,i,n,a,r,o=e.length,s=0;for(a=0;a<o;a++)i=e.charCodeAt(a),55296==(64512&i)&&a+1<o&&(n=e.charCodeAt(a+1),56320==(64512&n)&&(i=65536+(i-55296<<10)+(n-56320),a++)),s+=i<128?1:i<2048?2:i<65536?3:4;for(t=new Uint8Array(s),r=0,a=0;r<s;a++)i=e.charCodeAt(a),55296==(64512&i)&&a+1<o&&(n=e.charCodeAt(a+1),56320==(64512&n)&&(i=65536+(i-55296<<10)+(n-56320),a++)),i<128?t[r++]=i:i<2048?(t[r++]=192|i>>>6,t[r++]=128|63&i):i<65536?(t[r++]=224|i>>>12,t[r++]=128|i>>>6&63,t[r++]=128|63&i):(t[r++]=240|i>>>18,t[r++]=128|i>>>12&63,t[r++]=128|i>>>6&63,t[r++]=128|63&i);return t},V=(e,t)=>{const i=t||e.length;if("function"==typeof TextDecoder&&TextDecoder.prototype.decode)return(new TextDecoder).decode(e.subarray(0,t));let n,a;const r=new Array(2*i);for(a=0,n=0;n<i;){let t=e[n++];if(t<128){r[a++]=t;continue}let o=J[t];if(o>4)r[a++]=65533,n+=o-1;else{for(t&=2===o?31:3===o?15:7;o>1&&n<i;)t=t<<6|63&e[n++],o--;o>1?r[a++]=65533:t<65536?r[a++]=t:(t-=65536,r[a++]=55296|t>>10&1023,r[a++]=56320|1023&t)}}return((e,t)=>{if(t<65534&&e.subarray&&q)return String.fromCharCode.apply(null,e.length===t?e:e.subarray(0,t));let i="";for(let n=0;n<t;n++)i+=String.fromCharCode(e[n]);return i})(r,a)},$=(e,t)=>{(t=t||e.length)>e.length&&(t=e.length);let i=t-1;for(;i>=0&&128==(192&e[i]);)i--;return i<0||0===i?t:i+J[e[i]]>t?i:t},ee={2:"need dictionary",1:"stream end",0:"","-1":"file error","-2":"stream error","-3":"data error","-4":"insufficient memory","-5":"buffer error","-6":"incompatible version"};var te=function(){this.input=null,this.next_in=0,this.avail_in=0,this.total_in=0,this.output=null,this.next_out=0,this.avail_out=0,this.total_out=0,this.msg="",this.state=null,this.data_type=2,this.adler=0};var ie=function(){this.text=0,this.time=0,this.xflags=0,this.os=0,this.extra=null,this.extra_len=0,this.name="",this.comment="",this.hcrc=0,this.done=!1};const ne=Object.prototype.toString,{Z_NO_FLUSH:ae,Z_FINISH:re,Z_OK:oe,Z_STREAM_END:se,Z_NEED_DICT:le,Z_STREAM_ERROR:de,Z_DATA_ERROR:fe,Z_MEM_ERROR:ce}=h;function he(e){this.options=X({chunkSize:65536,windowBits:15,to:""},e||{});const t=this.options;t.raw&&t.windowBits>=0&&t.windowBits<16&&(t.windowBits=-t.windowBits,0===t.windowBits&&(t.windowBits=-15)),!(t.windowBits>=0&&t.windowBits<16)||e&&e.windowBits||(t.windowBits+=32),t.windowBits>15&&t.windowBits<48&&0==(15&t.windowBits)&&(t.windowBits|=15),this.err=0,this.msg="",this.ended=!1,this.chunks=[],this.strm=new te,this.strm.avail_out=0;let i=Y.inflateInit2(this.strm,t.windowBits);if(i!==oe)throw new Error(ee[i]);if(this.header=new ie,Y.inflateGetHeader(this.strm,this.header),t.dictionary&&("string"==typeof t.dictionary?t.dictionary=Q(t.dictionary):"[object ArrayBuffer]"===ne.call(t.dictionary)&&(t.dictionary=new Uint8Array(t.dictionary)),t.raw&&(i=Y.inflateSetDictionary(this.strm,t.dictionary),i!==oe)))throw new Error(ee[i])}function ue(e,t){const i=new he(t);if(i.push(e),i.err)throw i.msg||ee[i.err];return i.result}he.prototype.push=function(e,t){const i=this.strm,n=this.options.chunkSize,a=this.options.dictionary;let r,o,s;if(this.ended)return!1;for(o=t===~~t?t:!0===t?re:ae,"[object ArrayBuffer]"===ne.call(e)?i.input=new Uint8Array(e):i.input=e,i.next_in=0,i.avail_in=i.input.length;;){for(0===i.avail_out&&(i.output=new Uint8Array(n),i.next_out=0,i.avail_out=n),r=Y.inflate(i,o),r===le&&a&&(r=Y.inflateSetDictionary(i,a),r===oe?r=Y.inflate(i,o):r===fe&&(r=le));i.avail_in>0&&r===se&&i.state.wrap>0&&0!==e[i.next_in];)Y.inflateReset(i),r=Y.inflate(i,o);switch(r){case de:case fe:case le:case ce:return this.onEnd(r),this.ended=!0,!1}if(s=i.avail_out,i.next_out&&(0===i.avail_out||r===se))if("string"===this.options.to){let e=$(i.output,i.next_out),t=i.next_out-e,a=V(i.output,e);i.next_out=t,i.avail_out=n-t,t&&i.output.set(i.output.subarray(e,e+t),0),this.onData(a)}else this.onData(i.output.length===i.next_out?i.output:i.output.subarray(0,i.next_out));if(r!==oe||0!==s){if(r===se)return r=Y.inflateEnd(this.strm),this.onEnd(r),this.ended=!0,!0;if(0===i.avail_in)break}}return!0},he.prototype.onData=function(e){this.chunks.push(e)},he.prototype.onEnd=function(e){e===oe&&("string"===this.options.to?this.result=this.chunks.join(""):this.result=W(this.chunks)),this.chunks=[],this.err=e,this.msg=this.strm.msg};var we=he,be=ue,me=function(e,t){return(t=t||{}).raw=!0,ue(e,t)},ke=ue,_e=h,ge={Inflate:we,inflate:be,inflateRaw:me,ungzip:ke,constants:_e};e.Inflate=we,e.constants=_e,e.default=ge,e.inflate=be,e.inflateRaw=me,e.ungzip=ke,Object.defineProperty(e,"__esModule",{value:!0})}));
+</script>
+<script>
+"use strict";
+
+// ============================================================
+// @gcu/capsule — inline subset (only inline schemes used here;
+// the full reference dispatcher in capsule.js handles ref schemes)
+// ============================================================
+
+// base64url decode
+function b64urlDecode(s) {
+  const pad = (4 - (s.length % 4)) % 4;
+  const norm = (s + "=".repeat(pad)).replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(norm);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// base45 decode (RFC 9285)
+const B45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+const B45_REV = (() => { const r = {}; for (let i = 0; i < B45.length; i++) r[B45[i]] = i; return r; })();
+function base45Decode(s) {
+  const out = [];
+  for (let i = 0; i < s.length; i += 3) {
+    const chunk = s.slice(i, i + 3);
+    let n = 0;
+    for (let j = chunk.length - 1; j >= 0; j--) {
+      const v = B45_REV[chunk[j]];
+      if (v === undefined) throw new Error("invalid base45 character: " + chunk[j]);
+      n = n * 45 + v;
+    }
+    if (chunk.length === 3) out.push((n >> 8) & 0xff, n & 0xff);
+    else if (chunk.length === 2) out.push(n & 0xff);
+  }
+  return new Uint8Array(out);
+}
+
+// Inline scheme parsers. Returns { bytes, dictId } or throws.
+function parseInline(body, dicts) {
+  // body is the part after "inline:"
+  // e.g. "raw:aGVsbG8gd29ybGQK" or "deflate:..." or "deflate-dict.menu-ptbr:..."
+  const colonIdx = body.indexOf(":");
+  if (colonIdx < 0) throw new Error("EBADBODY: missing codec separator");
+  const codecPart = body.slice(0, colonIdx);
+  const payload = body.slice(colonIdx + 1);
+  const raw = b64urlDecode(payload);
+  return inflateByCodec(codecPart, raw, dicts);
+}
+
+function parseI(body, dicts) {
+  // body is the part after "i:"
+  // e.g. "raGVsbG8gd29ybGQK" or "dK8lI..."
+  if (body.length < 1) throw new Error("EBADBODY: empty i: body");
+  const codecChar = body[0];
+  const payload = body.slice(1);
+  const codec = compactCodec(codecChar);
+  const raw = b64urlDecode(payload);
+  return inflateByCodec(codec, raw, dicts);
+}
+
+function parseQ(body, dicts) {
+  // body is the part after "q:"
+  // e.g. "dPAYLOAD" or "d.menu-ptbr_PAYLOAD"
+  if (body.length < 1) throw new Error("EBADBODY: empty q: body");
+  const codecChar = body[0];
+  let codec = compactCodec(codecChar);
+  let payloadStart = 1;
+  if (body[1] === ".") {
+    // dict-id present; find terminating _
+    const us = body.indexOf("_", 2);
+    if (us < 0) throw new Error("EBADBODY: q: dict-id missing underscore terminator");
+    const dictId = body.slice(2, us);
+    codec = codec + "-dict." + dictId;
+    payloadStart = us + 1;
+  }
+  const payload = body.slice(payloadStart);
+  const raw = base45Decode(payload);
+  return inflateByCodec(codec, raw, dicts);
+}
+
+function compactCodec(c) {
+  if (c === "r") return "raw";
+  if (c === "d") return "deflate";
+  if (c === "b") return "brotli";
+  throw new Error("EUNSUPPORTEDCODEC: unknown compact codec char '" + c + "'");
+}
+
+function inflateByCodec(codec, raw, dicts) {
+  if (codec === "raw") return raw;
+  if (codec === "deflate") return pako.inflateRaw(raw);
+  if (codec === "brotli") throw new Error("EUNSUPPORTEDCODEC: brotli not implemented in this build");
+  if (codec.startsWith("deflate-dict.")) {
+    const dictId = codec.slice("deflate-dict.".length);
+    const dict = dicts[dictId];
+    if (!dict) throw new Error("EUNSUPPORTEDCODEC: unknown dict-id '" + dictId + "'");
+    const dictBytes = new TextEncoder().encode(dict);
+    return pako.inflateRaw(raw, { dictionary: dictBytes });
+  }
+  throw new Error("EUNSUPPORTEDCODEC: " + codec);
+}
+
+// Reverse the §6.4.1 URL-fragment escaping for q: capsules. A single
+// left-to-right pass that recognizes exactly the two triplets the producer
+// introduces (%25 -> %, %20 -> space) and copies every other character
+// verbatim. Per SPEC-capsule §6.4.1 a conformant decoder MUST NOT use
+// decodeURIComponent: that would also decode fragment-legal triplets a raw
+// base45 payload may contain literally (e.g. a literal "%20" encodes to
+// "%2520" and must round-trip back to "%20", not to a space).
+function fragmentDecode(s) {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === "%" && i + 2 < s.length) {
+      const t = s.slice(i, i + 3);
+      if (t === "%25") { out += "%"; i += 2; continue; }
+      if (t === "%20") { out += " "; i += 2; continue; }
+    }
+    out += s[i];
+  }
+  return out;
+}
+
+function resolveCapsule(capsule, dicts) {
+  const colonIdx = capsule.indexOf(":");
+  if (colonIdx < 0) throw new Error("EBADCAPSULE: missing scheme separator");
+  const scheme = capsule.slice(0, colonIdx);
+  const body = capsule.slice(colonIdx + 1);
+  switch (scheme) {
+    case "inline": return parseInline(body, dicts);
+    case "i":      return parseI(body, dicts);
+    case "q":      return parseQ(body, dicts);
+    default:       throw new Error("EUNKNOWN-SCHEME: " + scheme);
+  }
+}
+
+// ============================================================
+// Embedded dictionaries
+// ============================================================
+
+const DICT_MENU_PTBR =
+  "|garrafa\n" +
+  "|6 unidades\n|8 unidades\n" +
+  "## Vinhos brancos\n## Vinhos tintos\n## Espumantes\n" +
+  "## Entradas\n## Principais\n## Massas\n## Sobremesas\n## Sushi\n## Sashimi\n" +
+  "## Hot rolls\n## Combinados\n## Pratos quentes\n## Bebidas\n## Cafés\n" +
+  "manjericão, " +
+  "molho de tomate, parmesão reggiano, azeite extra virgem, " +
+  "salmão grelhado, filé mignon, picanha, frango à parmegiana, " +
+  "risoto de cogumelos, sorvete de creme, " +
+  "frutas vermelhas, leite de coco, " +
+  "calda de caramelo, calda de chocolate, " +
+  "molho madeira, molho de pimenta, " +
+  "carpaccio, bruschetta, tiramisù, cheesecake, petit gateau, pudim, " +
+  "spaghetti, linguine, ravioli, lasanha, nhoque, fettuccine, " +
+  "queijo, presunto, alho, cebola, tomate, batata, arroz, " +
+  "salmão, atum, camarão, filé, frango, carne, peixe, polvo, lula, " +
+  "yakisoba, niguiri, sashimi, uramaki, hot roll, harumaki, gyoza, tempura, " +
+  "philadelphia, california, " +
+  "espresso, cappuccino, café com leite, mocha, chocolate quente, " +
+  "tapioca, pão de queijo, brigadeiro, beijinho, " +
+  "porção, unidades, garrafa, taça, copo, " +
+  "@template: minimal\n@template: bistro\n@template: serif\n@template: dark\n" +
+  "@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
+const DICT_MENU_ENUS =
+  "|bottle\n" +
+  "|6 pack\n|case of 12\n" +
+  "## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n" +
+  "## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n" +
+  "## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n" +
+  "## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n" +
+  "## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\n" +
+  "extra virgin olive oil, " +
+  "fresh mozzarella, parmesan reggiano, aged cheddar, " +
+  "grilled salmon, grilled chicken, ribeye steak, filet mignon, " +
+  "mushroom risotto, vanilla ice cream, " +
+  "mixed berries, coconut milk, " +
+  "caramel sauce, chocolate sauce, " +
+  "red wine reduction, lemon butter sauce, " +
+  "carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, " +
+  "spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, " +
+  "cheese, ham, garlic, onion, tomato, potato, rice, " +
+  "salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, " +
+  "yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, " +
+  "philadelphia, california, dragon roll, spicy tuna, " +
+  "espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, " +
+  "cheeseburger, hamburger, club sandwich, caesar salad, greek salad, " +
+  "french fries, sweet potato fries, onion rings, mashed potatoes, " +
+  "served with, comes with, side of, choice of, " +
+  "@template: minimal\n@template: bistro\n@template: serif\n@template: dark\n" +
+  "@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
+const DICT_ARCR =
+"\n@title \n@about \n@bg plain\n@bg stars\n@bg dots\n@bg grid\n@lives 3\nobj you : emoji  at=bottom move=tap\nobj  : emoji  at=top move=fall tag=\nobj  : text \" at=center\nevery 1 : spawn emoji  at=top move=fall tag=\non hit you #  : score +1 ; say \"\non tap  : say \" ; \nwhen score >= 10 : win \"\nwhen time >= 30 : win \"when count # == 0 : \nlife -1 ; say \"become it emoji \ndestroy 1 #move=still move=seek move=flee move=chase at=scatter speed=\nlose \"end \"refuse \"add  1\n";
+
+const DICTS = {
+  "menu-ptbr": DICT_MENU_PTBR,
+  "menu-enus": DICT_MENU_ENUS,
+  "arcr": DICT_ARCR,
+};
+
+// ============================================================
+// Helpers shared by renderers
+// ============================================================
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+}
+
+function renderInline(text) {
+  text = escapeHtml(text);
+  text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  return text;
+}
+
+// ============================================================
+// Renderer: menu
+// ============================================================
+
+const MENU_LOCALES = {
+  "pt-BR": {
+    currency: "R$ ",
+    decimal: ",",
+    stale: (date) => `Este cardápio expirou em ${formatDate(date, "pt-BR")}. Confirme os preços com o garçom.`,
+    service: (pct) => `Serviço (${pct}) não incluso.`,
+    couvert: (val) => `Couvert ${formatMoney(val, "pt-BR")}.`,
+    tags: { v: "vegano", vg: "vegetariano", g: "sem glúten", l: "sem lactose", p: "picante" },
+  },
+  "en-US": {
+    currency: "$",
+    decimal: ".",
+    stale: (date) => `This menu expired on ${formatDate(date, "en-US")}. Please confirm prices with your server.`,
+    service: (pct) => `Service charge: ${pct}.`,
+    couvert: (val) => `Cover: ${formatMoney(val, "en-US")}.`,
+    tags: { v: "vegan", vg: "vegetarian", gf: "gluten-free", df: "dairy-free", sp: "spicy" },
+  },
+};
+
+function formatMoney(value, locale) {
+  const num = parseFloat(value);
+  if (isNaN(num)) return value;
+  if (locale === "pt-BR") return "R$ " + num.toFixed(2).replace(".", ",");
+  return "$" + num.toFixed(2);
+}
+function formatPrice(price, locale) {
+  const m = String(price == null ? "" : price).match(/^(\d+(?:\.\d+)?)(\/(?:kg|un))?$/);
+  if (!m) return price;
+  return formatMoney(m[1], locale) + (m[2] || "");
+}
+function formatDate(iso, locale) {
+  try {
+    const d = new Date(iso + "T12:00:00");
+    if (isNaN(d)) return iso;
+    return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(d);
+  } catch { return iso; }
+}
+
+function parseMenuBody(body) {
+  const lines = body.split("\n");
+  const directives = {};
+  const blocks = [];
+  let inDirective = true;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { inDirective = false; continue; }
+    if (inDirective && line.startsWith("@") && line.includes(":")) {
+      const idx = line.indexOf(":");
+      directives[line.slice(1, idx).trim()] = line.slice(idx + 1).trim();
+      continue;
+    }
+    inDirective = false;
+    if (line === "---") { blocks.push({ type: "hr" }); continue; }
+    if (line.startsWith("## ")) { blocks.push({ type: "h2", text: line.slice(3) }); continue; }
+    if (line.startsWith("# ")) { blocks.push({ type: "h1", text: line.slice(2) }); continue; }
+    if (line.includes("|")) {
+      const parts = line.split("|").map(p => p.trim());
+      blocks.push({
+        type: "item",
+        name: parts[0] || "", price: parts[1] || "", desc: parts[2] || "",
+        tags: (parts[3] || "").split(",").map(t => t.trim()).filter(Boolean),
+      });
+      continue;
+    }
+    blocks.push({ type: "p", text: line });
+  }
+  return { directives, blocks };
+}
+
+const SOCIAL_ICON = (paths) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+const SOCIAL = {
+  ig:  { icon: SOCIAL_ICON('<rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>'), url: h => `https://instagram.com/${h}`, label: h => `@${h}` },
+  fb:  { icon: SOCIAL_ICON('<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>'), url: h => `https://facebook.com/${h}`, label: h => h },
+  x:   { icon: SOCIAL_ICON('<path d="M4 4l16 16M20 4L4 20"/>'), url: h => `https://x.com/${h}`, label: h => `@${h}` },
+  tk:  { icon: SOCIAL_ICON('<path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>'), url: h => `https://tiktok.com/@${h}`, label: h => `@${h}` },
+  ws:  { icon: SOCIAL_ICON('<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>'), url: h => `https://wa.me/${h}`, label: () => "WhatsApp" },
+  web: { icon: SOCIAL_ICON('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'), url: h => `https://${h}`, label: h => h },
+};
+
+function menuRenderer(header, body, ctx) {
+  const locale = header.params;
+  const strings = MENU_LOCALES[locale] || MENU_LOCALES["pt-BR"];
+  const text = new TextDecoder("utf-8").decode(body);
+  const parsed = parseMenuBody(text);
+  const dirs = parsed.directives;
+
+  document.documentElement.lang = locale;
+  document.body.className = "tmpl-" + (dirs.template || "minimal");
+  if (dirs.accent) document.documentElement.style.setProperty("--accent", dirs.accent);
+
+  const parts = [];
+
+  if (dirs.valid_until) {
+    const expiry = new Date(dirs.valid_until + "T23:59:59");
+    if (!isNaN(expiry) && expiry < new Date()) {
+      parts.push(`<div class="stale">${escapeHtml(strings.stale(dirs.valid_until))}</div>`);
+    }
+  }
+
+  for (const b of parsed.blocks) {
+    if (b.type === "h1") parts.push(`<h1>${renderInline(b.text)}</h1>`);
+    else if (b.type === "h2") parts.push(`<h2>${renderInline(b.text)}</h2>`);
+    else if (b.type === "p") parts.push(`<p>${renderInline(b.text)}</p>`);
+    else if (b.type === "hr") parts.push(`<hr>`);
+    else if (b.type === "item") {
+      const tagsHtml = b.tags
+        .filter(t => strings.tags[t])
+        .map(t => `<span class="tag" title="${escapeHtml(strings.tags[t])}">${escapeHtml(t)}</span>`)
+        .join("");
+      const priceHtml = b.price ? `<div class="item-price">${escapeHtml(formatPrice(b.price, locale))}</div>` : "";
+      const descHtml = b.desc ? `<div class="item-desc">${renderInline(b.desc)}</div>` : "";
+      parts.push(
+        `<div class="item">` +
+        `<div class="item-body">` +
+        `<div class="item-name">${renderInline(b.name)}${tagsHtml}</div>` +
+        descHtml + `</div>` + priceHtml + `</div>`
+      );
+    }
+  }
+
+  const footerLines = [];
+  if (dirs.service) footerLines.push(strings.service(dirs.service));
+  if (dirs.couvert) footerLines.push(strings.couvert(dirs.couvert));
+  if (dirs.social || footerLines.length) {
+    let footer = '<footer>';
+    for (const l of footerLines) footer += `<div class="footer-line">${escapeHtml(l)}</div>`;
+    if (dirs.social) {
+      footer += '<div class="socials">';
+      for (const pair of dirs.social.split(",")) {
+        const [prefix, handle] = pair.split("=").map(s => s.trim());
+        const def = SOCIAL[prefix];
+        if (def && handle) {
+          footer += `<a href="${def.url(handle)}" target="_blank" rel="noopener noreferrer">${def.icon}<span>${escapeHtml(def.label(handle))}</span></a>`;
+        }
+      }
+      footer += '</div>';
+    }
+    footer += '</footer>';
+    parts.push(footer);
+  }
+  parts.push(`<div class="attribution">decoded · ${escapeHtml(ctx.bootloaderUrl)}</div>`);
+  ctx.mount.innerHTML = parts.join("");
+}
+
+// ============================================================
+// Renderer: doorbell
+// ============================================================
+
+const DOORBELL_LOCALES = {
+  "pt-BR": {
+    buttons: {
+      delivery: { emoji: "📦", label: "Entrega" },
+      visitor:  { emoji: "👋", label: "Visita" },
+      service:  { emoji: "🔧", label: "Serviço" },
+      urgent:   { emoji: "⚠️",  label: "Urgente" },
+      other:    { emoji: "✋", label: "Outro" },
+    },
+    sending: "Tocando a campainha…",
+    success: "Campainha tocada! Aguarde.",
+    error:   "Não foi possível tocar. Verifique sua conexão.",
+    placeholder: "Digite uma mensagem curta…",
+    sendBtn: "Tocar",
+  },
+  "en-US": {
+    buttons: {
+      delivery: { emoji: "📦", label: "Delivery" },
+      visitor:  { emoji: "👋", label: "Visitor" },
+      service:  { emoji: "🔧", label: "Service" },
+      urgent:   { emoji: "⚠️",  label: "Urgent" },
+      other:    { emoji: "✋", label: "Other" },
+    },
+    sending: "Ringing the bell…",
+    success: "Rang! Please wait.",
+    error:   "Couldn't ring. Check your connection.",
+    placeholder: "Type a short message…",
+    sendBtn: "Ring",
+  },
+};
+
+function parseDoorbellBody(body) {
+  const lines = body.split("\n");
+  const directives = {};
+  let title = "";
+  let inDirective = true;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { inDirective = false; continue; }
+    if (inDirective && line.startsWith("@") && line.includes(":")) {
+      const idx = line.indexOf(":");
+      directives[line.slice(1, idx).trim()] = line.slice(idx + 1).trim();
+      continue;
+    }
+    inDirective = false;
+    // First non-directive non-blank line is treated as bare-text title
+    if (!title) title = line;
+  }
+  return { directives, title };
+}
+
+// Base64url decode to Uint8Array
+function b64urlToBytes(s) {
+  const pad = (4 - (s.length % 4)) % 4;
+  const norm = (s + "=".repeat(pad)).replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(norm);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// Encrypt per SPEC-doorbell §5.2
+async function doorbellEncrypt(recipientPubBytes, plaintext) {
+  const ephemeral = await crypto.subtle.generateKey(
+    { name: "X25519" }, true, ["deriveBits", "deriveKey"]);
+  const ephemeralPubBuf = await crypto.subtle.exportKey("raw", ephemeral.publicKey);
+  const ephemeralPubBytes = new Uint8Array(ephemeralPubBuf);
+
+  const recipientPubKey = await crypto.subtle.importKey(
+    "raw", recipientPubBytes, { name: "X25519" }, false, []);
+
+  const sharedBits = await crypto.subtle.deriveBits(
+    { name: "X25519", public: recipientPubKey }, ephemeral.privateKey, 256);
+
+  const salt = new Uint8Array(64);
+  salt.set(ephemeralPubBytes, 0);
+  salt.set(recipientPubBytes, 32);
+
+  const sharedKey = await crypto.subtle.importKey(
+    "raw", sharedBits, "HKDF", false, ["deriveKey"]);
+  const aesKey = await crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: salt,
+      info: new TextEncoder().encode("cradle/doorbell-v1"),
+    },
+    sharedKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]);
+
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce, additionalData: ephemeralPubBytes },
+    aesKey, plaintext));
+
+  const wire = new Uint8Array(32 + 12 + ciphertext.length);
+  wire.set(ephemeralPubBytes, 0);
+  wire.set(nonce, 32);
+  wire.set(ciphertext, 44);
+  return wire;
+}
+
+async function doorbellSend(wire, relay, topic) {
+  const url = `https://${relay}/${encodeURIComponent(topic)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: wire,
+  });
+  if (!res.ok) throw new Error(`relay returned HTTP ${res.status}`);
+  return res;
+}
+
+function doorbellRenderer(header, body, ctx) {
+  const locale = header.params || "en-US";
+  const strings = DOORBELL_LOCALES[locale] || DOORBELL_LOCALES["en-US"];
+  const text = new TextDecoder("utf-8").decode(body);
+  const { directives: d, title: bareTitle } = parseDoorbellBody(text);
+
+  // Validate required directives
+  if (!d.pubkey) throw new Error("EDOORBELL: missing @pubkey directive");
+  if (!d.topic) throw new Error("EDOORBELL: missing @topic directive");
+
+  let pubBytes;
+  try {
+    pubBytes = b64urlToBytes(d.pubkey);
+    if (pubBytes.length !== 32) throw new Error("wrong length");
+  } catch (e) {
+    throw new Error("EDOORBELL: @pubkey must be a base64url 32-byte X25519 public key");
+  }
+
+  const relay = d.relay || "ntfy.sh";
+  const buttonKeys = (d.buttons || "delivery,visitor,other").split(",").map(s => s.trim()).filter(Boolean);
+  const allowText = (d.allow_text || "").toLowerCase() === "true";
+  const title = d.title || bareTitle || "";
+
+  // Build UI
+  document.documentElement.lang = locale;
+  document.body.className = "tmpl-minimal";
+
+  const parts = [];
+  if (title) parts.push(`<div class="doorbell-title">${escapeHtml(title)}</div>`);
+  if (d.info) parts.push(`<div class="doorbell-info">${renderInline(d.info)}</div>`);
+
+  parts.push(`<div class="doorbell-buttons">`);
+  for (const key of buttonKeys) {
+    const btn = strings.buttons[key];
+    if (!btn) continue;
+    parts.push(
+      `<button class="ring-btn" data-key="${escapeHtml(key)}" data-label="${escapeHtml(btn.emoji + " " + btn.label)}">` +
+      `<span class="ring-emoji">${btn.emoji}</span>` +
+      `<span>${escapeHtml(btn.label)}</span>` +
+      `</button>`
+    );
+  }
+  parts.push(`</div>`);
+
+  if (allowText) {
+    parts.push(`<textarea class="doorbell-text" placeholder="${escapeHtml(strings.placeholder)}" maxlength="200"></textarea>`);
+    parts.push(`<button class="doorbell-send">${escapeHtml(strings.sendBtn)}</button>`);
+  }
+
+  parts.push(`<div class="doorbell-status" id="doorbell-status"></div>`);
+  parts.push(`<div class="attribution">${escapeHtml(ctx.bootloaderUrl)}</div>`);
+  ctx.mount.innerHTML = parts.join("");
+
+  const status = ctx.mount.querySelector("#doorbell-status");
+  const allButtons = ctx.mount.querySelectorAll(".ring-btn, .doorbell-send");
+
+  function setStatus(state, msg) {
+    status.className = "doorbell-status show " + state;
+    status.textContent = msg;
+  }
+
+  async function ring(plaintext) {
+    for (const b of allButtons) b.disabled = true;
+    setStatus("sending", strings.sending);
+    try {
+      const wire = await doorbellEncrypt(pubBytes, new TextEncoder().encode(plaintext));
+      await doorbellSend(wire, relay, d.topic);
+      setStatus("success",
+        strings.success + " (" + new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) + ")");
+    } catch (err) {
+      console.error(err);
+      setStatus("error", strings.error);
+      for (const b of allButtons) b.disabled = false;
+    }
+  }
+
+  for (const btn of ctx.mount.querySelectorAll(".ring-btn")) {
+    btn.addEventListener("click", () => {
+      const key = btn.getAttribute("data-key");
+      const label = btn.getAttribute("data-label");
+      ring(key + "\n" + label);
+    });
+  }
+  const sendBtn = ctx.mount.querySelector(".doorbell-send");
+  const textarea = ctx.mount.querySelector(".doorbell-text");
+  if (sendBtn && textarea) {
+    sendBtn.addEventListener("click", () => {
+      const msg = textarea.value.trim();
+      if (!msg) return;
+      ring("text\n" + msg);
+    });
+  }
+}
+
+// ============================================================
+// Renderer: arcr  (SPEC-arcr — micro-game DSL; engine owns juice)
+// The program is the capsule BODY: untrusted DATA, never eval'd.
+// Engine lifted from arcr.html and adapted to mount in ctx.mount.
+// ============================================================
+const arcrRenderer = (function(){
+"use strict";
+
+  // DOM built into the cradle mount (replaces arcr.html's fixed page elements)
+  let cv, ctx, wrapEl, cardEl, bootEl, cardbodyEl, titleEl, aboutEl, hintEl, resultEl, headEl, msgEl, againBtn;
+  const keys = {};
+  let __started = false;
+  function mk(t,css,html){ const e=document.createElement(t); if(css)e.style.cssText=css; if(html!=null)e.innerHTML=html; return e; }
+  function buildDOM(mount){
+    mount.innerHTML = "";
+    try { document.body.style.background = "#0b0b10"; } catch(e){}
+    const ov = "position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8% 7%;gap:.4rem;font-family:'Segoe UI',system-ui,sans-serif;";
+    wrapEl = mk("div","position:relative;width:100%;max-width:440px;margin:0 auto;aspect-ratio:9/16;background:#0b0b10;border-radius:10px;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.6);touch-action:none;-webkit-user-select:none;user-select:none;");
+    cv = mk("canvas","display:block;width:100%;height:100%;");
+    cardEl = mk("div", ov);
+    bootEl = mk("div","font-size:.8rem;letter-spacing:.4em;opacity:.7;","INSERTING CARTRIDGE…");
+    cardbodyEl = mk("div","display:none;flex-direction:column;align-items:center;gap:.25rem;");
+    titleEl = mk("div","font-size:2.1rem;font-weight:800;line-height:1;margin:.1rem 0;text-shadow:0 3px 0 rgba(0,0,0,.35);");
+    aboutEl = mk("div","font-size:.8rem;letter-spacing:.3em;text-transform:uppercase;opacity:.6;");
+    hintEl = mk("div","margin-top:1.5rem;font-size:.8rem;opacity:.55;");
+    cardbodyEl.append(titleEl, aboutEl, hintEl); cardEl.append(bootEl, cardbodyEl);
+    resultEl = mk("div", ov); resultEl.style.display = "none";
+    headEl = mk("div","font-size:2.3rem;font-weight:800;margin:.2rem 0;");
+    msgEl = mk("div","font-size:.95rem;opacity:.85;font-style:italic;max-width:22rem;");
+    againBtn = mk("button","margin-top:1.3rem;font:inherit;font-weight:700;font-size:.8rem;letter-spacing:.04em;padding:.55rem 1rem;border-radius:6px;border:2px solid #e8e8ef;background:transparent;color:#e8e8ef;cursor:pointer;text-transform:uppercase;","again");
+    resultEl.append(headEl, msgEl, againBtn);
+    wrapEl.append(cv, cardEl, resultEl); mount.append(wrapEl);
+    ctx = cv.getContext("2d");
+    cardEl.addEventListener("click", function(){ if(state==="card" && cardbodyEl.style.display!=="none") startGame(); });
+    againBtn.addEventListener("click", function(e){ e.stopPropagation(); audioOn(); startGame(); });
+    cv.addEventListener("pointermove", function(e){ if(state==="play") setTarget(e.clientX,e.clientY); });
+    cv.addEventListener("pointerdown", function(e){ if(state==="play"){ setTarget(e.clientX,e.clientY); tapQ++; } });
+    window.addEventListener("keydown", function(e){ keys[e.key]=true; if(PROG){ for(const r of PROG.rules){ if(state==="play"&&r.ev[0]==="on"&&r.ev[1]==="key"&&r.ev[2]===e.key) fire(r); } } });
+    window.addEventListener("keyup", function(e){ keys[e.key]=false; });
+    window.addEventListener("resize", resize);
+    setInterval(function(){ if(state!=="play")return; const s=0.03;
+      if(keys.ArrowLeft||keys.a)target.x=Math.max(0,target.x-s); if(keys.ArrowRight||keys.d)target.x=Math.min(1,target.x+s);
+      if(keys.ArrowUp||keys.w)target.y=Math.max(0,target.y-s); if(keys.ArrowDown||keys.s)target.y=Math.min(1,target.y+s); }, 16);
+  }
+  function setTarget(cx,cy){ const rb=wrapEl.getBoundingClientRect(); target.x=Math.max(0,Math.min(1,(cx-rb.left)/rb.width)); target.y=Math.max(0,Math.min(1,(cy-rb.top)/rb.height)); }
+  function showCard(){
+    state="card"; cardEl.style.color=PAL.fg; cardEl.style.display="flex"; resultEl.style.display="none";
+    bootEl.style.display="block"; cardbodyEl.style.display="none"; sfxUi();
+    setTimeout(function(){ if(state!=="card")return; bootEl.style.display="none"; cardbodyEl.style.display="flex";
+      titleEl.textContent=PROG.title; titleEl.style.color=PAL.fg; aboutEl.textContent=PROG.about;
+      const hasTap=PROG.rules.some(function(r){return r.ev[0]==="on"&&r.ev[1]==="tap";});
+      const hasPlayer=Object.values(PROG.objects).some(isPlayer);
+      hintEl.textContent = hasPlayer ? "tap to play · move to steer" : hasTap ? "tap to play · then tap around" : "tap to play";
+      sfxWin(); }, 600);
+  }
+  function startGame(){ audioOn(); resize(); setupGame(PROG, SEED); state="play"; cardEl.style.display="none"; resultEl.style.display="none"; }
+  function boot(program, seed){
+    PROG=parseArcr(program); SEED=seed; PAL=buildPalette(PROG,seed); buildBgField(PROG,seed);
+    const r=mulberry32(seed^0x55); AUD={ wave:["square","sawtooth","triangle"][Math.floor(r()*3)], root:48+Math.floor(r()*12) };
+    resize(); showCard(); if(!__started){ __started=true; requestAnimationFrame(loop); }
+  }
+
+
+// ============================================================
+// arcr engine — parses the SPEC-arcr DSL and runs it on a
+// shared juice/render substrate (lifted from arcade.html).
+// A game is DATA; nothing here ever evals it. DSL = sandbox.
+// ============================================================
+
+// ---- seeded PRNG ----
+function mulberry32(a){ return function(){ a|=0; a=(a+0x6D2B79F5)|0; let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; }
+function hashStr(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+
+// ============================================================
+// PARSER  (line-oriented, keyword-led — SPEC-arcr §3)
+// ============================================================
+function tokenize(s){ const out=[]; const re=/"[^"]*"|\S+/g; let m; while((m=re.exec(s))) out.push(m[0]); return out; }
+function unq(s){ return s && s[0]==='"' ? s.slice(1,-1) : s; }
+
+function parseArcr(src){
+  const directives={}, objects={}, rules=[], warnings=[];
+  let order=0;
+  for (const raw of src.split("\n")){
+    const line = raw.trim();
+    if (!line || line[0]==="#") continue;
+    if (line[0]==="@"){
+      const sp = line.indexOf(" ");
+      const k = (sp<0?line.slice(1):line.slice(1,sp)).toLowerCase();
+      directives[k] = sp<0 ? "" : line.slice(sp+1).trim();
+      continue;
+    }
+    const t = tokenize(line);
+    if (t[0]==="obj"){
+      const ci = t.indexOf(":");
+      if (ci<0 || !t[1]){ warnings.push("obj needs `name : kind` → "+line); continue; }
+      const name = t[1].toLowerCase();
+      const kind = (t[ci+1]||"emoji").toLowerCase();
+      const hasArg = t[ci+2] && !t[ci+2].includes("=");
+      const arg = hasArg ? unq(t[ci+2]) : "";
+      const props = {};
+      for (let i=ci+2; i<t.length; i++){ if (t[i].includes("=")){ const j=t[i].indexOf("="); props[t[i].slice(0,j).toLowerCase()] = unq(t[i].slice(j+1)); } }
+      objects[name] = { name, kind, arg, tag:(props.tag||null), move:(props.move||"still").toLowerCase(),
+        at:(props.at||"center").toLowerCase(), speed:+(props.speed||1)||1, size:(props.size||"normal").toLowerCase(), order:order++ };
+      continue;
+    }
+    if (t[0]==="on" || t[0]==="every" || t[0]==="at" || t[0]==="when"){
+      const ci = t.indexOf(":");
+      if (ci<0){ warnings.push("rule needs `event : action` → "+line); continue; }
+      const ev = t.slice(0,ci);
+      const actions = t.slice(ci+1).join(" ").split(";").map(a=>tokenize(a.trim())).filter(a=>a.length);
+      rules.push({ ev, actions, fired:false, next: ev[0]==="every" ? (+ev[1]||1) : null });
+      continue;
+    }
+    warnings.push("unrecognized → "+line);
+  }
+  // surface what the HUD should show
+  const txt = src;
+  const flags = {
+    score: /(^|\n)\s*(on|every|at|when)[^\n]*\bscore\b/.test(txt) || /score\s*[+\-=]/.test(txt),
+    lives: ("lives" in directives) || /\blife\s*[+\-]/.test(txt) || /when[^\n]*\blives\b/.test(txt),
+    timeGoal: 0,
+    scoreGoal: 0,
+  };
+  for (const r of rules){
+    if (r.ev[0]==="when"){
+      const c=r.ev.slice(1);
+      const win = r.actions.some(a=>a[0]==="win");
+      if (win && c[0]==="score" && c[1]===">=") flags.scoreGoal = +c[2]||0;
+      if (win && c[0]==="time"  && c[1]===">=") flags.timeGoal  = +c[2]||0;
+    }
+  }
+  return { directives, objects, rules, warnings, flags,
+           title:(directives.title||"untitled"), about:(directives.about||"") };
+}
+
+// ============================================================
+// RENDER / JUICE substrate (from arcade.html)
+// ============================================================
+/* cv, ctx created in buildDOM */
+let W=0,H=0,DPR=1,frame=0;
+function resize(){
+  const rb = wrapEl.getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio||1);
+  W = Math.round(rb.width); H = Math.round(rb.height);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize", resize);
+
+function drawEmoji(ch,x,y,size){ ctx.save(); ctx.translate(x,y);
+  ctx.font = size+"px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";
+  ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(ch,0,size*0.06); ctx.restore(); }
+function poly(n,r){ ctx.beginPath(); for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n; ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);} ctx.closePath(); ctx.fill(); }
+function starP(n,ro,ri){ ctx.beginPath(); for(let i=0;i<n*2;i++){const a=-Math.PI/2+i*Math.PI/n; const rr=i%2?ri:ro; ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);} ctx.closePath(); ctx.fill(); }
+function drawShape(shape,r,color){ ctx.fillStyle=color; ctx.strokeStyle=color; ctx.shadowColor=color; ctx.shadowBlur=12;
+  switch(shape){
+    case "diamond": ctx.save(); ctx.rotate(Math.PI/4); ctx.fillRect(-r*0.8,-r*0.8,r*1.6,r*1.6); ctx.restore(); break;
+    case "hexagon": poly(6,r); break; case "triangle": poly(3,r); break;
+    case "star": starP(5,r,r*0.45); break;
+    case "ring": ctx.lineWidth=r*0.45; ctx.beginPath(); ctx.arc(0,0,r*0.68,0,7); ctx.stroke(); break;
+    case "spike": starP(8,r*1.05,r*0.58); break; case "saw": starP(12,r,r*0.72); break;
+    case "x": ctx.lineWidth=r*0.5; ctx.lineCap="round"; ctx.beginPath();
+      ctx.moveTo(-r*0.6,-r*0.6); ctx.lineTo(r*0.6,r*0.6); ctx.moveTo(r*0.6,-r*0.6); ctx.lineTo(-r*0.6,r*0.6); ctx.stroke(); break;
+    default: ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+  } ctx.shadowBlur=0; }
+
+// audio
+let AC=null;
+function audioOn(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(AC&&AC.state==="suspended") AC.resume(); }
+const mtof=(m)=>440*Math.pow(2,(m-69)/12);
+function tone({freq=440,to=null,type="square",dur=0.12,vol=0.18,delay=0}){ if(!AC)return; const t0=AC.currentTime+delay;
+  const o=AC.createOscillator(),g=AC.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t0);
+  if(to)o.frequency.exponentialRampToValueAtTime(Math.max(1,to),t0+dur);
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol,t0+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g).connect(AC.destination); o.start(t0); o.stop(t0+dur+0.02); }
+function noise({dur=0.2,vol=0.25}){ if(!AC)return; const t0=AC.currentTime; const n=Math.floor(AC.sampleRate*dur);
+  const buf=AC.createBuffer(1,n,AC.sampleRate); const d=buf.getChannelData(0); for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+  const s=AC.createBufferSource(); s.buffer=buf; const g=AC.createGain(); g.gain.setValueAtTime(vol,t0); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  const f=AC.createBiquadFilter(); f.type="lowpass"; f.frequency.setValueAtTime(1800,t0); f.frequency.exponentialRampToValueAtTime(300,t0+dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start(t0); }
+function sfxGood(c){ tone({freq:mtof(AUD.root+12+Math.min(c,8)),to:mtof(AUD.root+19+Math.min(c,8)),type:AUD.wave,dur:0.10,vol:0.16}); }
+function sfxBad(){ noise({dur:0.22,vol:0.28}); tone({freq:160,to:60,type:"sawtooth",dur:0.25,vol:0.18}); }
+function sfxUi(){ tone({freq:520,to:780,type:"square",dur:0.07,vol:0.12}); }
+function sfxWin(){ [0,4,7,12].forEach((iv,i)=>tone({freq:mtof(AUD.root+12+iv),type:"triangle",dur:0.18,vol:0.16,delay:i*0.09})); }
+function sfxDie(){ [0,-2,-4,-9].forEach((iv,i)=>tone({freq:mtof(58+iv),type:"sawtooth",dur:0.22,vol:0.16,delay:i*0.1})); noise({dur:0.3,vol:0.22}); }
+
+// palette + background field
+function buildPalette(prog,seed){
+  const r=mulberry32(seed);
+  let hue = ("palette" in prog.directives && /^\d+$/.test(prog.directives.palette)) ? +prog.directives.palette : Math.floor(r()*360);
+  return { bg:`hsl(${hue},30%,${9+Math.floor(r()*6)}%)`, bg2:`hsl(${(hue+40)%360},34%,15%)`,
+    player:`hsl(${(hue+180)%360},78%,62%)`, fg:`hsl(${hue},16%,93%)`, accent:`hsl(${(hue+90)%360},70%,60%)`, hue };
+}
+let BGFIELD=[];
+function buildBgField(prog,seed){ const r=mulberry32(seed^0x1b873593); const bg=prog.directives.bg||"plain";
+  const n=bg==="stars"?70:bg==="bubbles"?22:bg==="dots"?34:0; BGFIELD=[]; for(let i=0;i<n;i++)BGFIELD.push({x:r(),y:r(),z:0.3+r(),s:0.4+r()}); }
+function drawBackground(){ const p=PAL,bg=PROG.directives.bg||"plain",t=frame/60;
+  const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,p.bg2); grad.addColorStop(1,p.bg);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H); ctx.save();
+  if(bg==="grid"){ ctx.strokeStyle=p.player; ctx.globalAlpha=0.12; const rows=12,off=(t*0.3)%1;
+    for(let i=0;i<rows;i++){const f=(i+off)/rows;const y=H*(0.45+f*0.55);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    for(let i=-6;i<=6;i++){ctx.beginPath();ctx.moveTo(W*0.5,H*0.45);ctx.lineTo(W*0.5+i*W*0.22,H);ctx.stroke();} }
+  else if(bg==="stars"){ ctx.fillStyle=p.fg; for(const s of BGFIELD){const y=(s.y+t*0.04*s.z)%1; ctx.globalAlpha=0.25+0.6*Math.abs(Math.sin(t*2*s.s+s.x*10)); const rr=s.z*1.8; ctx.fillRect(s.x*W,y*H,rr,rr);} }
+  else if(bg==="bubbles"){ ctx.globalAlpha=0.10; ctx.fillStyle=p.player; for(const s of BGFIELD){const y=((s.y-t*0.05*s.z)%1+1)%1; ctx.beginPath(); ctx.arc(s.x*W,y*H,4+s.z*16,0,7); ctx.fill();} }
+  else if(bg==="dots"){ ctx.globalAlpha=0.16; ctx.fillStyle=p.fg; for(const s of BGFIELD){const x=((s.x+t*0.02*s.z)%1+1)%1; ctx.beginPath(); ctx.arc(x*W,s.y*H,1.5+s.z*2,0,7); ctx.fill();} }
+  ctx.restore(); ctx.globalAlpha=1; }
+
+// ============================================================
+// INTERPRETER  (SPEC-arcr §4 execution model)
+// ============================================================
+let PROG=null, PAL=null, AUD={wave:"square",root:50}, SEED=1;
+let state="card";                       // card | play | win | lose | end | refuse
+let OBJ=[], S=null, parts=[], shake=0, msgs=[], ending=null, tapQ=0, lastBg="plain";
+const target = { x:0.5, y:0.85 };
+
+function zonePix(z){ switch(z){ case "top":return [W*0.5,H*0.14]; case "bottom":return [W*0.5,H*0.85];
+  case "left":return [W*0.18,H*0.5]; case "right":return [W*0.82,H*0.5]; default:return [W*0.5,H*0.5]; } }
+function radOf(o){ const base=W*0.052; return base*(o.size==="small"?0.7:o.size==="big"?1.5:1)*(o.scale||1)*(o.kind==="text"?1.1:1); }
+function isPlayer(o){ return o.move==="tap"||o.move==="chase"; }
+function refMatch(o,ref){ return ref[0]==="#" ? o.tag===ref.slice(1) : o.name===ref; }
+
+function spawnObj(spec){ // {kind,arg,tag,move,speed,at,size}
+  const o = { name:"_s"+(frame)+"_"+OBJ.length, kind:spec.kind||"emoji", arg:spec.arg||"", tag:spec.tag||null,
+    move:spec.move||"fall", speed:+spec.speed||1, size:spec.size||"normal", scale:1, alive:true, sx:1, sy:1 };
+  if (spec.x!=null){ o.x=spec.x; o.y=spec.y; }
+  else if (spec.at==="scatter"){ const rr=radOf(o); o.x=rr+Math.random()*(W-2*rr); o.y=H*(0.12+Math.random()*0.5); }
+  else { const z=zonePix(spec.at||"top"); o.x = (spec.at&&spec.at!=="top") ? z[0] : (radOf(o)+Math.random()*(W-2*radOf(o))); o.y=z[1]; }
+  OBJ.push(o); return o; }
+
+function setupGame(prog,seed){
+  PROG=prog; SEED=seed; PAL=buildPalette(prog,seed); buildBgField(prog,seed);
+  const r=mulberry32(seed^0x55); AUD={ wave:["square","sawtooth","triangle"][Math.floor(r()*3)], root:48+Math.floor(r()*12) };
+  OBJ=[]; parts=[]; msgs=[]; shake=0; ending=null; tapQ=0; frame=0;
+  S={ score:0, lives:("lives" in prog.directives)?(+prog.directives.lives||0):3, time:0, taps:0, vars:{} };
+  // place declared objects; auto-spread objects that share a zone
+  const decl=Object.values(prog.objects).sort((a,b)=>a.order-b.order);
+  const byZone={}; for(const d of decl){ (byZone[d.at]=byZone[d.at]||[]).push(d); }
+  for(const z in byZone){ const arr=byZone[z]; arr.forEach((d,i)=>{
+    let x,y; const n=arr.length;
+    if(z==="scatter"){ const rr=W*0.052*(d.scale||1); x=rr+Math.random()*(W-2*rr); y=H*(0.12+Math.random()*0.5); }
+    else { const zp=zonePix(z); const span=Math.min(W*0.7, n*W*0.16); x = n>1 ? (W/2 - span/2 + span*(i+0.5)/n) : zp[0]; y=zp[1]; }
+    OBJ.push({ ...d, x, y, scale:1, alive:true, sx:1, sy:1 });
+  }); }
+  for(const r2 of prog.rules){ r2.fired=false; r2.next = r2.ev[0]==="every" ? (+r2.ev[1]||1) : null; }
+}
+
+function num(expr){ if(expr[0]==="count"){ const ref=expr[1]||""; return OBJ.filter(o=>o.alive&&refMatch(o,ref)).length; }
+  const k=expr[0]; if(k in S) return S[k]; return S.vars[k]||0; }
+function evalCond(c){ if(c.length<3) return false; const L=num([c[0],c[1]]); const op=c[c.length-2], R=+c[c.length-1];
+  return op==="=="?L===R:op==="!="?L!==R:op===">="?L>=R:op==="<="?L<=R:op===">"?L>R:op==="<"?L<R:false; }
+
+function burst(x,y,color,n,spd){ for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2,s=spd*(0.3+Math.random());
+  parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-spd*0.3,life:1,color,r:2+Math.random()*3}); } }
+function say(txt){ msgs.push({txt,life:2.4}); if(msgs.length>3) msgs.shift(); }
+
+function doAction(a, srcObj){
+  const v=a[0];
+  if(v==="say"){ say(unq(a.slice(1).join(" "))); return; }
+  if(v==="nothing") return;
+  if(v==="shake"){ shake=Math.min(24,shake+14); return; }
+  if(v==="flash"){ shake=Math.min(8,shake+5); return; }
+  if(v==="score"){ const d=a[1]||"+0"; if(d[0]==="=")S.score=+d.slice(1)||0; else S.score+=+d||0;
+    if(+d>0||d[0]!=="-"){ sfxGood(S.score); if(srcObj){burst(srcObj.x,srcObj.y,PAL.accent,12,220);} } return; }
+  if(v==="life"){ S.lives+=+a[1]||0; if((+a[1]||0)<0){ shake=Math.min(24,shake+16); sfxBad(); if(srcObj)burst(srcObj.x,srcObj.y,"#f55",14,240);} return; }
+  if(v==="set"){ S.vars[a[1]]=+a[2]||0; return; }
+  if(v==="add"){ S.vars[a[1]]=(S.vars[a[1]]||0)+(+a[2]||0); return; }
+  if(v==="spawn"){ const props={}; for(let i=3;i<a.length;i++){ if(a[i].includes("=")){const j=a[i].indexOf("=");props[a[i].slice(0,j)]=unq(a[i].slice(j+1));} }
+    spawnObj({kind:a[1],arg:unq(a[2]||""),tag:props.tag,move:props.move,speed:props.speed,at:props.at,size:props.size}); return; }
+  if(v==="destroy"){ let n=Infinity,ref=a[1]; if(/^\d+$/.test(a[1])){n=+a[1];ref=a[2];}
+    const targets = ref==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,ref));
+    let c=0; for(const o of targets){ if(c>=n) break; o.alive=false; burst(o.x,o.y,PAL.fg,6,140); c++; } return; }
+  if(v==="move"){ const o = a[1]==="it" ? srcObj : OBJ.find(x=>x.alive&&x.name===a[1]);
+    if(o){ if(a[2]==="random"){o.x=radOf(o)+Math.random()*(W-2*radOf(o)); o.y=H*(0.18+Math.random()*0.6);} else {const z=zonePix(a[2]); o.x=z[0]; o.y=z[1];} } return; }
+  if(v==="become"){ const targets = a[1]==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,a[1]));
+    for(const o of targets){ o.kind=a[2]; o.arg=unq(a[3]||""); o.sx=1.4; o.sy=0.7; } return; }
+  if(v==="tune"){ const prop=a[2], d=+a[3]||0; const targets = a[1]==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,a[1]));
+    for(const o of targets){ if(prop==="speed") o.speed=Math.max(0.15,Math.min(3,(o.speed||1)+d));
+      else if(prop==="scale") o.scale=Math.max(0.3,Math.min(3,(o.scale||1)+d)); } return; }
+  if(v==="win"||v==="lose"||v==="end"||v==="refuse"){ if(!ending){ ending={type:v,msg:unq(a.slice(1).join(" "))}; } return; }
+}
+function fire(rule, srcObj){ for(const a of rule.actions) doAction(a, srcObj); }
+
+function update(dt){
+  frame++;
+  if(state!=="play") return;
+  S.time += dt;
+  const tx=target.x*W, ty=target.y*H;
+
+  // movement
+  const PL = OBJ.find(o=>o.alive&&isPlayer(o));
+  for(const o of OBJ){ if(!o.alive) continue;
+    if(o.move==="tap"){ const k=16*(o.speed||1); o.vx=(o.vx||0)+((tx-o.x)*k*dt); o.vx*=Math.pow(0.0008,dt); o.vy=(o.vy||0)+((ty-o.y)*k*dt); o.vy*=Math.pow(0.0008,dt); o.x+=o.vx*dt; o.y+=o.vy*dt; }
+    else if(o.move==="chase"){ const dx=tx-o.x,dy=ty-o.y,d=Math.hypot(dx,dy)||1,sp=W*0.9*(o.speed||1); o.x+=dx/d*sp*dt; o.y+=dy/d*sp*dt; }
+    else if(o.move==="flee"){ const dx=o.x-tx,dy=o.y-ty,d=Math.hypot(dx,dy)||1,sp=W*0.6*(o.speed||1); if(d<W*0.45){o.x+=dx/d*sp*dt; o.y+=dy/d*sp*dt;} }
+    else if(o.move==="seek"){ if(PL){ const dx=PL.x-o.x,dy=PL.y-o.y,d=Math.hypot(dx,dy)||1,sp=W*0.5*(o.speed||1); o.x+=dx/d*sp*dt; o.y+=dy/d*sp*dt; } else { o.y+=H*0.28*(o.speed||1)*dt; } }
+    else if(o.move==="fall"){ o.y+=H*0.28*(o.speed||1)*dt; }
+    else if(o.move==="rise"){ o.y-=H*0.28*(o.speed||1)*dt; }
+    else if(o.move==="drift"){ o.x+=Math.sin(S.time*2+(o.order||0)*1.3)*W*0.06*dt*30; }
+    if(o.move==="tap"||o.move==="chase"||o.move==="flee"||o.move==="seek"){ const rr=radOf(o); o.x=Math.max(rr,Math.min(W-rr,o.x)); o.y=Math.max(rr,Math.min(H-rr,o.y)); }
+    if(isPlayer(o)){ const sp=Math.min(1,Math.hypot(o.vx||0,o.vy||0)/900); o.sx+=((1+sp*0.3)-o.sx)*12*dt; o.sy+=((1-sp*0.2)-o.sy)*12*dt; }
+    else { o.sx+=(1-o.sx)*8*dt; o.sy+=(1-o.sy)*8*dt; }
+  }
+
+  // timers
+  for(const r of PROG.rules){
+    if(r.ev[0]==="every"){ while(S.time>=r.next){ r.next+=(+r.ev[1]||1); fire(r); } }
+    else if(r.ev[0]==="at"&&!r.fired&&S.time>=(+r.ev[1]||0)){ r.fired=true; fire(r); }
+  }
+  if(ending) return endGame();
+
+  // collisions (on hit A B) — fire once per pair; consume the non-player member
+  // UNLESS the rule transformed `it` (become/move/tune it), in which case it survives
+  for(const r of PROG.rules){ if(r.ev[0]!=="on"||r.ev[1]!=="hit") continue; const A=r.ev[2],B=r.ev[3];
+    const keepIt = r.actions.some(a=>(a[0]==="become"||a[0]==="move"||a[0]==="tune")&&a[1]==="it");
+    for(const o1 of OBJ){ if(!o1.alive||!refMatch(o1,A)) continue;
+      for(const o2 of OBJ){ if(!o2.alive||o2===o1||!refMatch(o2,B)) continue;
+        if(o2.fired&&o2.fired.has(r)) continue;
+        if(Math.hypot(o1.x-o2.x,o1.y-o2.y) < radOf(o1)+radOf(o2)*0.8){
+          const src = isPlayer(o1)?o2:o1; fire(r, src);
+          (o2.fired=o2.fired||new Set()).add(r);
+          if(!keepIt){ if(!isPlayer(o1)) o1.alive=false; if(!isPlayer(o2)) o2.alive=false; }
+          if(isPlayer(o1)){o1.sx=0.7;o1.sy=1.4;} if(isPlayer(o2)){o2.sx=0.7;o2.sy=1.4;}
+        }
+      } } }
+  if(ending) return endGame();
+
+  // taps
+  while(tapQ>0){ tapQ--; S.taps++;
+    for(const r of PROG.rules){ if(r.ev[0]!=="on"||r.ev[1]!=="tap") continue;
+      if(r.ev[2]){ // on tap <ref> — must land on a matching object
+        const hit=OBJ.find(o=>o.alive&&refMatch(o,r.ev[2])&&Math.hypot(o.x-tx,o.y-ty)<radOf(o)*1.4);
+        if(hit) fire(r,hit);
+      } else fire(r);
+    }
+  }
+  if(ending) return endGame();
+
+  // when (rising edge)
+  for(const r of PROG.rules){ if(r.ev[0]==="when"&&!r.fired&&evalCond(r.ev.slice(1))){ r.fired=true; fire(r); } }
+  if(ending) return endGame();
+
+  // default lose at 0 lives (if a life system is in use)
+  if(PROG.flags.lives && S.lives<=0){ ending={type:"lose",msg:""}; return endGame(); }
+  // safety net: a game with no reachable ending is force-ended (SPEC-arcr §11)
+  if(S.time>=SAFETY){ ending={type:"end",msg:""}; return endGame(); }
+
+  // cull dead / offscreen, decay juice
+  OBJ=OBJ.filter(o=>o.alive && o.y>-H*0.2 && o.y<H*1.2 && o.x>-W*0.2 && o.x<W*1.2);
+  for(const p of parts){ p.vy+=700*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt*1.6; } parts=parts.filter(p=>p.life>0);
+  for(const m of msgs) m.life-=dt; msgs=msgs.filter(m=>m.life>0);
+  shake*=Math.pow(0.0015,dt);
+}
+
+const SAFETY=120;
+function endGame(){
+  if(!ending && S.time>=SAFETY) ending={type:"end",msg:""};
+  if(!ending) return;
+  state=ending.type;
+  if(ending.type==="win") sfxWin(); else if(ending.type==="lose") sfxDie(); else sfxUi();
+  const head = {win:"YOU WIN",lose:"GAME OVER",end:"THE END",refuse:"—"}[ending.type];
+  headEl.textContent = head;
+  headEl.style.color = PAL.fg;
+  msgEl.textContent = ending.msg || "";
+  resultEl.style.color = PAL.fg; resultEl.style.display = "flex";
+}
+
+// ---- render ----
+function drawObj(o){ const r=radOf(o); ctx.save(); ctx.translate(o.x,o.y); ctx.scale(o.sx||1,o.sy||1);
+  if(o.kind==="emoji"){ drawEmoji(o.arg, 0,0, r*2.1); }
+  else if(o.kind==="text"){ ctx.fillStyle=isPlayer(o)?PAL.player:PAL.fg; ctx.shadowColor="rgba(0,0,0,0.4)"; ctx.shadowBlur=6;
+    ctx.font=`800 ${Math.round(r*0.95)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(o.arg,0,0); }
+  else { drawShape(o.arg||"circle", r, isPlayer(o)?PAL.player:PAL.fg); }
+  ctx.restore(); }
+
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(PROG) drawBackground(); else { ctx.fillStyle="#0b0b10"; ctx.fillRect(0,0,W,H); }
+  const ox=(Math.random()*2-1)*shake, oy=(Math.random()*2-1)*shake; ctx.translate(ox,oy);
+  if(state==="play"||state==="win"||state==="lose"||state==="end"||state==="refuse"){
+    for(const o of OBJ) if(o.alive) drawObj(o);
+    for(const p of parts){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+
+  // narration (say)
+  let yy=H*0.30;
+  for(let i=msgs.length-1;i>=0;i--){ const m=msgs[i]; ctx.globalAlpha=Math.min(1,m.life*1.5);
+    ctx.fillStyle=PAL?PAL.fg:"#eee"; ctx.font=`600 ${Math.round(W*0.05)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(m.txt, W*0.5, yy); yy-=H*0.05; }
+  ctx.globalAlpha=1;
+
+  // HUD
+  if(state==="play" && PROG){
+    ctx.fillStyle=PAL.fg; ctx.font=`700 ${Math.round(W*0.055)}px system-ui`; ctx.textBaseline="top"; ctx.textAlign="left";
+    let label="";
+    if(PROG.flags.timeGoal) label=`${Math.max(0,Math.ceil(PROG.flags.timeGoal-S.time))}s`;
+    else if(PROG.flags.scoreGoal) label=`${S.score}/${PROG.flags.scoreGoal}`;
+    else if(PROG.flags.score) label=`${S.score}`;
+    if(label) ctx.fillText(label, W*0.05, H*0.05);
+    if(PROG.flags.lives && S.lives>0){ ctx.textAlign="right"; ctx.fillStyle="#f66"; ctx.fillText("♥".repeat(Math.min(9,S.lives)), W*0.95, H*0.05); }
+  }
+}
+
+let last=0;
+function loop(t){ const dt=Math.min(0.05,(t-last)/1000||0); last=t; update(dt); draw(); requestAnimationFrame(loop); }
+
+// ============================================================
+// shell: card reveal, input, library, editor
+// ============================================================
+
+
+  // ---- the cradle renderer entry (SPEC-cradle §6 signature) ----
+  return function arcrRenderer(header, body, rctx){
+    const program = new TextDecoder("utf-8").decode(body);
+    const sm = /seed=(\d+)/.exec(header.params || "");
+    const seed = sm ? ((+sm[1]) >>> 0) : hashStr(program);
+    buildDOM(rctx.mount);
+    boot(program, seed);
+  };
+
+})();
+
+// ============================================================
+// Renderer registry
+// ============================================================
+const RENDERERS = {
+  menu:     menuRenderer,
+  doorbell: doorbellRenderer,
+  arcr:     arcrRenderer,
+};
+
+// ============================================================
+// Magic-byte dispatch
+// ============================================================
+
+function parseMagicLine(bytes) {
+  // Read up to 4096 bytes or first 0x0A
+  const cap = Math.min(bytes.length, 4096);
+  let nl = -1;
+  for (let i = 0; i < cap; i++) {
+    if (bytes[i] === 0x0a) { nl = i; break; }
+  }
+  if (nl < 0) throw new Error("EMAGIC: no newline within first 4 KB");
+  const line = new TextDecoder("utf-8").decode(bytes.slice(0, nl));
+  const m = line.match(/^!([A-Za-z]+)(\d+)\+(.*)$/);
+  if (!m) throw new Error("EMAGIC: malformed magic line: " + line);
+  return {
+    header: { formatName: m[1], version: parseInt(m[2], 10), params: m[3] },
+    body: bytes.slice(nl + 1)
+  };
+}
+
+// ============================================================
+// Main
+// ============================================================
+
+const BOOTLOADER_URL = location.origin + location.pathname;
+
+async function main() {
+  const root = document.getElementById("root");
+  try {
+    const frag = fragmentDecode(location.hash.slice(1));
+    if (!frag) {
+      root.innerHTML =
+        '<div class="error">No capsule. This page renders payloads addressed by cradle capsules in the URL fragment. See <a href="https://gentropic.org">gentropic.org</a>.</div>';
+      return;
+    }
+
+    const bytes = resolveCapsule(frag, DICTS);
+    const { header, body } = parseMagicLine(bytes);
+
+    const renderer = RENDERERS[header.formatName];
+    if (!renderer) throw new Error("EUNKNOWN-FORMAT: " + header.formatName);
+
+    await renderer(header, body, {
+      mount: root,
+      bootloaderUrl: BOOTLOADER_URL,
+      capsule: frag,
+    });
+  } catch (err) {
+    root.innerHTML =
+      `<div class="error"><strong>${escapeHtml(err.message.split(":")[0])}</strong>: ${escapeHtml(err.message.split(":").slice(1).join(":").trim() || err.message)}<pre>${escapeHtml(location.hash.slice(1, 200))}${location.hash.length > 201 ? "…" : ""}</pre></div>`;
+    console.error(err);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", main);
+} else {
+  main();
+}
+
+// Service worker registration (silent failure if SW not supported / not served from same origin)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(err => {
+      console.warn("SW registration failed:", err);
+    });
+  });
+}
+</script>
+</body>
+</html>

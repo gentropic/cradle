@@ -806,11 +806,27 @@ function encodeMenu(source) {
   };
 }
 
+// Reverse the §6.4.1 fragment escaping with a single left-to-right pass
+// (%25 -> %, %20 -> space), the exact inverse of the encode step above.
+// NOT decodeURIComponent — see SPEC-capsule §6.4.1.
+function fragmentDecode(s) {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === "%" && i + 2 < s.length) {
+      const t = s.slice(i, i + 3);
+      if (t === "%25") { out += "%"; i += 2; continue; }
+      if (t === "%20") { out += " "; i += 2; continue; }
+    }
+    out += s[i];
+  }
+  return out;
+}
+
 function decodeMenuFromUrl(urlOrFragment) {
   // Accept full URL or just the fragment, with optional q: prefix.
   let frag = urlOrFragment;
   if (frag.includes("#")) frag = frag.split("#", 2)[1];
-  frag = decodeURIComponent(frag);
+  frag = fragmentDecode(frag);
 
   // Strip scheme if present
   let body;

@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>arcr-factory — capsule QR sheets</title>
+<style>
+  :root { --fg:#1a1a1a; --muted:#666; --line:#ddd; --accent:#444; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:#ececed; color:var(--fg);
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif; }
+
+  /* ---------- toolbar (screen only) ---------- */
+  .bar { position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid var(--line);
+    padding:0.7rem 1rem; display:flex; flex-wrap:wrap; gap:0.9rem 1.4rem; align-items:flex-end; }
+  .bar h1 { font-size:1rem; margin:0 1rem 0 0; font-weight:700; letter-spacing:0.02em; align-self:center; }
+  .bar h1 small { font-weight:400; color:var(--muted); font-size:0.72rem; letter-spacing:0; }
+  .f { display:flex; flex-direction:column; gap:0.2rem; font-size:0.72rem; color:var(--muted); }
+  .f input[type=text]{ width:230px; } .f input[type=number]{ width:64px; }
+  .f input, .f select { font:inherit; font-size:0.82rem; padding:0.3rem 0.45rem; border:1px solid #bbb;
+    border-radius:5px; background:#fff; color:var(--fg); }
+  .f.chk { flex-direction:row; align-items:center; gap:0.35rem; }
+  .bar button { font:inherit; font-weight:600; font-size:0.82rem; padding:0.5rem 0.95rem; border-radius:6px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
+  .bar button.ghost { background:#fff; color:var(--accent); }
+  .bar button:active { transform:translateY(1px); }
+  #summary { width:100%; font-size:0.75rem; color:var(--muted); border-top:1px dashed var(--line); padding-top:0.5rem; }
+  #summary .warn { color:#a40; font-weight:600; }
+  details.extra { width:100%; font-size:0.78rem; color:var(--muted); }
+  details.extra textarea { width:100%; min-height:90px; margin-top:0.4rem; font-family:ui-monospace,Consolas,monospace;
+    font-size:0.78rem; padding:0.5rem; border:1px solid #bbb; border-radius:5px; resize:vertical; }
+
+  /* ---------- sheets ---------- */
+  #sheets { padding:18px; display:flex; flex-direction:column; align-items:center; gap:18px; }
+  .sheet { width:210mm; height:297mm; padding:8mm; background:#fff; box-shadow:0 1px 8px rgba(0,0,0,0.15);
+    position:relative; }
+  .grid { width:100%; display:grid; }
+  .cell { display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; overflow:hidden; break-inside:avoid; }
+  .cell.cut { border:0.15mm solid #bbb; }
+  .cell .qr { line-height:0; }
+  .cell .qr svg { display:block; }
+  .cell .title { font-size:7pt; line-height:1.05; margin-top:1mm; max-width:100%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cell .meta { font-size:5pt; color:#999; margin-top:0.3mm; }
+  .cell .idx { position:absolute; }
+
+  /* corner crop marks per sheet */
+  .crop { position:absolute; width:5mm; height:5mm; border-color:#000; }
+
+  @media print {
+    html,body { background:#fff; }
+    .no-print { display:none !important; }
+    #sheets { padding:0; gap:0; }
+    .sheet { box-shadow:none; page-break-after:always; }
+    .sheet:last-child { page-break-after:auto; }
+  }
+  @page { size:A4; margin:0; }
+</style>
+</head>
+<body>
+
+<div class="bar no-print">
+  <h1>arcr-factory<br><small>capsule → QR sheets</small></h1>
+  <label class="f">decoder base URL
+    <input type="text" id="baseUrl" value="https://gentropic.org/cradle"></label>
+  <label class="f">ECC
+    <select id="ecc"><option>L</option><option selected>M</option><option>Q</option><option>H</option></select></label>
+  <label class="f">QR size (mm)
+    <input type="number" id="qrmm" value="20" min="10" max="60" step="1"></label>
+  <label class="f">columns
+    <input type="number" id="cols" value="6" min="1" max="12" step="1"></label>
+  <label class="f chk"><input type="checkbox" id="titles" checked> titles</label>
+  <label class="f chk"><input type="checkbox" id="meta"> version/bytes</label>
+  <label class="f chk"><input type="checkbox" id="cut" checked> cut marks</label>
+  <button id="render">render</button>
+  <button id="print" class="ghost">print ⎙</button>
+  <details class="extra">
+    <summary>add your own games (paste arcr programs, separate with a line of <code>---</code>)</summary>
+    <textarea id="extra" spellcheck="false" placeholder="@title MY GAME&#10;obj you : emoji 🙂 at=bottom move=tap&#10;...&#10;---&#10;@title ANOTHER&#10;..."></textarea>
+  </details>
+  <div id="summary"></div>
+</div>
+
+<div id="sheets"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+"use strict";
+
+// the arcr deflate dictionary — MUST be byte-identical to index.html's DICT_ARCR
+const DICT_ARCR =
+"\n@title \n@about \n@bg plain\n@bg stars\n@bg dots\n@bg grid\n@lives 3\n" +
+"obj you : emoji  at=bottom move=tap\nobj  : emoji  at=top move=fall tag=\n" +
+"obj  : text \" at=center\nevery 1 : spawn emoji  at=top move=fall tag=\n" +
+"on hit you #  : score +1 ; say \"\non tap  : say \" ; \nwhen score >= 10 : win \"\n" +
+"when time >= 30 : win \"when count # == 0 : \nlife -1 ; say \"become it emoji \n" +
+"destroy 1 #move=still move=seek move=flee move=chase at=scatter speed=\n" +
+"lose \"end \"refuse \"add  1\n";
+
+// the 50-game library (injected from arcr.html at build time)
+const LIBRARY = [
+{ name:"PRESENT", src:
+`@title PRESENT
+@about waiting
+@bg plain
+obj you : emoji 🧍 at=bottom move=tap
+obj a : emoji 🧍 at=top tag=ahead
+obj b : emoji 🧍 at=top tag=ahead
+obj c : emoji 🧍 at=top tag=ahead
+obj d : emoji 🧍 at=top tag=ahead
+every 3 : destroy 1 #ahead ; say "someone moves on."
+on tap : shake ; say "you cannot hurry presence."
+when count #ahead == 0 : win "you are present. there was never anyone ahead."` },
+{ name:"WANT", src:
+`@title WANT
+@about desire
+@bg stars
+@lives 3
+obj you : emoji 🫴 at=bottom move=tap
+every 1 : spawn emoji 💖 at=top move=fall tag=heart
+on hit you #heart : life -1 ; say "having it ruined it."
+when time >= 30 : win "you wanted nothing. you have everything."` },
+{ name:"WIN", src:
+`@title WIN
+@about futility
+obj b : text "WIN" at=center
+on tap b : move b random
+when taps >= 12 : end "the button was the whole game."` },
+{ name:"SNACK RUN", src:
+`@title SNACK RUN
+@about hunger
+@bg dots
+obj you : emoji 😋 at=bottom move=tap
+every 0.8 : spawn emoji 🍿 at=top move=fall tag=want
+every 1.5 : spawn emoji 🧾 at=top move=fall tag=bad speed=1.3
+on hit you #want : score +1
+on hit you #bad : life -1
+when score >= 10 : win "fed, briefly."
+when lives <= 0 : lose "the bills won."` },
+{ name:"THE VOID", src:
+`@title THE VOID
+@about absence
+@bg plain
+obj you : emoji 🧍 at=center move=tap
+on tap : say "nothing happens." ; add pokes 1
+when pokes >= 8 : refuse "the void declines to be a game."` },
+{ name:"LOADING", src:
+`@title LOADING
+@about patience
+@bg dots
+obj bar : text "________" at=center
+every 3 : say "loading…"
+at 4 : become bar text "#_______"
+at 9 : become bar text "###_____"
+at 14 : become bar text "######__"
+at 19 : become bar text "########" ; end "it was the loading screen all along."` },
+{ name:"CONSENT", src:
+`@title CONSENT
+@about terms
+obj ok : text "I AGREE" at=center move=flee
+on tap : add tries 1 ; say "the button moved."
+when tries >= 10 : refuse "you never agreed. nothing was installed."` },
+{ name:"BUTTERFLY", src:
+`@title BUTTERFLY
+@about longing
+@bg bubbles
+obj you : emoji 🧒 at=bottom move=chase
+obj b : emoji 🦋 at=top move=flee
+on hit you b : win "you caught it. it stopped being beautiful."
+when time >= 20 : end "it tired before you did, and landed elsewhere."` },
+{ name:"TUESDAY MORNING", src:
+`@title TUESDAY MORNING
+@about growing up
+@bg stars
+obj you : emoji 🐛 at=bottom move=tap
+every 1 : spawn emoji 🍃 at=top move=fall tag=leaf
+on hit you #leaf : score +1
+at 12 : become you emoji 🦋 ; say "you grew up." ; flash
+when score >= 15 : win "you ate enough. you flew."` },
+{ name:"MEETINGS", src:
+`@title MEETINGS
+@about dread
+@bg grid
+obj you : emoji 👆 at=bottom move=tap
+every 1.2 : spawn emoji 📆 at=scatter move=still tag=mtg
+on tap #mtg : destroy it ; score +1 ; say "declined."
+when count #mtg >= 14 : lose "your calendar is full."` },
+{ name:"RAIN", src:
+`@title RAIN
+@about weather
+@lives 3
+obj you : emoji 🧍 at=bottom move=tap
+every 0.5 : spawn emoji 💧 at=top move=fall tag=drop
+on hit you #drop : life -1 ; say "drenched."
+when time >= 25 : win "it passed. it always does."` },
+{ name:"GARDEN", src:
+`@title GARDEN
+@about tending
+@bg plain
+obj you : emoji 💧 at=bottom move=tap
+every 1.6 : spawn emoji 🌱 at=scatter move=still tag=seed
+on hit you #seed : become it emoji 🌸 ; score +1 ; say "bloom."
+when score >= 6 : win "the garden is enough."` },
+{ name:"DIET", src:
+`@title DIET
+@about willpower
+@bg dots
+@lives 3
+obj you : emoji 🏃 at=center move=tap
+every 2 : spawn emoji 🍩 at=top move=seek tag=treat speed=0.7
+on hit you #treat : life -1 ; say "you caved."
+when time >= 20 : win "you resisted. thin and unfulfilled."` },
+{ name:"BAGGAGE", src:
+`@title BAGGAGE
+@about accumulation
+@bg grid
+obj you : emoji 🧍 at=bottom move=tap
+every 1 : spawn emoji 🧳 at=top move=fall tag=bag
+on hit you #bag : tune you speed -0.12 ; score +1 ; say "you carry it now."
+when score >= 8 : win "you carried everything. you can barely move."` },
+{ name:"FIREFLIES", src:
+`@title FIREFLIES
+@about summer
+@bg bubbles
+obj you : emoji 🫙 at=bottom move=tap
+every 1.3 : spawn emoji ✨ at=scatter move=drift tag=fly
+on hit you #fly : score +1 ; say "caught one."
+when score >= 8 : win "the jar glows. summer holds still."
+when time >= 40 : end "they drifted off. summer ended anyway."` },
+{ name:"STARGAZING", src:
+`@title STARGAZING
+@about calm
+@bg stars
+obj you : emoji 🧺 at=bottom move=tap
+every 0.9 : spawn emoji ⭐ at=top move=fall tag=star
+on hit you #star : score +1
+when score >= 12 : win "a basket of light. enough."` },
+{ name:"METEOR", src:
+`@title METEOR
+@about the end
+@lives 3
+obj you : emoji 🚀 at=bottom move=tap
+every 0.45 : spawn emoji ☄️ at=top move=fall tag=rock speed=1.3
+on hit you #rock : life -1 ; say "hull breach."
+when time >= 28 : win "you flew through. the sky is quiet now."` },
+{ name:"DEBT", src:
+`@title DEBT
+@about money
+@lives 3
+obj you : emoji 🏃 at=center move=tap
+every 2.2 : spawn emoji 🧾 at=top move=seek tag=bill
+on hit you #bill : life -1 ; say "interest."
+when time >= 22 : win "you outran it. this month."` },
+{ name:"INSOMNIA", src:
+`@title INSOMNIA
+@about 3am
+obj you : emoji 😩 at=bottom move=chase
+obj z : emoji 💤 at=top move=flee
+on hit you z : win "you slept. the alarm rings in nine minutes."
+when time >= 25 : refuse "sleep will not be caught. it has to come to you."` },
+{ name:"NOTIFICATIONS", src:
+`@title NOTIFICATIONS
+@about attention
+@bg grid
+obj you : emoji 👆 at=bottom move=tap
+every 0.9 : spawn emoji 🔴 at=scatter move=still tag=dot
+on tap #dot : destroy it ; score +1 ; say "cleared."
+when count #dot >= 12 : lose "you'll never be caught up."
+when score >= 20 : win "inbox zero. it won't last."` },
+{ name:"WEEDS", src:
+`@title WEEDS
+@about upkeep
+obj you : emoji ✋ at=bottom move=tap
+every 1 : spawn emoji 🌿 at=scatter move=still tag=weed
+on tap #weed : destroy it ; score +1
+when count #weed >= 14 : lose "the garden returns to the wild."
+when score >= 18 : win "tidy. for an afternoon."` },
+{ name:"BUBBLE WRAP", src:
+`@title BUBBLE WRAP
+@about satisfaction
+@bg dots
+obj you : emoji 👆 at=bottom move=tap
+every 0.5 : spawn emoji 🟦 at=scatter move=still tag=pop
+on tap #pop : destroy it ; score +1 ; say "pop."
+when score >= 25 : win "every one. perfect."` },
+{ name:"PATIENCE", src:
+`@title PATIENCE
+@about fermentation
+obj jug : emoji 🍇 at=center
+at 6 : become jug emoji 🍾 ; say "fermenting…"
+at 14 : become jug emoji 🍷 ; end "it became wine. it took longer than the game."` },
+{ name:"CAREER", src:
+`@title CAREER
+@about time
+@bg stars
+obj me : emoji 👶 at=center
+at 4 : become me emoji 🧑 ; say "you grew."
+at 9 : become me emoji 💼 ; say "you worked."
+at 14 : become me emoji 👴 ; say "you aged."
+at 18 : become me emoji 🪦 ; end "that was the career."` },
+{ name:"THAW", src:
+`@title THAW
+@about spring
+@lives 4
+obj you : emoji ☃️ at=bottom move=tap
+every 1.3 : spawn emoji ☀️ at=top move=fall tag=sun
+on hit you #sun : life -1 ; tune you scale -0.12 ; say "you melt."
+when time >= 22 : win "you lasted the day. tomorrow is warmer."` },
+{ name:"KETTLE", src:
+`@title KETTLE
+@about tea
+obj k : emoji 🫖 at=center
+on tap : say "a watched pot…"
+at 18 : become k emoji ♨️ ; win "it boiled. you may have tea now."` },
+{ name:"VIGIL", src:
+`@title VIGIL
+@about grief
+obj c : emoji 🕯️ at=center
+every 1 : say "…"
+on tap : say "you cup the flame."
+at 20 : become c emoji 💨 ; end "it burned out. you stayed the whole time."` },
+{ name:"THE 8:15", src:
+`@title THE 8:15
+@about waiting
+obj stop : text "BUS STOP" at=top
+obj you : emoji 🧍 at=bottom move=tap
+on tap : say "you check the schedule again."
+when taps >= 14 : refuse "the bus is not coming. it was cancelled in 2019."` },
+{ name:"TUTORIAL", src:
+`@title TUTORIAL
+@about onboarding
+obj you : emoji 🎮 at=center move=tap
+at 3 : say "move to begin."
+at 7 : say "now collect."
+at 11 : say "now win."
+at 15 : end "the tutorial is the game. there is nothing after it."` },
+{ name:"HIGH SCORE", src:
+`@title HIGH SCORE
+@about glory
+obj a : text "AAA" at=center
+on tap : add letters 1 ; say "▮"
+when letters >= 3 : end "first place. you never played. you placed anyway."` },
+{ name:"CREDITS", src:
+`@title CREDITS
+@about everyone
+@bg stars
+every 0.8 : spawn text "thank you" at=bottom move=rise tag=name
+at 16 : end "you played nothing. the credits were the whole thing."` },
+{ name:"NO", src:
+`@title NO
+@about boundaries
+obj you : emoji 🧍 at=center move=tap
+on tap : add asks 1 ; say "no."
+when asks >= 10 : refuse "good. you've learned to say it."` },
+{ name:"MEH", src:
+`@title MEH
+@about apathy
+obj you : emoji 😐 at=center move=tap
+on tap : say "meh."
+when taps >= 12 : end "meh."` },
+{ name:"OUT OF ORDER", src:
+`@title OUT OF ORDER
+@about machines
+obj sign : text "OUT OF ORDER" at=center
+on tap : shake ; say "it does not work."
+when taps >= 8 : refuse "it was never going to work."` },
+{ name:"RED FLAGS", src:
+`@title RED FLAGS
+@about dating
+@lives 3
+obj you : emoji 🥰 at=bottom move=tap
+every 0.8 : spawn emoji 💖 at=top move=fall tag=love
+every 1.7 : spawn emoji 🚩 at=top move=fall tag=flag speed=1.1
+on hit you #love : score +1
+on hit you #flag : life -1 ; say "you ignored it."
+when score >= 14 : win "love, somehow, despite everything."` },
+{ name:"GHOSTED", src:
+`@title GHOSTED
+@about silence
+obj you : emoji 📱 at=bottom move=tap
+every 1 : spawn emoji 💬 at=top move=fall tag=text
+on hit you #text : score +1 ; say "they replied!"
+at 12 : end "they stopped. you'll reread the old ones."` },
+{ name:"PICNIC", src:
+`@title PICNIC
+@about defense
+obj you : emoji 🧺 at=center move=tap
+every 0.7 : spawn emoji 🐜 at=scatter move=seek tag=ant
+on hit you #ant : score +1 ; say "shoo!"
+when count #ant >= 16 : lose "the ants won the picnic."
+when score >= 22 : win "you defended lunch."` },
+{ name:"ESCAPE", src:
+`@title ESCAPE
+@about exits
+obj door : emoji 🚪 at=center move=flee
+on tap : add tries 1 ; say "locked."
+when tries >= 10 : refuse "there is no exit. there is only the lobby."` },
+{ name:"STAGE FRIGHT", src:
+`@title STAGE FRIGHT
+@about being seen
+@lives 3
+obj you : emoji 😰 at=bottom move=tap
+every 0.6 : spawn emoji 🔦 at=top move=seek tag=light speed=0.9
+on hit you #light : life -1 ; say "they're looking."
+when time >= 20 : win "the curtain fell. you survived being seen."` },
+{ name:"AUTUMN", src:
+`@title AUTUMN
+@about letting go
+obj you : emoji 🧹 at=bottom move=tap
+every 0.7 : spawn emoji 🍂 at=top move=fall tag=leaf
+on hit you #leaf : score +1
+when score >= 16 : win "the yard is clear. the tree is bare."` },
+{ name:"TAXES", src:
+`@title TAXES
+@about april
+@lives 1
+obj you : emoji 🧾 at=bottom move=tap
+every 0.8 : spawn emoji 📄 at=top move=fall tag=form
+every 2 : spawn emoji 🔍 at=top move=fall tag=audit speed=1.2
+on hit you #form : score +1 ; say "filed."
+on hit you #audit : life -1 ; say "audited."
+when score >= 15 : win "filed on time. the dread lifts for a year."` },
+{ name:"SISYPHUS", src:
+`@title SISYPHUS
+@about absurdity
+obj rock : emoji 🪨 at=center
+on tap : add pushes 1 ; shake ; say "you push. it does not move."
+when pushes >= 14 : end "one must imagine you content."` },
+{ name:"SPARK", src:
+`@title SPARK
+@about love, later
+@lives 5
+obj you : emoji 💗 at=bottom move=tap
+every 1.4 : spawn emoji 💧 at=top move=fall tag=cold
+every 3 : spawn emoji 🔥 at=top move=fall tag=warm
+on hit you #cold : life -1 ; say "it dims."
+on hit you #warm : life +1 ; say "it kindles."
+when time >= 26 : win "still burning. quieter, but burning."` },
+{ name:"PARTY", src:
+`@title PARTY
+@about introversion
+@lives 3
+obj you : emoji 😅 at=center move=tap
+every 0.8 : spawn emoji 🗣️ at=scatter move=seek tag=person
+on hit you #person : life -1 ; say "small talk."
+when time >= 18 : win "you made it to 9pm. you may leave now."` },
+{ name:"MICROWAVE", src:
+`@title MICROWAVE
+@about dinner
+obj food : emoji 🍲 at=center
+on tap : add stirs 1 ; say "you check it."
+at 16 : become food emoji 🔥 ; lose "you forgot. it's lava now."
+when stirs >= 6 : win "ding. dinner is served."` },
+{ name:"PIANO", src:
+`@title PIANO
+@about practice
+obj p : emoji 🎹 at=center move=tap
+on tap : say "plink" ; add notes 1
+on key a : say "do" ; add notes 1
+when notes >= 8 : win "a tune, almost."` },
+{ name:"FIRST SNOW", src:
+`@title FIRST SNOW
+@about winter
+@bg dots
+obj you : emoji 👅 at=bottom move=tap
+every 0.7 : spawn emoji ❄️ at=top move=fall tag=flake
+on hit you #flake : score +1 ; say "caught it."
+when score >= 10 : win "the first snow. you are eight again."` },
+{ name:"COMMUTE", src:
+`@title COMMUTE
+@about monday
+@lives 3
+obj you : emoji 🚗 at=bottom move=tap
+every 0.6 : spawn emoji 🕳️ at=top move=fall tag=hole
+on hit you #hole : life -1 ; say "clunk."
+when time >= 20 : win "you made it to work. unfortunately."` },
+{ name:"SECRET", src:
+`@title SECRET
+@about keeping
+obj you : emoji 🤐 at=center move=tap
+every 1.5 : spawn emoji 🗨️ at=scatter move=seek tag=q
+on hit you #q : add told 1 ; say "you almost said it."
+when told >= 5 : lose "you told. it's everywhere now."
+when time >= 20 : win "you kept it. it sits in you like a stone."` },
+{ name:"ELEVATOR", src:
+`@title ELEVATOR
+@about smalltalk
+obj other : emoji 🧍 at=top
+obj you : emoji 🧍 at=bottom move=tap
+on tap : add floors 1 ; say "…"
+when floors >= 9 : end "ground floor. you said nothing. neither did they."` }
+];
+
+// ---- capsule encode (matches index.html's resolver exactly) ----
+const B45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+function base45Encode(bytes) {
+  const out = [];
+  for (let i = 0; i < bytes.length; i += 2) {
+    if (i + 1 < bytes.length) {
+      const n = bytes[i] * 256 + bytes[i + 1];
+      out.push(B45[n % 45], B45[Math.floor(n / 45) % 45], B45[Math.floor(n / (45 * 45))]);
+    } else {
+      const n = bytes[i];
+      out.push(B45[n % 45], B45[Math.floor(n / 45)]);
+    }
+  }
+  return out.join("");
+}
+function buildCapsule(program) {
+  const payload = "!arcr1+\n" + program;
+  const raw = new TextEncoder().encode(payload);
+  const dict = new TextEncoder().encode(DICT_ARCR);
+  const deflated = pako.deflateRaw(raw, { level: 9, dictionary: dict });
+  return { capsule: "q:d.arcr_" + base45Encode(deflated), bytes: deflated.length };
+}
+function escapeFrag(c) { return c.replace(/%/g, "%25").replace(/ /g, "%20"); }
+function titleOf(program) { const m = program.match(/^@title\s+(.+)$/m); return m ? m[1].trim() : "untitled"; }
+
+// ---- QR as crisp SVG sized in mm ----
+function qrSVG(text, ecc, mm) {
+  let qr = null, version = 0;
+  for (let v = 1; v <= 40; v++) {
+    try { const q = qrcode(v, ecc); q.addData(text, "Byte"); q.make(); qr = q; version = v; break; } catch (e) {}
+  }
+  if (!qr) throw new Error("payload too large for any QR version");
+  const n = qr.getModuleCount(), quiet = 4, total = n + quiet * 2;
+  let d = "";
+  for (let r = 0; r < n; r++)
+    for (let c = 0; c < n; c++)
+      if (qr.isDark(r, c)) d += "M" + (c + quiet) + " " + (r + quiet) + "h1v1h-1z";
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + total + ' ' + total +
+    '" width="' + mm + 'mm" height="' + mm + 'mm" shape-rendering="crispEdges">' +
+    '<rect width="' + total + '" height="' + total + '" fill="#fff"/>' +
+    '<path fill="#000" d="' + d + '"/></svg>';
+  return { svg, version, modules: n };
+}
+
+function esc(s){ return String(s).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+// ---- gather games (library + pasted extras) ----
+function gatherGames() {
+  const games = LIBRARY.map(g => ({ name: g.name, src: g.src }));
+  const extra = document.getElementById("extra").value.trim();
+  if (extra) {
+    for (const chunk of extra.split(/\n\s*-{3,}\s*\n/)) {
+      const src = chunk.trim();
+      if (src) games.push({ name: titleOf(src), src });
+    }
+  }
+  return games;
+}
+
+// ---- render the sheets ----
+const A4W = 210, A4H = 297, MARGIN = 8;
+const PRINT_W = A4W - 2 * MARGIN, PRINT_H = A4H - 2 * MARGIN;
+
+function render() {
+  const base = document.getElementById("baseUrl").value.trim().replace(/#.*$/, "");
+  const ecc = document.getElementById("ecc").value;
+  const mm = Math.max(10, +document.getElementById("qrmm").value || 20);
+  const cols = Math.max(1, +document.getElementById("cols").value || 6);
+  const showT = document.getElementById("titles").checked;
+  const showM = document.getElementById("meta").checked;
+  const cut = document.getElementById("cut").checked;
+
+  const games = gatherGames();
+  const capH = (showT ? 4.5 : 0) + (showM ? 3 : 0);
+  const cellH = mm + capH + 5;
+  const rowsPerPage = Math.max(1, Math.floor(PRINT_H / cellH));
+  const perPage = cols * rowsPerPage;
+
+  const sheets = document.getElementById("sheets");
+  sheets.innerHTML = "";
+  let maxVer = 0, minModule = Infinity, errors = [];
+
+  // pre-build all cells, tracking density
+  const cells = games.map((g, i) => {
+    try {
+      const { capsule, bytes } = buildCapsule(g.src);
+      const url = base + "#" + escapeFrag(capsule);
+      const { svg, version, modules } = qrSVG(url, ecc, mm);
+      maxVer = Math.max(maxVer, version);
+      minModule = Math.min(minModule, mm / (modules + 8));
+      return { i, name: g.name, svg, version, bytes, urlLen: url.length };
+    } catch (e) { errors.push(g.name + ": " + e.message); return null; }
+  }).filter(Boolean);
+
+  for (let p = 0; p * perPage < cells.length; p++) {
+    const sheet = document.createElement("div"); sheet.className = "sheet";
+    const grid = document.createElement("div"); grid.className = "grid";
+    grid.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
+    grid.style.gridAutoRows = cellH + "mm";
+    for (const cell of cells.slice(p * perPage, (p + 1) * perPage)) {
+      const el = document.createElement("div");
+      el.className = "cell" + (cut ? " cut" : "");
+      el.innerHTML =
+        '<div class="qr">' + cell.svg + '</div>' +
+        (showT ? '<div class="title">' + esc(cell.name) + '</div>' : '') +
+        (showM ? '<div class="meta">v' + cell.version + ' · ' + cell.bytes + 'B</div>' : '');
+      grid.appendChild(el);
+    }
+    sheet.appendChild(grid);
+    // corner crop marks
+    const corners = [["top","left"],["top","right"],["bottom","left"],["bottom","right"]];
+    for (const [v,h] of corners) {
+      const m = document.createElement("div"); m.className = "crop";
+      m.style[v] = "3mm"; m.style[h] = "3mm";
+      m.style.borderTop = v==="top" ? "0.3mm solid #000" : "none";
+      m.style.borderBottom = v==="bottom" ? "0.3mm solid #000" : "none";
+      m.style.borderLeft = h==="left" ? "0.3mm solid #000" : "none";
+      m.style.borderRight = h==="right" ? "0.3mm solid #000" : "none";
+      sheet.appendChild(m);
+    }
+    sheets.appendChild(sheet);
+  }
+
+  const pages = Math.max(1, Math.ceil(cells.length / perPage));
+  const tight = minModule < 0.25;
+  document.getElementById("summary").innerHTML =
+    cells.length + " games · " + pages + " page(s) · " + cols + "×" + rowsPerPage + " per page · " +
+    "largest QR v" + maxVer + " · min module " + minModule.toFixed(2) + "mm" +
+    (tight ? ' <span class="warn">⚠ small modules — increase QR size or drop to ECC L for reliable scanning</span>' : " ✓") +
+    (errors.length ? ' <span class="warn">· ' + errors.length + " too large: " + esc(errors.join(", ")) + "</span>" : "");
+}
+
+document.getElementById("render").addEventListener("click", render);
+document.getElementById("print").addEventListener("click", () => window.print());
+for (const id of ["baseUrl","ecc","qrmm","cols","titles","meta","cut"])
+  document.getElementById(id).addEventListener("change", render);
+
+window.addEventListener("load", render);
+</script>
+</body>
+</html>

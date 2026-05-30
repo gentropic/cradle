@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>arcr — prototype</title>
+<style>
+  :root { --bg:#0b0b10; --fg:#e8e8ef; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:#000; color:var(--fg);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif; overflow:hidden;
+    user-select:none; -webkit-user-select:none; touch-action:none; }
+  #stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  #wrap { position:relative; height:100%; aspect-ratio:9/16; max-width:100%;
+    max-height:100%; box-shadow:0 0 80px rgba(0,0,0,0.6); overflow:hidden; }
+  canvas { display:block; width:100%; height:100%; image-rendering:pixelated; }
+  /* faint scanlines for arcade vibe */
+  #scan { position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay; opacity:0.25;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.6) 0 1px, transparent 1px 3px); }
+
+  .overlay { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:8% 7%;
+    gap:0.4rem; backdrop-filter:blur(2px); }
+  .hidden { display:none !important; }
+
+  .rarity { font-size:0.7rem; letter-spacing:0.35em; text-transform:uppercase;
+    padding:0.2rem 0.7rem; border:1px solid currentColor; border-radius:2px; margin-bottom:0.5rem; }
+  .title { font-size:2.0rem; font-weight:800; line-height:1.0; letter-spacing:0.01em;
+    margin:0.1rem 0; text-shadow:0 3px 0 rgba(0,0,0,0.35); }
+  .premise { font-size:1.0rem; font-weight:600; opacity:0.95; margin:0.3rem 0; }
+  .blurb { font-size:0.82rem; font-style:italic; opacity:0.75; max-width:24rem; }
+  .hint { margin-top:1.6rem; font-size:0.8rem; opacity:0.6; animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:0.35} 50%{opacity:0.9} }
+
+  .row { display:flex; gap:0.6rem; margin-top:1.4rem; flex-wrap:wrap; justify-content:center; }
+  button { font:inherit; font-weight:700; font-size:0.85rem; letter-spacing:0.05em;
+    padding:0.6rem 1.1rem; border-radius:6px; border:2px solid var(--fg); cursor:pointer;
+    background:var(--fg); color:#111; text-transform:uppercase; }
+  button.ghost { background:transparent; color:var(--fg); }
+  button:active { transform:translateY(1px); }
+
+  .seedline { position:absolute; left:0; right:0; bottom:0.5rem; text-align:center;
+    font-size:0.62rem; letter-spacing:0.18em; opacity:0.4; }
+  .big { font-size:2.4rem; font-weight:800; margin:0.2rem 0; }
+  .quip { font-size:0.9rem; opacity:0.8; font-style:italic; max-width:22rem; }
+  .stat { font-size:0.95rem; opacity:0.85; }
+  .boot { font-size:0.8rem; letter-spacing:0.4em; opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="scan"></div>
+
+  <!-- cartridge / title card -->
+  <div id="card" class="overlay">
+    <div class="boot" id="boot">INSERTING CARTRIDGE…</div>
+    <div id="cardbody" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:0.2rem">
+      <div class="rarity" id="c-rarity">COMMON</div>
+      <div class="title" id="c-title">FERAL BRUNCH</div>
+      <div class="premise" id="c-premise"></div>
+      <div class="blurb" id="c-blurb"></div>
+      <div class="hint" id="c-hint">play · move to steer</div>
+      <div class="row">
+        <button id="c-play">play ▶</button>
+        <button id="c-reroll" class="ghost">reroll ↻</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- result -->
+  <div id="result" class="overlay hidden">
+    <div class="rarity" id="r-rarity">COMMON</div>
+    <div class="big" id="r-head">GAME OVER</div>
+    <div class="stat" id="r-score">score 0</div>
+    <div class="quip" id="r-quip"></div>
+    <div class="row">
+      <button id="retry" class="ghost">retry</button>
+      <button id="reroll">reroll ↻</button>
+    </div>
+  </div>
+
+  <div class="seedline" id="seedline">arcr · #0</div>
+</div></div>
+
+<script>
+"use strict";
+// ============================================================
+// arcr — arcade-cradle renderer, standalone prototype.
+// seed -> deterministic genome -> one juicy "dodge & catch" game.
+// Everything below the seed is what the eventual !arcr1+ capsule
+// expands to; the engine here is what the cradle bootloader hosts.
+// ============================================================
+
+// ---- seeded PRNG (mulberry32): determinism is mandatory ----
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function rngFrom(seed) {
+  const f = mulberry32(seed >>> 0);
+  return {
+    f,
+    unit: () => f(),
+    int: (n) => Math.floor(f() * n),
+    range: (a, b) => a + f() * (b - a),
+    pick: (arr) => arr[Math.floor(f() * arr.length)],
+    chance: (p) => f() < p,
+  };
+}
+
+// ---- word banks: comedy is the highest amusement-per-byte lever ----
+// [word, emoji] — the emoji ties the art to the premise (you ARE a tooth).
+const HERO = [["TOOTH","🦷"],["PIGEON","🐦"],["GHOST","👻"],["POTATO","🥔"],["INTERN","🧑‍💼"],
+  ["COMET","☄️"],["SLUG","🐌"],["WIZARD","🧙"],["GOOSE","🦢"],["ROOMBA","🤖"],["CRAB","🦀"],
+  ["MOTH","🦋"],["ONION","🧅"],["KNIGHT","🛡️"],["YETI","🧊"],["PRAWN","🦐"],["CLOUD","☁️"],
+  ["GNOME","🧝"],["NEWT","🦎"],["BEETLE","🪲"],["MERMAID","🧜"],["RACCOON","🦝"],["TURNIP","🥬"],
+  ["PHANTOM","👻"],["BARISTA","☕"],["PELICAN","🦩"],["FROG","🐸"],["DUCKLING","🐤"],["CACTUS","🌵"]];
+const WANT = [["SUGAR","🍬"],["TAX FORMS","📄"],["MEMES","😹"],["COINS","🪙"],["SOULS","👻"],
+  ["SNACKS","🍿"],["STARS","⭐"],["EMAILS","📧"],["GRAPES","🍇"],["SOCKS","🧦"],["SECRETS","🤫"],
+  ["BUTTONS","🔘"],["COMPLIMENTS","💖"],["COUPONS","🎟️"],["PIXELS","🟦"],["ACORNS","🌰"],
+  ["GOSSIP","🗨️"],["LEFTOVERS","🍱"],["BADGES","🏅"],["MOONROCKS","🌑"],["REFUNDS","💸"],
+  ["STICKERS","✨"],["DONUTS","🍩"],["CHERRIES","🍒"],["GEMS","💎"]];
+const HAZARD = [["DENTISTS","🪥"],["UMBRELLAS","☂️"],["DEADLINES","⏰"],["LASERS","⚡"],["CATS","🐈"],
+  ["BILLS","🧾"],["MONDAYS","📅"],["INSPECTORS","🕵️"],["MOSQUITOES","🦟"],["POTHOLES","🕳️"],
+  ["SPREADSHEETS","📊"],["GEESE","🪿"],["INFLUENCERS","🤳"],["WASPS","🐝"],["AUDITS","🔍"],
+  ["TRAFFIC","🚗"],["SPOILERS","🚨"],["GREMLINS","👹"],["MEETINGS","📆"],["ASTEROIDS","🪨"],
+  ["LANDLORDS","🏠"],["SEAGULLS","🐦"],["BEES","🐝"],["SPIDERS","🕷️"],["BANANA PEELS","🍌"]];
+const FLAVOR = ["ON TUESDAYS","IN SPACE","UNDERWATER","AT THE MALL","DURING TAX SEASON",
+  "AFTER MIDNIGHT","IN THE SUBURBS","AT LOW BATTERY","IN A HEATWAVE","ON DEADLINE",
+  "IN AISLE 7","BEFORE COFFEE","IN THE GROUP CHAT","AT THE DMV"];
+const T_ADJ = ["FERAL","COSMIC","SOGGY","ETERNAL","BUDGET","HAUNTED","ARTISANAL","RADIOACTIVE",
+  "SUBURBAN","FORBIDDEN","DISCOUNT","VENGEFUL","ROGUE","MIDNIGHT","DELUXE","CURSED","EXTREME",
+  "POLITE","UNHINGED","SEASONAL"];
+const T_NOUN = ["SEASON","BRUNCH","RAMPAGE","PROTOCOL","FIESTA","AUDIT","ODYSSEY","SHIFT",
+  "GAUNTLET","BONANZA","INCIDENT","SIMULATOR","QUEST","MELTDOWN","JUBILEE","PATROL","FRENZY",
+  "HOUR","SPECIAL","UPRISING"];
+
+// ---- twists: the axis that makes them play differently, gated by rarity ----
+const TWISTS = {
+  plain:   { name:"plain",   blurb:(g)=>`grab the ${low(g.want)}, dodge the ${low(g.hazard)}.` },
+  wind:    { name:"wind",    blurb:(g)=>`mind the wind. mind the ${low(g.hazard)}.` },
+  magnet:  { name:"magnet",  blurb:(g)=>`the ${low(g.want)} likes you. the ${low(g.hazard)} doesn't.` },
+  decoy:   { name:"decoy",   blurb:(g)=>`not everything shiny is ${low(g.want)}.` },
+  gravflip:{ name:"gravflip",blurb:(g)=>`the ${low(g.want)} falls up when it feels like it.` },
+};
+const RARITY = [
+  { name:"COMMON",      w:0.55, twists:["plain","wind"],              goal:18, lives:3, holo:false },
+  { name:"UNCOMMON",    w:0.27, twists:["wind","magnet","decoy"],     goal:22, lives:3, holo:false },
+  { name:"RARE",        w:0.13, twists:["magnet","decoy","gravflip"], goal:26, lives:3, holo:false },
+  { name:"HOLOGRAPHIC", w:0.05, twists:["decoy","gravflip","magnet"], goal:30, lives:4, holo:true  },
+];
+
+function low(s){ return s.toLowerCase(); }
+function pickRarity(r){
+  let x = r.unit(), acc = 0;
+  for (const tier of RARITY){ acc += tier.w; if (x < acc) return tier; }
+  return RARITY[0];
+}
+
+// ---- seed -> genome (the future capsule body) ----
+const MODES      = ["catch","catch","dodge","shoot"];             // core loop / genre
+const ART_STYLES = ["emoji","emoji","sprite","sprite","geo"];      // ~40/40/20
+const BG_STYLES  = ["plain","grid","stars","bubbles","dots"];
+const GEO_WANT   = ["diamond","star","hexagon","triangle","ring"]; // rounded/regular = good
+const GEO_HAZ    = ["spike","saw","x","spike","saw"];              // spiky = danger reads
+function makeGenome(seed){
+  const r = rngFrom(seed);
+  const tier = pickRarity(r);
+  const heroP = r.pick(HERO), wantP = r.pick(WANT), hazP = r.pick(HAZARD), flavor = r.pick(FLAVOR);
+  const title = r.pick(T_ADJ) + " " + r.pick(T_NOUN);
+  const twistId = r.pick(tier.twists);
+  const mode = r.pick(MODES);
+  const art = r.pick(ART_STYLES);
+  const bg  = r.pick(BG_STYLES);
+  const geoWant = r.pick(GEO_WANT), geoHaz = r.pick(GEO_HAZ);
+  // palette: keep the readability grammar (want=gold, hazard=red); vary the rest.
+  const baseHue = r.int(360);
+  const pal = {
+    bg:    `hsl(${baseHue},${28+r.int(14)}%,${9+r.int(7)}%)`,
+    bg2:   `hsl(${(baseHue+40)%360},${30+r.int(20)}%,${14+r.int(8)}%)`,
+    player:`hsl(${(baseHue+r.pick([150,170,190,200]))%360},78%,62%)`,
+    want:  `hsl(${44+r.int(10)},95%,60%)`,
+    hazard:`hsl(${r.pick([0,355,8,12])},85%,56%)`,
+    fg:    `hsl(${baseHue},18%,93%)`,
+    holo:  tier.holo,
+  };
+  const audio = { wave: r.pick(["square","sawtooth","triangle"]), root: 48 + r.int(12) };
+  const blurb = TWISTS[twistId].blurb({ want: wantP[0], hazard: hazP[0] });
+  return { seed, tier, mode,
+    hero: heroP[0], heroE: heroP[1], want: wantP[0], wantE: wantP[1], hazard: hazP[0], hazardE: hazP[1],
+    flavor, title, twistId, art, bg, geoWant, geoHaz, pal, audio, blurb };
+}
+
+// ============================================================
+// tiny WebAudio synth — juice you can hear
+// ============================================================
+let AC = null;
+function audioOn(){ if (!AC){ try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} } if (AC && AC.state==="suspended") AC.resume(); }
+function tone({freq=440, to=null, type="square", dur=0.12, vol=0.2, delay=0}){
+  if (!AC) return;
+  const t0 = AC.currentTime + delay;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (to) o.frequency.exponentialRampToValueAtTime(Math.max(1,to), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise({dur=0.18, vol=0.25, delay=0}){
+  if (!AC) return;
+  const t0 = AC.currentTime + delay;
+  const n = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, n, AC.sampleRate); const d = buf.getChannelData(0);
+  for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const g = AC.createGain(); g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  const f = AC.createBiquadFilter(); f.type="lowpass"; f.frequency.setValueAtTime(1800, t0); f.frequency.exponentialRampToValueAtTime(300, t0+dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start(t0);
+}
+const mtof = (m) => 440 * Math.pow(2, (m-69)/12);
+function sfxCatch(g, combo){ tone({ freq: mtof(g.audio.root + 12 + Math.min(combo,8)), to: mtof(g.audio.root+19+Math.min(combo,8)), type:g.audio.wave, dur:0.10, vol:0.18 }); }
+function sfxHurt(){ noise({dur:0.22, vol:0.3}); tone({freq:160, to:60, type:"sawtooth", dur:0.25, vol:0.2}); }
+function sfxUi(){ tone({freq:520, to:780, type:"square", dur:0.07, vol:0.14}); }
+function sfxWin(g){ [0,4,7,12].forEach((iv,i)=>tone({freq:mtof(g.audio.root+12+iv), type:"triangle", dur:0.18, vol:0.18, delay:i*0.09})); }
+function sfxDie(){ [0,-2,-4,-9].forEach((iv,i)=>tone({freq:mtof(58+iv), type:"sawtooth", dur:0.22, vol:0.18, delay:i*0.1})); noise({dur:0.3,vol:0.25}); }
+function sfxTwist(){ tone({freq:300,to:900,type:"triangle",dur:0.18,vol:0.16}); tone({freq:900,to:300,type:"triangle",dur:0.18,vol:0.12,delay:0.12}); }
+
+// ============================================================
+// procedural visuals: emoji art · generated pixel-sprites · shapes · backgrounds
+// ============================================================
+function drawEmoji(g2d, ch, x, y, size, rot){
+  g2d.save(); g2d.translate(x,y); if (rot) g2d.rotate(rot);
+  g2d.font = size + "px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";
+  g2d.textAlign = "center"; g2d.textBaseline = "middle";
+  g2d.fillText(ch, 0, size*0.06);
+  g2d.restore();
+}
+
+// symmetric little pixel "invader" — consistent per game, varied across games
+const _spriteCache = {};
+function makeSprite(key, seed, body, accent){
+  if (_spriteCache[key]) return _spriteCache[key];
+  const r = rngFrom(seed);
+  const cols = 7, rows = 7, cell = 8, half = Math.ceil(cols/2);
+  const cvs = document.createElement("canvas"); cvs.width = cols*cell; cvs.height = rows*cell;
+  const cx = cvs.getContext("2d");
+  for (let y=0; y<rows; y++) for (let x=0; x<half; x++){
+    const edge = (y===0 || y===rows-1);
+    if (r.chance(edge ? 0.3 : 0.62)){
+      cx.fillStyle = body;
+      cx.fillRect(x*cell, y*cell, cell, cell);
+      cx.fillRect((cols-1-x)*cell, y*cell, cell, cell);
+    }
+  }
+  const eyeRow = 2 + r.int(2);
+  cx.fillStyle = accent;
+  cx.fillRect(1*cell, eyeRow*cell, cell, cell);
+  cx.fillRect((cols-2)*cell, eyeRow*cell, cell, cell);
+  _spriteCache[key] = cvs; return cvs;
+}
+
+function poly(g2d,n,r){ g2d.beginPath(); for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n; g2d.lineTo(Math.cos(a)*r,Math.sin(a)*r);} g2d.closePath(); g2d.fill(); }
+function star(g2d,n,ro,ri){ g2d.beginPath(); for(let i=0;i<n*2;i++){const a=-Math.PI/2+i*Math.PI/n; const rr=i%2?ri:ro; g2d.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);} g2d.closePath(); g2d.fill(); }
+function drawShape(g2d, shape, r, color){
+  g2d.fillStyle = color; g2d.strokeStyle = color; g2d.shadowColor = color; g2d.shadowBlur = 12;
+  switch(shape){
+    case "diamond": g2d.save(); g2d.rotate(Math.PI/4); g2d.fillRect(-r*0.8,-r*0.8,r*1.6,r*1.6); g2d.restore(); break;
+    case "hexagon": poly(g2d,6,r); break;
+    case "triangle": poly(g2d,3,r); break;
+    case "star": star(g2d,5,r,r*0.45); break;
+    case "ring": g2d.lineWidth=r*0.45; g2d.beginPath(); g2d.arc(0,0,r*0.68,0,7); g2d.stroke(); break;
+    case "spike": star(g2d,8,r*1.05,r*0.58); break;
+    case "saw": star(g2d,12,r,r*0.72); break;
+    case "x": g2d.lineWidth=r*0.5; g2d.lineCap="round"; g2d.beginPath();
+      g2d.moveTo(-r*0.65,-r*0.65); g2d.lineTo(r*0.65,r*0.65); g2d.moveTo(r*0.65,-r*0.65); g2d.lineTo(-r*0.65,r*0.65); g2d.stroke(); break;
+    default: g2d.beginPath(); g2d.arc(0,0,r,0,7); g2d.fill();
+  }
+}
+
+function setupVisuals(g){
+  if (g._ready) return;
+  if (g.art === "sprite"){
+    g.sprites = {
+      player: makeSprite(`${g.seed}-p`, (g.seed^0x9e3779b1)>>>0, g.pal.player, g.pal.fg),
+      want:   makeSprite(`${g.seed}-w`, (g.seed^0x85ebca77)>>>0, g.pal.want,   "#ffffff"),
+      hazard: makeSprite(`${g.seed}-h`, (g.seed^0xc2b2ae3d)>>>0, g.pal.hazard, "#ffffff"),
+    };
+  }
+  const r = rngFrom((g.seed^0x1b873593)>>>0);
+  const n = g.bg==="stars" ? 70 : g.bg==="bubbles" ? 22 : g.bg==="dots" ? 34 : 0;
+  g.bgField = [];
+  for (let i=0;i<n;i++) g.bgField.push({ x:r.unit(), y:r.unit(), z:0.3+r.unit(), s:0.4+r.unit() });
+  g._ready = true;
+}
+
+function drawBackground(g){
+  const p = g.pal; const t = frame/60;
+  let bg = p.bg, bg2 = p.bg2;
+  if (p.holo){ const h=(frame*0.6)%360; bg=`hsl(${h},40%,10%)`; bg2=`hsl(${(h+60)%360},45%,16%)`; }
+  const grad = ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,bg2); grad.addColorStop(1,bg);
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+  ctx.save();
+  if (g.bg === "grid"){
+    ctx.strokeStyle = p.player; ctx.globalAlpha = 0.12; ctx.lineWidth = 1;
+    const rows = 12, off = (t*0.3)%1;
+    for (let i=0;i<rows;i++){ const f=(i+off)/rows; const y=H*(0.45+f*0.55); ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    for (let i=-6;i<=6;i++){ ctx.beginPath(); ctx.moveTo(W*0.5,H*0.45); ctx.lineTo(W*0.5+i*W*0.22,H); ctx.stroke(); }
+  } else if (g.bg === "stars"){
+    ctx.fillStyle = p.fg;
+    for (const s of g.bgField){ const y=(s.y + t*0.04*s.z)%1; ctx.globalAlpha=0.25+0.6*Math.abs(Math.sin(t*2*s.s+s.x*10)); const rr=s.z*1.8; ctx.fillRect(s.x*W,y*H,rr,rr); }
+  } else if (g.bg === "bubbles"){
+    ctx.globalAlpha = 0.10; ctx.fillStyle = p.player;
+    for (const s of g.bgField){ const y=((s.y - t*0.05*s.z)%1+1)%1; ctx.beginPath(); ctx.arc(s.x*W, y*H, 4+s.z*16, 0, 7); ctx.fill(); }
+  } else if (g.bg === "dots"){
+    ctx.globalAlpha = 0.16; ctx.fillStyle = p.fg;
+    for (const s of g.bgField){ const x=((s.x + t*0.02*s.z)%1+1)%1; ctx.beginPath(); ctx.arc(x*W, s.y*H, 1.5+s.z*2, 0, 7); ctx.fill(); }
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+
+function drawEntity(it){
+  const showWant = it.kind === "want" || it.decoyT > 0;
+  ctx.save(); ctx.translate(it.x, it.y);
+  ctx.translate(0, Math.sin(frame*0.1 + it.wob) * it.r * 0.14);  // bob
+  if (G.art === "emoji"){
+    drawEmoji(ctx, showWant ? G.wantE : G.hazardE, 0, 0, it.r*2.2, Math.sin(frame*0.05 + it.wob)*0.18);
+  } else if (G.art === "sprite"){
+    ctx.imageSmoothingEnabled = false;
+    ctx.shadowColor = showWant ? G.pal.want : G.pal.hazard; ctx.shadowBlur = 10;
+    ctx.drawImage(showWant ? G.sprites.want : G.sprites.hazard, -it.r, -it.r, it.r*2, it.r*2);
+  } else {
+    if (it.spin) ctx.rotate(frame * it.spin);
+    drawShape(ctx, showWant ? G.geoWant : G.geoHaz, it.r, showWant ? G.pal.want : G.pal.hazard);
+  }
+  ctx.restore();
+}
+
+function drawPlayerArt(){
+  ctx.save(); ctx.translate(player.x, player.y); ctx.scale(player.sx, player.sy);
+  if (G.art === "emoji"){
+    drawEmoji(ctx, G.heroE, 0, 0, player.r*2.4, 0);
+  } else if (G.art === "sprite"){
+    ctx.imageSmoothingEnabled = false; ctx.shadowColor = G.pal.player; ctx.shadowBlur = 16;
+    ctx.drawImage(G.sprites.player, -player.r, -player.r, player.r*2, player.r*2);
+  } else {
+    ctx.fillStyle = G.pal.player; ctx.shadowColor = G.pal.player; ctx.shadowBlur = 18;
+    ctx.beginPath(); ctx.arc(0,0,player.r,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = "#0b0b10";
+    ctx.beginPath(); ctx.arc(-player.r*0.32,-player.r*0.12,player.r*0.16,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(player.r*0.32,-player.r*0.12,player.r*0.16,0,7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ============================================================
+// the game
+// ============================================================
+const cv = document.getElementById("c");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  const wrap = document.getElementById("wrap");
+  const rb = wrap.getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = Math.round(rb.width); H = Math.round(rb.height);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize", resize);
+
+let G = null;          // current genome
+let state = "card";    // card | play | over | win
+let frame = 0;
+
+// world
+let player, items, parts, shots, shake, score, lives, maxLives, combo, comboT, elapsed, spawnT, fireT,
+    windDir, gravSign, twistArmed, twistMsgT, won, goal, goalIsTime;
+const target = { x:0.5, y:0.78 }; // normalized steer target
+
+function resetWorld(){
+  const isShoot = G.mode==="shoot";
+  player = { x:W*0.5, y:(isShoot?0.86:0.78)*H, vx:0, vy:0, r:Math.max(12,W*0.045), sx:1, sy:1, dead:false };
+  items = []; parts = []; shots = [];
+  shake = 0; score = 0; lives = G.tier.lives; maxLives = G.tier.lives+2; combo = 0; comboT = 0;
+  elapsed = 0; spawnT = 0; fireT = 0; windDir = 1; gravSign = 1; twistArmed = false; twistMsgT = 0; won = false;
+  goalIsTime = (G.mode==="dodge");
+  goal = goalIsTime ? (26 + (G.tier.goal-18)) : G.tier.goal;  // dodge: survive N seconds; else: reach N score
+  target.x = 0.5; target.y = isShoot?0.86:0.78;
+}
+
+function spawnItem(){
+  const r = G.pal;
+  // decoy twist: some hazards masquerade as wants for ~0.7s
+  const hazardChance = G.mode==="dodge" ? 0.86
+    : G.mode==="shoot" ? 0.62
+    : 0.42 + Math.min(0.12, elapsed/120);
+  let kind = Math.random() < hazardChance ? "hazard" : "want";
+  let decoy = false;
+  if (G.twistId === "decoy" && kind === "hazard" && Math.random() < 0.55){ decoy = true; }
+  const rad = Math.max(9, W*(kind==="want"?0.032:0.036));
+  const speed = (H*0.18) * (0.7 + elapsed/55) * (0.85 + Math.random()*0.4);
+  const fromTop = gravSign > 0;
+  items.push({
+    x: rad + Math.random()*(W-2*rad),
+    y: fromTop ? -rad : H+rad,
+    vx: 0, vy: (fromTop?1:-1)*speed,
+    r: rad, kind, decoy, decoyT: decoy ? 0.7 : 0, wob: Math.random()*6,
+    spin: (Math.random()<0.5?-1:1) * (0.3+Math.random()) * 0.02, homed:false,
+  });
+}
+
+function burst(x,y,color,n,spd){
+  for (let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, s = spd*(0.3+Math.random());
+    parts.push({ x,y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - spd*0.3, life:1, color, r:2+Math.random()*3 });
+  }
+}
+
+function startGame(){
+  audioOn();
+  resize(); resetWorld();
+  state = "play";
+  document.getElementById("card").classList.add("hidden");
+  document.getElementById("result").classList.add("hidden");
+}
+
+function endGame(win){
+  won = win; state = win ? "win" : "over";
+  if (win) { sfxWin(G); } else { sfxDie(); }
+  const res = document.getElementById("result");
+  res.style.color = G.pal.fg;
+  document.getElementById("r-rarity").textContent = G.tier.name;
+  document.getElementById("r-rarity").style.color = G.tier.holo ? "#ff7ad9" : G.pal.want;
+  document.getElementById("r-head").textContent = win ? "YOU SURVIVED" : "GAME OVER";
+  const metric = goalIsTime ? `${Math.floor(elapsed)}s` : `${score}`;
+  document.getElementById("r-score").textContent =
+    G.mode==="dodge" ? `survived ${metric} / ${goal}s`
+    : G.mode==="shoot" ? `${low(G.hazard)} blasted: ${metric}`
+    : `${low(G.want)} collected: ${metric}`;
+  document.getElementById("r-quip").textContent = win
+    ? `${cap(G.hero)} conquered ${G.title} ${low(G.flavor)}.`
+    : pick([`the ${low(G.hazard)} won this round.`,
+            `${cap(G.hero)} should have stayed home.`,
+            `${cap(G.hazard)}: 1. you: ${metric}.`,
+            `not your ${low(G.flavor)}.`]);
+  res.classList.remove("hidden");
+}
+function cap(s){ return s.charAt(0)+s.slice(1).toLowerCase(); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+// ---- update ----
+function update(dt){
+  frame++;
+  if (state !== "play") return;
+  elapsed += dt;
+
+  const isShoot = G.mode==="shoot";
+
+  // steer: player chases the pointer/keys with a springy follow (juice).
+  // shoot mode anchors the player to the bottom band (x only).
+  const tx = target.x*W, ty = (isShoot ? 0.86 : target.y)*H;
+  player.vx += (tx - player.x) * 16 * dt; player.vx *= Math.pow(0.0008, dt);
+  player.vy += (ty - player.y) * 16 * dt; player.vy *= Math.pow(0.0008, dt);
+  player.x += player.vx*dt; player.y += player.vy*dt;
+  player.x = Math.max(player.r, Math.min(W-player.r, player.x));
+  player.y = Math.max(player.r, Math.min(H-player.r, player.y));
+  // squash toward velocity
+  const sp = Math.min(1, Math.hypot(player.vx,player.vy)/900);
+  player.sx += ((1+sp*0.35) - player.sx)*12*dt;
+  player.sy += ((1-sp*0.22) - player.sy)*12*dt;
+
+  // twist: gravflip arms at half the goal, then flips on a timer (not in shoot —
+  // hazards must fall downward to reach the bottom)
+  const armMetric = goalIsTime ? elapsed : score;
+  const halfGoal = goalIsTime ? goal/2 : Math.floor(goal/2);
+  if (G.twistId==="gravflip" && !isShoot && !twistArmed && armMetric >= halfGoal){ twistArmed = true; }
+  if (twistArmed){
+    twistMsgT -= dt;
+    if (twistMsgT <= 0){ gravSign *= -1; twistMsgT = 4.5; sfxTwist(); flashMsg(); }
+  }
+  // wind: drift that reverses periodically
+  if (G.twistId==="wind"){ windDir = Math.sin(elapsed*0.6) >= 0 ? 1 : -1; }
+
+  // spawn
+  spawnT -= dt;
+  const interval = Math.max(0.30, (isShoot?0.70:0.95) - elapsed*0.012);
+  if (spawnT <= 0){ spawnItem(); spawnT = interval; }
+
+  // shoot: auto-fire projectiles upward, destroy hazards on contact
+  if (isShoot){
+    fireT -= dt;
+    if (fireT <= 0 && !player.dead){
+      shots.push({ x:player.x, y:player.y-player.r, vy:-H*1.15, r:Math.max(3,W*0.012) });
+      fireT = 0.26; tone({freq:mtof(G.audio.root+24), to:mtof(G.audio.root+31), type:"square", dur:0.05, vol:0.07});
+    }
+    for (const s of shots){
+      s.y += s.vy*dt;
+      if (s.dead) continue;
+      for (const it of items){
+        if (it.dead || it.kind!=="hazard") continue;
+        if (Math.hypot(it.x-s.x, it.y-s.y) < it.r + s.r){
+          it.dead=true; s.dead=true; score++; combo++; comboT=0.8; shake=Math.min(12,shake+4);
+          sfxCatch(G,combo); burst(it.x,it.y,G.pal.hazard,10,200);
+          if (!goalIsTime && score>=goal) return endGame(true);
+          break;
+        }
+      }
+    }
+    shots = shots.filter(s => !s.dead && s.y > -40);
+  }
+
+  // items
+  for (const it of items){
+    if (it.decoyT > 0){ it.decoyT -= dt; if (it.decoyT <= 0) burst(it.x,it.y,G.pal.hazard,6,160); }
+    if (G.twistId==="wind") it.vx = windDir * W*0.10 * (0.5+Math.sin(elapsed*2+it.wob));
+    if (G.twistId==="magnet" && it.kind==="want"){
+      const dx=player.x-it.x, dy=player.y-it.y, d=Math.hypot(dx,dy)||1;
+      if (d < H*0.45){ it.vx += (dx/d)*W*1.4*dt; it.vy += (dy/d)*W*1.4*dt; }
+    }
+    it.x += it.vx*dt; it.y += it.vy*dt;
+
+    // shoot: a hazard that slips past the bottom costs a life
+    if (isShoot && it.kind==="hazard" && !it.dead && it.y > H + it.r){
+      it.dead=true; lives--; combo=0; shake=Math.min(20,shake+12); sfxHurt();
+      if (lives<=0){ player.dead=true; burst(player.x,player.y,G.pal.player,28,320); return endGame(false); }
+      continue;
+    }
+
+    // body collision
+    const d = Math.hypot(it.x-player.x, it.y-player.y);
+    if (d < it.r + player.r*0.82 && !it.dead){
+      it.dead = true;
+      if (it.kind==="hazard"){ // decoys ARE hazards under the disguise
+        lives--; combo = 0; shake = Math.min(26, shake+18); sfxHurt();
+        burst(it.x,it.y,G.pal.hazard,16,260); player.sx=1.5; player.sy=0.6;
+        if (lives <= 0){ player.dead=true; burst(player.x,player.y,G.pal.player,28,320); return endGame(false); }
+      } else if (G.mode==="dodge"){ // wants are heal pickups
+        if (lives < maxLives) lives++;
+        sfxCatch(G,3); burst(it.x,it.y,G.pal.want,12,220); player.sx=0.7; player.sy=1.4; shake=Math.min(10,shake+4);
+      } else {
+        score++; combo++; comboT = 0.8; shake = Math.min(14, shake+5);
+        sfxCatch(G, combo); burst(it.x,it.y,G.pal.want,12,220); player.sx=0.7; player.sy=1.4;
+        if (!goalIsTime && score >= goal) return endGame(true);
+      }
+    }
+  }
+  items = items.filter(it => !it.dead && it.y > -80 && it.y < H+120 && it.x>-80 && it.x<W+80);
+
+  // dodge: survive to the time goal to win
+  if (goalIsTime && elapsed >= goal) return endGame(true);
+
+  // particles
+  for (const p of parts){ p.vy += 700*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life -= dt*1.6; }
+  parts = parts.filter(p => p.life > 0);
+
+  if (comboT>0) comboT -= dt;
+  shake *= Math.pow(0.0015, dt);
+}
+
+let msgEl=null, msgT=0;
+function flashMsg(){ msgT = 0.9; }
+
+// ---- render ----
+function draw(){
+  const p = G ? G.pal : {bg:"#0b0b10",bg2:"#15151f",fg:"#e8e8ef",player:"#6cf",want:"#fc0",hazard:"#f44"};
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  if (G) drawBackground(G);
+  else { ctx.fillStyle = p.bg; ctx.fillRect(0,0,W,H); }
+
+  // screen shake
+  const sh = shake; const ox=(Math.random()*2-1)*sh, oy=(Math.random()*2-1)*sh;
+  ctx.translate(ox,oy);
+
+  if (state==="play" || state==="over" || state==="win"){
+    for (const it of items) drawEntity(it);
+    // projectiles (shoot mode)
+    if (shots && shots.length){ ctx.fillStyle=p.player; ctx.shadowColor=p.player; ctx.shadowBlur=8;
+      for (const s of shots){ ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fill(); } ctx.shadowBlur=0; }
+    if (!player.dead) drawPlayerArt();
+    // particles
+    for (const pt of parts){ ctx.globalAlpha=Math.max(0,pt.life); ctx.fillStyle=pt.color;
+      ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.r,0,7); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+
+  // HUD
+  if (state==="play"){
+    ctx.fillStyle = p.fg; ctx.font = `700 ${Math.round(W*0.06)}px system-ui`; ctx.textBaseline="top";
+    ctx.fillText(goalIsTime ? `${Math.floor(elapsed)}s / ${goal}s` : `${score}/${goal}`, W*0.05, H*0.03);
+    // lives
+    ctx.textAlign="right";
+    ctx.fillStyle = p.hazard;
+    ctx.fillText("♥".repeat(Math.max(0,lives)), W*0.95, H*0.03);
+    ctx.textAlign="left";
+    // combo flash
+    if (comboT>0 && combo>1){ ctx.globalAlpha=Math.min(1,comboT*1.6);
+      ctx.fillStyle=p.want; ctx.font=`800 ${Math.round(W*0.09)}px system-ui`;
+      ctx.fillText(`x${combo}`, W*0.05, H*0.10); ctx.globalAlpha=1; }
+    // gravflip warning
+    if (msgT>0){ msgT-=1/60; ctx.globalAlpha=Math.min(1,msgT*2);
+      ctx.fillStyle=p.fg; ctx.textAlign="center"; ctx.font=`800 ${Math.round(W*0.08)}px system-ui`;
+      ctx.fillText(gravSign>0?"▼ DOWN":"▲ UP", W*0.5, H*0.44); ctx.textAlign="left"; ctx.globalAlpha=1; }
+  }
+}
+
+let last = 0;
+function loop(t){
+  const dt = Math.min(0.05, (t-last)/1000 || 0); last = t;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+
+// ============================================================
+// shell: cartridge reveal, input, reroll
+// ============================================================
+function showCard(genome){
+  G = genome; state = "card";
+  setupVisuals(G);
+  const tierColor = G.tier.holo ? "#ff7ad9" : G.pal.want;
+  document.documentElement.style.setProperty("--fg", G.pal.fg);
+  const card = document.getElementById("card");
+  card.classList.remove("hidden");
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("boot").classList.remove("hidden");
+  document.getElementById("cardbody").classList.add("hidden");
+  document.getElementById("seedline").textContent = `arcr · #${G.seed} · ${G.mode} · ${G.twistId}`;
+
+  // brief "booting" beat, then the title card (designed reveal moment)
+  sfxUi();
+  setTimeout(() => {
+    document.getElementById("boot").classList.add("hidden");
+    const cb = document.getElementById("cardbody"); cb.classList.remove("hidden");
+    const rr = document.getElementById("c-rarity");
+    rr.textContent = G.tier.name; rr.style.color = tierColor;
+    const tt = document.getElementById("c-title"); tt.textContent = G.title; tt.style.color = G.pal.fg;
+    const wb = `<b style="color:${G.pal.want}">${G.wantE} ${G.want}</b>`;
+    const hb = `<b style="color:${G.pal.hazard}">${G.hazardE} ${G.hazard}</b>`;
+    const obj = G.mode==="dodge" ? `survive ${hb} <b>${G.flavor}</b>. grab ${wb} to heal.`
+      : G.mode==="shoot" ? `blast ${hb}, grab ${wb} <b>${G.flavor}</b>.`
+      : `collect ${wb}, dodge ${hb} <b>${G.flavor}</b>.`;
+    document.getElementById("c-premise").innerHTML =
+      `you are a <b style="color:${G.pal.player}">${G.heroE} ${G.hero}</b>. ` + obj;
+    document.getElementById("c-blurb").textContent = `“${G.blurb}”`;
+    document.getElementById("c-hint").textContent = G.mode==="shoot"
+      ? "play · move to aim, it auto-fires" : G.mode==="dodge"
+      ? "play · keep moving, don't get hit" : "play · move to steer";
+    sfxWin(G);
+  }, 650);
+}
+
+function rollSeed(){
+  const buf = new Uint32Array(1); crypto.getRandomValues(buf);
+  return buf[0] % 1000000;
+}
+function load(seed){
+  history.replaceState({}, "", "#" + seed);
+  resize();
+  showCard(makeGenome(seed));
+}
+
+// input: pointer / touch steer
+function setTarget(clientX, clientY){
+  const rb = document.getElementById("wrap").getBoundingClientRect();
+  target.x = Math.max(0, Math.min(1, (clientX-rb.left)/rb.width));
+  target.y = Math.max(0, Math.min(1, (clientY-rb.top)/rb.height));
+}
+cv.addEventListener("pointermove", e => { if (state==="play") setTarget(e.clientX,e.clientY); });
+cv.addEventListener("pointerdown", e => { if (state==="play") setTarget(e.clientX,e.clientY); });
+// keyboard steer (desktop)
+const keys = {};
+window.addEventListener("keydown", e => { keys[e.key]=true; });
+window.addEventListener("keyup", e => { keys[e.key]=false; });
+setInterval(() => {
+  if (state!=="play") return;
+  const s = 0.025;
+  if (keys.ArrowLeft||keys.a) target.x=Math.max(0,target.x-s);
+  if (keys.ArrowRight||keys.d) target.x=Math.min(1,target.x+s);
+  if (keys.ArrowUp||keys.w) target.y=Math.max(0,target.y-s);
+  if (keys.ArrowDown||keys.s) target.y=Math.min(1,target.y+s);
+}, 16);
+
+function cardReady(){ return state==="card" && !document.getElementById("cardbody").classList.contains("hidden"); }
+function doReroll(){ audioOn(); load(rollSeed()); }
+
+// tap the card background to play; explicit buttons for play / reroll
+document.getElementById("card").addEventListener("click", () => { if (cardReady()) startGame(); });
+document.getElementById("c-play").addEventListener("click", (e)=>{ e.stopPropagation(); startGame(); });
+document.getElementById("c-reroll").addEventListener("click", (e)=>{ e.stopPropagation(); doReroll(); });
+document.getElementById("retry").addEventListener("click", (e)=>{ e.stopPropagation(); audioOn(); startGame(); });
+document.getElementById("reroll").addEventListener("click", (e)=>{ e.stopPropagation(); doReroll(); });
+
+// keys: R rerolls anytime (pull the gacha lever); Enter/Space plays or retries
+window.addEventListener("keydown", (e) => {
+  if (e.key==="r" || e.key==="R"){ doReroll(); }
+  else if (e.key==="Enter" || e.key===" "){
+    e.preventDefault();
+    if (cardReady()) startGame();
+    else if (state==="over" || state==="win"){ audioOn(); startGame(); }
+  }
+});
+
+// boot
+const initSeed = (parseInt(location.hash.slice(1),10) || 0) || rollSeed();
+resize();
+load(initSeed);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

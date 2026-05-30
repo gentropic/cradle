@@ -2,22 +2,23 @@
 //
 // Implements SPEC-cradle.md §9 and §9.1:
 // - Version-prefixed cache name (cradle-v<n>)
-// - Pre-caches the bootloader, manifest, icons, and pako on install
-// - Renderers are embedded in the bootloader HTML, so no separate fetches
+// - Pre-caches the bootloader, manifest, and icons on install
+// - Renderers AND pako are embedded in the bootloader HTML, so no separate
+//   fetches and no third-party origin in the install set (a CDN outage at
+//   install time can no longer break the offline guarantee)
 // - On activate, deletes all cradle-v* caches that don't match the current version
 // - Serves cached assets offline; falls through to network for anything not cached
 //
 // Bump CACHE_VERSION on any cached-asset change.
 
-const CACHE_VERSION = "cradle-v1";
+const CACHE_VERSION = "cradle-v2";
 
 const CORE_ASSETS = [
   "./",
-  "./cradle.html",
+  "./index.html",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-maskable.svg",
-  "https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js",
 ];
 
 self.addEventListener("install", (event) => {
@@ -57,7 +58,7 @@ self.addEventListener("fetch", (event) => {
       return fetch(event.request).catch(() => {
         // Offline fallback for the bootloader: serve the cached root.
         if (event.request.mode === "navigate") {
-          return caches.match("./cradle.html");
+          return caches.match("./index.html").then((r) => r || caches.match("./"));
         }
         // Otherwise: re-throw the fetch failure (which becomes a network error
         // visible to the renderer; appropriate for e.g. a doorbell POST that

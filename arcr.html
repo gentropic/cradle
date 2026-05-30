@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>arcr — engine</title>
+<style>
+  :root { --fg:#e8e8ef; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:#000; color:var(--fg);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif; overflow:hidden;
+    user-select:none; -webkit-user-select:none; touch-action:none; }
+  #stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  #wrap { position:relative; height:100%; aspect-ratio:9/16; max-width:100%; max-height:100%;
+    box-shadow:0 0 80px rgba(0,0,0,0.6); overflow:hidden; }
+  canvas { display:block; width:100%; height:100%; }
+  #scan { position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay; opacity:0.2;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.6) 0 1px, transparent 1px 3px); }
+
+  .overlay { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:8% 7%; gap:0.35rem; }
+  .hidden { display:none !important; }
+  .boot { font-size:0.8rem; letter-spacing:0.4em; opacity:0.7; }
+  .title { font-size:2.1rem; font-weight:800; line-height:1.0; margin:0.1rem 0; text-shadow:0 3px 0 rgba(0,0,0,0.35); }
+  .about { font-size:0.8rem; letter-spacing:0.3em; text-transform:uppercase; opacity:0.6; }
+  .hint { margin-top:1.5rem; font-size:0.8rem; opacity:0.55; animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:0.85} }
+  .big { font-size:2.3rem; font-weight:800; margin:0.2rem 0; }
+  .msg { font-size:0.95rem; opacity:0.85; font-style:italic; max-width:22rem; }
+  .row { display:flex; gap:0.6rem; margin-top:1.3rem; flex-wrap:wrap; justify-content:center; }
+  button { font:inherit; font-weight:700; font-size:0.82rem; letter-spacing:0.04em;
+    padding:0.55rem 1rem; border-radius:6px; border:2px solid var(--fg); cursor:pointer;
+    background:var(--fg); color:#111; text-transform:uppercase; }
+  button.ghost { background:transparent; color:var(--fg); }
+  button:active { transform:translateY(1px); }
+
+  /* dev toolbar + editor */
+  #bar { position:absolute; top:0; left:0; right:0; display:flex; gap:0.4rem; align-items:center;
+    padding:0.4rem 0.5rem; font-size:0.75rem; z-index:5; }
+  #bar select, #bar button { font-size:0.72rem; padding:0.3rem 0.5rem; border-radius:5px; }
+  #bar select { background:rgba(0,0,0,0.5); color:var(--fg); border:1px solid rgba(255,255,255,0.3); }
+  #bar .sp { flex:1; }
+  #editor { position:absolute; inset:0; background:rgba(8,8,12,0.94); z-index:6; display:flex;
+    flex-direction:column; padding:0.6rem; gap:0.5rem; }
+  #editor textarea { flex:1; width:100%; resize:none; background:#0c0c12; color:#cfe;
+    border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:0.6rem;
+    font-family:"Cascadia Code",Consolas,monospace; font-size:0.78rem; line-height:1.5; }
+  #warn { font-family:monospace; font-size:0.72rem; color:#fb7; min-height:1.1rem; white-space:pre-wrap; }
+  .seedline { position:absolute; left:0; right:0; bottom:0.5rem; text-align:center;
+    font-size:0.62rem; letter-spacing:0.16em; opacity:0.4; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="scan"></div>
+
+  <div id="bar">
+    <select id="lib"></select>
+    <button id="edit-btn" class="ghost">✎ edit</button>
+    <div class="sp"></div>
+    <button id="restart" class="ghost">↻</button>
+  </div>
+
+  <div id="card" class="overlay">
+    <div class="boot" id="boot">INSERTING CARTRIDGE…</div>
+    <div id="cardbody" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:0.25rem">
+      <div class="title" id="c-title">—</div>
+      <div class="about" id="c-about"></div>
+      <div class="hint" id="c-hint">tap to play</div>
+    </div>
+  </div>
+
+  <div id="result" class="overlay hidden">
+    <div class="big" id="r-head">—</div>
+    <div class="msg" id="r-msg"></div>
+    <div class="row">
+      <button id="again">again</button>
+      <button id="next" class="ghost">next ›</button>
+    </div>
+  </div>
+
+  <div id="editor" class="hidden">
+    <textarea id="src" spellcheck="false"></textarea>
+    <div id="warn"></div>
+    <div class="row" style="margin:0;justify-content:flex-end">
+      <button id="run-btn">▶ run</button>
+      <button id="close-btn" class="ghost">close</button>
+    </div>
+  </div>
+
+  <div class="seedline" id="seedline">arcr</div>
+</div></div>
+
+<script>
+"use strict";
+// ============================================================
+// arcr engine — parses the SPEC-arcr DSL and runs it on a
+// shared juice/render substrate (lifted from arcade.html).
+// A game is DATA; nothing here ever evals it. DSL = sandbox.
+// ============================================================
+
+// ---- seeded PRNG ----
+function mulberry32(a){ return function(){ a|=0; a=(a+0x6D2B79F5)|0; let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; }
+function hashStr(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+
+// ============================================================
+// PARSER  (line-oriented, keyword-led — SPEC-arcr §3)
+// ============================================================
+function tokenize(s){ const out=[]; const re=/"[^"]*"|\S+/g; let m; while((m=re.exec(s))) out.push(m[0]); return out; }
+function unq(s){ return s && s[0]==='"' ? s.slice(1,-1) : s; }
+
+function parseArcr(src){
+  const directives={}, objects={}, rules=[], warnings=[];
+  let order=0;
+  for (const raw of src.split("\n")){
+    const line = raw.trim();
+    if (!line || line[0]==="#") continue;
+    if (line[0]==="@"){
+      const sp = line.indexOf(" ");
+      const k = (sp<0?line.slice(1):line.slice(1,sp)).toLowerCase();
+      directives[k] = sp<0 ? "" : line.slice(sp+1).trim();
+      continue;
+    }
+    const t = tokenize(line);
+    if (t[0]==="obj"){
+      const ci = t.indexOf(":");
+      if (ci<0 || !t[1]){ warnings.push("obj needs `name : kind` → "+line); continue; }
+      const name = t[1].toLowerCase();
+      const kind = (t[ci+1]||"emoji").toLowerCase();
+      const hasArg = t[ci+2] && !t[ci+2].includes("=");
+      const arg = hasArg ? unq(t[ci+2]) : "";
+      const props = {};
+      for (let i=ci+2; i<t.length; i++){ if (t[i].includes("=")){ const j=t[i].indexOf("="); props[t[i].slice(0,j).toLowerCase()] = unq(t[i].slice(j+1)); } }
+      objects[name] = { name, kind, arg, tag:(props.tag||null), move:(props.move||"still").toLowerCase(),
+        at:(props.at||"center").toLowerCase(), speed:+(props.speed||1)||1, size:(props.size||"normal").toLowerCase(), order:order++ };
+      continue;
+    }
+    if (t[0]==="on" || t[0]==="every" || t[0]==="at" || t[0]==="when"){
+      const ci = t.indexOf(":");
+      if (ci<0){ warnings.push("rule needs `event : action` → "+line); continue; }
+      const ev = t.slice(0,ci);
+      const actions = t.slice(ci+1).join(" ").split(";").map(a=>tokenize(a.trim())).filter(a=>a.length);
+      rules.push({ ev, actions, fired:false, next: ev[0]==="every" ? (+ev[1]||1) : null });
+      continue;
+    }
+    warnings.push("unrecognized → "+line);
+  }
+  // surface what the HUD should show
+  const txt = src;
+  const flags = {
+    score: /(^|\n)\s*(on|every|at|when)[^\n]*\bscore\b/.test(txt) || /score\s*[+\-=]/.test(txt),
+    lives: ("lives" in directives) || /\blife\s*[+\-]/.test(txt) || /when[^\n]*\blives\b/.test(txt),
+    timeGoal: 0,
+    scoreGoal: 0,
+  };
+  for (const r of rules){
+    if (r.ev[0]==="when"){
+      const c=r.ev.slice(1);
+      const win = r.actions.some(a=>a[0]==="win");
+      if (win && c[0]==="score" && c[1]===">=") flags.scoreGoal = +c[2]||0;
+      if (win && c[0]==="time"  && c[1]===">=") flags.timeGoal  = +c[2]||0;
+    }
+  }
+  return { directives, objects, rules, warnings, flags,
+           title:(directives.title||"untitled"), about:(directives.about||"") };
+}
+
+// ============================================================
+// RENDER / JUICE substrate (from arcade.html)
+// ============================================================
+const cv = document.getElementById("c");
+const ctx = cv.getContext("2d");
+let W=0,H=0,DPR=1,frame=0;
+function resize(){
+  const rb = document.getElementById("wrap").getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio||1);
+  W = Math.round(rb.width); H = Math.round(rb.height);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize", resize);
+
+function drawEmoji(ch,x,y,size){ ctx.save(); ctx.translate(x,y);
+  ctx.font = size+"px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";
+  ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(ch,0,size*0.06); ctx.restore(); }
+function poly(n,r){ ctx.beginPath(); for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n; ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);} ctx.closePath(); ctx.fill(); }
+function starP(n,ro,ri){ ctx.beginPath(); for(let i=0;i<n*2;i++){const a=-Math.PI/2+i*Math.PI/n; const rr=i%2?ri:ro; ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);} ctx.closePath(); ctx.fill(); }
+function drawShape(shape,r,color){ ctx.fillStyle=color; ctx.strokeStyle=color; ctx.shadowColor=color; ctx.shadowBlur=12;
+  switch(shape){
+    case "diamond": ctx.save(); ctx.rotate(Math.PI/4); ctx.fillRect(-r*0.8,-r*0.8,r*1.6,r*1.6); ctx.restore(); break;
+    case "hexagon": poly(6,r); break; case "triangle": poly(3,r); break;
+    case "star": starP(5,r,r*0.45); break;
+    case "ring": ctx.lineWidth=r*0.45; ctx.beginPath(); ctx.arc(0,0,r*0.68,0,7); ctx.stroke(); break;
+    case "spike": starP(8,r*1.05,r*0.58); break; case "saw": starP(12,r,r*0.72); break;
+    case "x": ctx.lineWidth=r*0.5; ctx.lineCap="round"; ctx.beginPath();
+      ctx.moveTo(-r*0.6,-r*0.6); ctx.lineTo(r*0.6,r*0.6); ctx.moveTo(r*0.6,-r*0.6); ctx.lineTo(-r*0.6,r*0.6); ctx.stroke(); break;
+    default: ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+  } ctx.shadowBlur=0; }
+
+// audio
+let AC=null;
+function audioOn(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(AC&&AC.state==="suspended") AC.resume(); }
+const mtof=(m)=>440*Math.pow(2,(m-69)/12);
+function tone({freq=440,to=null,type="square",dur=0.12,vol=0.18,delay=0}){ if(!AC)return; const t0=AC.currentTime+delay;
+  const o=AC.createOscillator(),g=AC.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t0);
+  if(to)o.frequency.exponentialRampToValueAtTime(Math.max(1,to),t0+dur);
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol,t0+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g).connect(AC.destination); o.start(t0); o.stop(t0+dur+0.02); }
+function noise({dur=0.2,vol=0.25}){ if(!AC)return; const t0=AC.currentTime; const n=Math.floor(AC.sampleRate*dur);
+  const buf=AC.createBuffer(1,n,AC.sampleRate); const d=buf.getChannelData(0); for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+  const s=AC.createBufferSource(); s.buffer=buf; const g=AC.createGain(); g.gain.setValueAtTime(vol,t0); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  const f=AC.createBiquadFilter(); f.type="lowpass"; f.frequency.setValueAtTime(1800,t0); f.frequency.exponentialRampToValueAtTime(300,t0+dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start(t0); }
+function sfxGood(c){ tone({freq:mtof(AUD.root+12+Math.min(c,8)),to:mtof(AUD.root+19+Math.min(c,8)),type:AUD.wave,dur:0.10,vol:0.16}); }
+function sfxBad(){ noise({dur:0.22,vol:0.28}); tone({freq:160,to:60,type:"sawtooth",dur:0.25,vol:0.18}); }
+function sfxUi(){ tone({freq:520,to:780,type:"square",dur:0.07,vol:0.12}); }
+function sfxWin(){ [0,4,7,12].forEach((iv,i)=>tone({freq:mtof(AUD.root+12+iv),type:"triangle",dur:0.18,vol:0.16,delay:i*0.09})); }
+function sfxDie(){ [0,-2,-4,-9].forEach((iv,i)=>tone({freq:mtof(58+iv),type:"sawtooth",dur:0.22,vol:0.16,delay:i*0.1})); noise({dur:0.3,vol:0.22}); }
+
+// palette + background field
+function buildPalette(prog,seed){
+  const r=mulberry32(seed);
+  let hue = ("palette" in prog.directives && /^\d+$/.test(prog.directives.palette)) ? +prog.directives.palette : Math.floor(r()*360);
+  return { bg:`hsl(${hue},30%,${9+Math.floor(r()*6)}%)`, bg2:`hsl(${(hue+40)%360},34%,15%)`,
+    player:`hsl(${(hue+180)%360},78%,62%)`, fg:`hsl(${hue},16%,93%)`, accent:`hsl(${(hue+90)%360},70%,60%)`, hue };
+}
+let BGFIELD=[];
+function buildBgField(prog,seed){ const r=mulberry32(seed^0x1b873593); const bg=prog.directives.bg||"plain";
+  const n=bg==="stars"?70:bg==="bubbles"?22:bg==="dots"?34:0; BGFIELD=[]; for(let i=0;i<n;i++)BGFIELD.push({x:r(),y:r(),z:0.3+r(),s:0.4+r()}); }
+function drawBackground(){ const p=PAL,bg=PROG.directives.bg||"plain",t=frame/60;
+  const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,p.bg2); grad.addColorStop(1,p.bg);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H); ctx.save();
+  if(bg==="grid"){ ctx.strokeStyle=p.player; ctx.globalAlpha=0.12; const rows=12,off=(t*0.3)%1;
+    for(let i=0;i<rows;i++){const f=(i+off)/rows;const y=H*(0.45+f*0.55);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    for(let i=-6;i<=6;i++){ctx.beginPath();ctx.moveTo(W*0.5,H*0.45);ctx.lineTo(W*0.5+i*W*0.22,H);ctx.stroke();} }
+  else if(bg==="stars"){ ctx.fillStyle=p.fg; for(const s of BGFIELD){const y=(s.y+t*0.04*s.z)%1; ctx.globalAlpha=0.25+0.6*Math.abs(Math.sin(t*2*s.s+s.x*10)); const rr=s.z*1.8; ctx.fillRect(s.x*W,y*H,rr,rr);} }
+  else if(bg==="bubbles"){ ctx.globalAlpha=0.10; ctx.fillStyle=p.player; for(const s of BGFIELD){const y=((s.y-t*0.05*s.z)%1+1)%1; ctx.beginPath(); ctx.arc(s.x*W,y*H,4+s.z*16,0,7); ctx.fill();} }
+  else if(bg==="dots"){ ctx.globalAlpha=0.16; ctx.fillStyle=p.fg; for(const s of BGFIELD){const x=((s.x+t*0.02*s.z)%1+1)%1; ctx.beginPath(); ctx.arc(x*W,s.y*H,1.5+s.z*2,0,7); ctx.fill();} }
+  ctx.restore(); ctx.globalAlpha=1; }
+
+// ============================================================
+// INTERPRETER  (SPEC-arcr §4 execution model)
+// ============================================================
+let PROG=null, PAL=null, AUD={wave:"square",root:50}, SEED=1;
+let state="card";                       // card | play | win | lose | end | refuse
+let OBJ=[], S=null, parts=[], shake=0, msgs=[], ending=null, tapQ=0, lastBg="plain";
+const target = { x:0.5, y:0.85 };
+
+function zonePix(z){ switch(z){ case "top":return [W*0.5,H*0.14]; case "bottom":return [W*0.5,H*0.85];
+  case "left":return [W*0.18,H*0.5]; case "right":return [W*0.82,H*0.5]; default:return [W*0.5,H*0.5]; } }
+function radOf(o){ const base=W*0.052; return base*(o.size==="small"?0.7:o.size==="big"?1.5:1)*(o.scale||1)*(o.kind==="text"?1.1:1); }
+function isPlayer(o){ return o.move==="tap"||o.move==="chase"; }
+function refMatch(o,ref){ return ref[0]==="#" ? o.tag===ref.slice(1) : o.name===ref; }
+
+function spawnObj(spec){ // {kind,arg,tag,move,speed,at,size}
+  const o = { name:"_s"+(frame)+"_"+OBJ.length, kind:spec.kind||"emoji", arg:spec.arg||"", tag:spec.tag||null,
+    move:spec.move||"fall", speed:+spec.speed||1, size:spec.size||"normal", scale:1, alive:true, sx:1, sy:1 };
+  if (spec.x!=null){ o.x=spec.x; o.y=spec.y; }
+  else if (spec.at==="scatter"){ const rr=radOf(o); o.x=rr+Math.random()*(W-2*rr); o.y=H*(0.12+Math.random()*0.5); }
+  else { const z=zonePix(spec.at||"top"); o.x = (spec.at&&spec.at!=="top") ? z[0] : (radOf(o)+Math.random()*(W-2*radOf(o))); o.y=z[1]; }
+  OBJ.push(o); return o; }
+
+function setupGame(prog,seed){
+  PROG=prog; SEED=seed; PAL=buildPalette(prog,seed); buildBgField(prog,seed);
+  const r=mulberry32(seed^0x55); AUD={ wave:["square","sawtooth","triangle"][Math.floor(r()*3)], root:48+Math.floor(r()*12) };
+  OBJ=[]; parts=[]; msgs=[]; shake=0; ending=null; tapQ=0; frame=0;
+  S={ score:0, lives:("lives" in prog.directives)?(+prog.directives.lives||0):3, time:0, taps:0, vars:{} };
+  // place declared objects; auto-spread objects that share a zone
+  const decl=Object.values(prog.objects).sort((a,b)=>a.order-b.order);
+  const byZone={}; for(const d of decl){ (byZone[d.at]=byZone[d.at]||[]).push(d); }
+  for(const z in byZone){ const arr=byZone[z]; arr.forEach((d,i)=>{
+    let x,y; const n=arr.length;
+    if(z==="scatter"){ const rr=W*0.052*(d.scale||1); x=rr+Math.random()*(W-2*rr); y=H*(0.12+Math.random()*0.5); }
+    else { const zp=zonePix(z); const span=Math.min(W*0.7, n*W*0.16); x = n>1 ? (W/2 - span/2 + span*(i+0.5)/n) : zp[0]; y=zp[1]; }
+    OBJ.push({ ...d, x, y, scale:1, alive:true, sx:1, sy:1 });
+  }); }
+  for(const r2 of prog.rules){ r2.fired=false; r2.next = r2.ev[0]==="every" ? (+r2.ev[1]||1) : null; }
+}
+
+function num(expr){ if(expr[0]==="count"){ const ref=expr[1]||""; return OBJ.filter(o=>o.alive&&refMatch(o,ref)).length; }
+  const k=expr[0]; if(k in S) return S[k]; return S.vars[k]||0; }
+function evalCond(c){ if(c.length<3) return false; const L=num([c[0],c[1]]); const op=c[c.length-2], R=+c[c.length-1];
+  return op==="=="?L===R:op==="!="?L!==R:op===">="?L>=R:op==="<="?L<=R:op===">"?L>R:op==="<"?L<R:false; }
+
+function burst(x,y,color,n,spd){ for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2,s=spd*(0.3+Math.random());
+  parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-spd*0.3,life:1,color,r:2+Math.random()*3}); } }
+function say(txt){ msgs.push({txt,life:2.4}); if(msgs.length>3) msgs.shift(); }
+
+function doAction(a, srcObj){
+  const v=a[0];
+  if(v==="say"){ say(unq(a.slice(1).join(" "))); return; }
+  if(v==="nothing") return;
+  if(v==="shake"){ shake=Math.min(24,shake+14); return; }
+  if(v==="flash"){ shake=Math.min(8,shake+5); return; }
+  if(v==="score"){ const d=a[1]||"+0"; if(d[0]==="=")S.score=+d.slice(1)||0; else S.score+=+d||0;
+    if(+d>0||d[0]!=="-"){ sfxGood(S.score); if(srcObj){burst(srcObj.x,srcObj.y,PAL.accent,12,220);} } return; }
+  if(v==="life"){ S.lives+=+a[1]||0; if((+a[1]||0)<0){ shake=Math.min(24,shake+16); sfxBad(); if(srcObj)burst(srcObj.x,srcObj.y,"#f55",14,240);} return; }
+  if(v==="set"){ S.vars[a[1]]=+a[2]||0; return; }
+  if(v==="add"){ S.vars[a[1]]=(S.vars[a[1]]||0)+(+a[2]||0); return; }
+  if(v==="spawn"){ const props={}; for(let i=3;i<a.length;i++){ if(a[i].includes("=")){const j=a[i].indexOf("=");props[a[i].slice(0,j)]=unq(a[i].slice(j+1));} }
+    spawnObj({kind:a[1],arg:unq(a[2]||""),tag:props.tag,move:props.move,speed:props.speed,at:props.at,size:props.size}); return; }
+  if(v==="destroy"){ let n=Infinity,ref=a[1]; if(/^\d+$/.test(a[1])){n=+a[1];ref=a[2];}
+    const targets = ref==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,ref));
+    let c=0; for(const o of targets){ if(c>=n) break; o.alive=false; burst(o.x,o.y,PAL.fg,6,140); c++; } return; }
+  if(v==="move"){ const o = a[1]==="it" ? srcObj : OBJ.find(x=>x.alive&&x.name===a[1]);
+    if(o){ if(a[2]==="random"){o.x=radOf(o)+Math.random()*(W-2*radOf(o)); o.y=H*(0.18+Math.random()*0.6);} else {const z=zonePix(a[2]); o.x=z[0]; o.y=z[1];} } return; }
+  if(v==="become"){ const targets = a[1]==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,a[1]));
+    for(const o of targets){ o.kind=a[2]; o.arg=unq(a[3]||""); o.sx=1.4; o.sy=0.7; } return; }
+  if(v==="tune"){ const prop=a[2], d=+a[3]||0; const targets = a[1]==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,a[1]));
+    for(const o of targets){ if(prop==="speed") o.speed=Math.max(0.15,Math.min(3,(o.speed||1)+d));
+      else if(prop==="scale") o.scale=Math.max(0.3,Math.min(3,(o.scale||1)+d)); } return; }
+  if(v==="win"||v==="lose"||v==="end"||v==="refuse"){ if(!ending){ ending={type:v,msg:unq(a.slice(1).join(" "))}; } return; }
+}
+function fire(rule, srcObj){ for(const a of rule.actions) doAction(a, srcObj); }
+
+function update(dt){
+  frame++;
+  if(state!=="play") return;
+  S.time += dt;
+  const tx=target.x*W, ty=target.y*H;
+
+  // movement
+  const PL = OBJ.find(o=>o.alive&&isPlayer(o));
+  for(const o of OBJ){ if(!o.alive) continue;
+    if(o.move==="tap"){ const k=16*(o.speed||1); o.vx=(o.vx||0)+((tx-o.x)*k*dt); o.vx*=Math.pow(0.0008,dt); o.vy=(o.vy||0)+((ty-o.y)*k*dt); o.vy*=Math.pow(0.0008,dt); o.x+=o.vx*dt; o.y+=o.vy*dt; }
+    else if(o.move==="chase"){ const dx=tx-o.x,dy=ty-o.y,d=Math.hypot(dx,dy)||1,sp=W*0.9*(o.speed||1); o.x+=dx/d*sp*dt; o.y+=dy/d*sp*dt; }
+    else if(o.move==="flee"){ const dx=o.x-tx,dy=o.y-ty,d=Math.hypot(dx,dy)||1,sp=W*0.6*(o.speed||1); if(d<W*0.45){o.x+=dx/d*sp*dt; o.y+=dy/d*sp*dt;} }
+    else if(o.move==="seek"){ if(PL){ const dx=PL.x-o.x,dy=PL.y-o.y,d=Math.hypot(dx,dy)||1,sp=W*0.5*(o.speed||1); o.x+=dx/d*sp*dt; o.y+=dy/d*sp*dt; } else { o.y+=H*0.28*(o.speed||1)*dt; } }
+    else if(o.move==="fall"){ o.y+=H*0.28*(o.speed||1)*dt; }
+    else if(o.move==="rise"){ o.y-=H*0.28*(o.speed||1)*dt; }
+    else if(o.move==="drift"){ o.x+=Math.sin(S.time*2+(o.order||0)*1.3)*W*0.06*dt*30; }
+    if(o.move==="tap"||o.move==="chase"||o.move==="flee"||o.move==="seek"){ const rr=radOf(o); o.x=Math.max(rr,Math.min(W-rr,o.x)); o.y=Math.max(rr,Math.min(H-rr,o.y)); }
+    if(isPlayer(o)){ const sp=Math.min(1,Math.hypot(o.vx||0,o.vy||0)/900); o.sx+=((1+sp*0.3)-o.sx)*12*dt; o.sy+=((1-sp*0.2)-o.sy)*12*dt; }
+    else { o.sx+=(1-o.sx)*8*dt; o.sy+=(1-o.sy)*8*dt; }
+  }
+
+  // timers
+  for(const r of PROG.rules){
+    if(r.ev[0]==="every"){ while(S.time>=r.next){ r.next+=(+r.ev[1]||1); fire(r); } }
+    else if(r.ev[0]==="at"&&!r.fired&&S.time>=(+r.ev[1]||0)){ r.fired=true; fire(r); }
+  }
+  if(ending) return endGame();
+
+  // collisions (on hit A B) — fire once per pair; consume the non-player member
+  // UNLESS the rule transformed `it` (become/move/tune it), in which case it survives
+  for(const r of PROG.rules){ if(r.ev[0]!=="on"||r.ev[1]!=="hit") continue; const A=r.ev[2],B=r.ev[3];
+    const keepIt = r.actions.some(a=>(a[0]==="become"||a[0]==="move"||a[0]==="tune")&&a[1]==="it");
+    for(const o1 of OBJ){ if(!o1.alive||!refMatch(o1,A)) continue;
+      for(const o2 of OBJ){ if(!o2.alive||o2===o1||!refMatch(o2,B)) continue;
+        if(o2.fired&&o2.fired.has(r)) continue;
+        if(Math.hypot(o1.x-o2.x,o1.y-o2.y) < radOf(o1)+radOf(o2)*0.8){
+          const src = isPlayer(o1)?o2:o1; fire(r, src);
+          (o2.fired=o2.fired||new Set()).add(r);
+          if(!keepIt){ if(!isPlayer(o1)) o1.alive=false; if(!isPlayer(o2)) o2.alive=false; }
+          if(isPlayer(o1)){o1.sx=0.7;o1.sy=1.4;} if(isPlayer(o2)){o2.sx=0.7;o2.sy=1.4;}
+        }
+      } } }
+  if(ending) return endGame();
+
+  // taps
+  while(tapQ>0){ tapQ--; S.taps++;
+    for(const r of PROG.rules){ if(r.ev[0]!=="on"||r.ev[1]!=="tap") continue;
+      if(r.ev[2]){ // on tap <ref> — must land on a matching object
+        const hit=OBJ.find(o=>o.alive&&refMatch(o,r.ev[2])&&Math.hypot(o.x-tx,o.y-ty)<radOf(o)*1.4);
+        if(hit) fire(r,hit);
+      } else fire(r);
+    }
+  }
+  if(ending) return endGame();
+
+  // when (rising edge)
+  for(const r of PROG.rules){ if(r.ev[0]==="when"&&!r.fired&&evalCond(r.ev.slice(1))){ r.fired=true; fire(r); } }
+  if(ending) return endGame();
+
+  // default lose at 0 lives (if a life system is in use)
+  if(PROG.flags.lives && S.lives<=0){ ending={type:"lose",msg:""}; return endGame(); }
+  // safety net: a game with no reachable ending is force-ended (SPEC-arcr §11)
+  if(S.time>=SAFETY){ ending={type:"end",msg:""}; return endGame(); }
+
+  // cull dead / offscreen, decay juice
+  OBJ=OBJ.filter(o=>o.alive && o.y>-H*0.2 && o.y<H*1.2 && o.x>-W*0.2 && o.x<W*1.2);
+  for(const p of parts){ p.vy+=700*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt*1.6; } parts=parts.filter(p=>p.life>0);
+  for(const m of msgs) m.life-=dt; msgs=msgs.filter(m=>m.life>0);
+  shake*=Math.pow(0.0015,dt);
+}
+
+const SAFETY=120;
+function endGame(){
+  if(!ending && S.time>=SAFETY) ending={type:"end",msg:""};
+  if(!ending) return;
+  state=ending.type;
+  if(ending.type==="win") sfxWin(); else if(ending.type==="lose") sfxDie(); else sfxUi();
+  const head = {win:"YOU WIN",lose:"GAME OVER",end:"THE END",refuse:"—"}[ending.type];
+  document.getElementById("r-head").textContent = head;
+  document.getElementById("r-head").style.color = PAL.fg;
+  document.getElementById("r-msg").textContent = ending.msg || "";
+  document.getElementById("result").classList.remove("hidden");
+}
+
+// ---- render ----
+function drawObj(o){ const r=radOf(o); ctx.save(); ctx.translate(o.x,o.y); ctx.scale(o.sx||1,o.sy||1);
+  if(o.kind==="emoji"){ drawEmoji(o.arg, 0,0, r*2.1); }
+  else if(o.kind==="text"){ ctx.fillStyle=isPlayer(o)?PAL.player:PAL.fg; ctx.shadowColor="rgba(0,0,0,0.4)"; ctx.shadowBlur=6;
+    ctx.font=`800 ${Math.round(r*0.95)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(o.arg,0,0); }
+  else { drawShape(o.arg||"circle", r, isPlayer(o)?PAL.player:PAL.fg); }
+  ctx.restore(); }
+
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(PROG) drawBackground(); else { ctx.fillStyle="#0b0b10"; ctx.fillRect(0,0,W,H); }
+  const ox=(Math.random()*2-1)*shake, oy=(Math.random()*2-1)*shake; ctx.translate(ox,oy);
+  if(state==="play"||state==="win"||state==="lose"||state==="end"||state==="refuse"){
+    for(const o of OBJ) if(o.alive) drawObj(o);
+    for(const p of parts){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+
+  // narration (say)
+  let yy=H*0.30;
+  for(let i=msgs.length-1;i>=0;i--){ const m=msgs[i]; ctx.globalAlpha=Math.min(1,m.life*1.5);
+    ctx.fillStyle=PAL?PAL.fg:"#eee"; ctx.font=`600 ${Math.round(W*0.05)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(m.txt, W*0.5, yy); yy-=H*0.05; }
+  ctx.globalAlpha=1;
+
+  // HUD
+  if(state==="play" && PROG){
+    ctx.fillStyle=PAL.fg; ctx.font=`700 ${Math.round(W*0.055)}px system-ui`; ctx.textBaseline="top"; ctx.textAlign="left";
+    let label="";
+    if(PROG.flags.timeGoal) label=`${Math.max(0,Math.ceil(PROG.flags.timeGoal-S.time))}s`;
+    else if(PROG.flags.scoreGoal) label=`${S.score}/${PROG.flags.scoreGoal}`;
+    else if(PROG.flags.score) label=`${S.score}`;
+    if(label) ctx.fillText(label, W*0.05, H*0.05);
+    if(PROG.flags.lives && S.lives>0){ ctx.textAlign="right"; ctx.fillStyle="#f66"; ctx.fillText("♥".repeat(Math.min(9,S.lives)), W*0.95, H*0.05); }
+  }
+}
+
+let last=0;
+function loop(t){ const dt=Math.min(0.05,(t-last)/1000||0); last=t; update(dt); draw(); requestAnimationFrame(loop); }
+
+// ============================================================
+// shell: card reveal, input, library, editor
+// ============================================================
+function showCard(){
+  state="card";
+  document.documentElement.style.setProperty("--fg", PAL.fg);
+  document.getElementById("card").classList.remove("hidden");
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("boot").classList.remove("hidden");
+  document.getElementById("cardbody").classList.add("hidden");
+  document.getElementById("seedline").textContent = `arcr · ${PROG.title.toLowerCase()} · seed ${SEED}` + (PROG.warnings.length?` · ⚠ ${PROG.warnings.length}`:"");
+  sfxUi();
+  setTimeout(()=>{ if(state!=="card") return;
+    document.getElementById("boot").classList.add("hidden");
+    document.getElementById("cardbody").classList.remove("hidden");
+    const tt=document.getElementById("c-title"); tt.textContent=PROG.title; tt.style.color=PAL.fg;
+    document.getElementById("c-about").textContent=PROG.about;
+    const hasTap=PROG.rules.some(r=>r.ev[0]==="on"&&r.ev[1]==="tap");
+    const hasPlayer=Object.values(PROG.objects).some(isPlayer);
+    document.getElementById("c-hint").textContent = hasPlayer ? "tap to play · move to steer" : hasTap ? "tap to play · then tap around" : "tap to play";
+  },600);
+}
+function startGame(){ audioOn(); resize(); setupGame(PROG, SEED); state="play";
+  document.getElementById("card").classList.add("hidden"); document.getElementById("result").classList.add("hidden"); }
+
+function loadSource(src, seed){
+  const prog=parseArcr(src);
+  PROG=prog; SEED = seed!=null ? seed : (("seed" in prog.directives && /^\d+$/.test(prog.directives.seed)) ? +prog.directives.seed : hashStr(src));
+  PAL=buildPalette(prog,SEED); buildBgField(prog,SEED);
+  document.getElementById("warn").textContent = prog.warnings.length ? prog.warnings.join("\n") : "✓ no warnings";
+  resize(); showCard();
+}
+
+// input
+function setTarget(cx,cy){ const rb=document.getElementById("wrap").getBoundingClientRect();
+  target.x=Math.max(0,Math.min(1,(cx-rb.left)/rb.width)); target.y=Math.max(0,Math.min(1,(cy-rb.top)/rb.height)); }
+cv.addEventListener("pointermove",e=>{ if(state==="play") setTarget(e.clientX,e.clientY); });
+cv.addEventListener("pointerdown",e=>{ if(state==="play"){ setTarget(e.clientX,e.clientY); tapQ++; } });
+const keys={};
+window.addEventListener("keydown",e=>{ keys[e.key]=true;
+  for(const r of (PROG?PROG.rules:[])){ if(state==="play"&&r.ev[0]==="on"&&r.ev[1]==="key"&&r.ev[2]===e.key) fire(r); } });
+window.addEventListener("keyup",e=>{ keys[e.key]=false; });
+setInterval(()=>{ if(state!=="play")return; const s=0.03;
+  if(keys.ArrowLeft||keys.a)target.x=Math.max(0,target.x-s); if(keys.ArrowRight||keys.d)target.x=Math.min(1,target.x+s);
+  if(keys.ArrowUp||keys.w)target.y=Math.max(0,target.y-s); if(keys.ArrowDown||keys.s)target.y=Math.min(1,target.y+s); },16);
+
+// card / result buttons
+document.getElementById("card").addEventListener("click",()=>{ if(state==="card"&&!document.getElementById("cardbody").classList.contains("hidden")) startGame(); });
+document.getElementById("again").addEventListener("click",e=>{ e.stopPropagation(); audioOn(); startGame(); });
+document.getElementById("next").addEventListener("click",e=>{ e.stopPropagation(); cycleLib(1); });
+document.getElementById("restart").addEventListener("click",()=>{ audioOn(); showCard(); });
+
+// ============================================================
+// built-in library + editor
+// ============================================================
+const LIBRARY = [
+{ name:"PRESENT", src:
+`@title PRESENT
+@about waiting
+@bg plain
+obj you : emoji 🧍 at=bottom move=tap
+obj a : emoji 🧍 at=top tag=ahead
+obj b : emoji 🧍 at=top tag=ahead
+obj c : emoji 🧍 at=top tag=ahead
+obj d : emoji 🧍 at=top tag=ahead
+every 3 : destroy 1 #ahead ; say "someone moves on."
+on tap : shake ; say "you cannot hurry presence."
+when count #ahead == 0 : win "you are present. there was never anyone ahead."` },
+{ name:"WANT", src:
+`@title WANT
+@about desire
+@bg stars
+@lives 3
+obj you : emoji 🫴 at=bottom move=tap
+every 1 : spawn emoji 💖 at=top move=fall tag=heart
+on hit you #heart : life -1 ; say "having it ruined it."
+when time >= 30 : win "you wanted nothing. you have everything."` },
+{ name:"WIN", src:
+`@title WIN
+@about futility
+obj b : text "WIN" at=center
+on tap b : move b random
+when taps >= 12 : end "the button was the whole game."` },
+{ name:"SNACK RUN", src:
+`@title SNACK RUN
+@about hunger
+@bg dots
+obj you : emoji 😋 at=bottom move=tap
+every 0.8 : spawn emoji 🍿 at=top move=fall tag=want
+every 1.5 : spawn emoji 🧾 at=top move=fall tag=bad speed=1.3
+on hit you #want : score +1
+on hit you #bad : life -1
+when score >= 10 : win "fed, briefly."
+when lives <= 0 : lose "the bills won."` },
+{ name:"THE VOID", src:
+`@title THE VOID
+@about absence
+@bg plain
+obj you : emoji 🧍 at=center move=tap
+on tap : say "nothing happens." ; add pokes 1
+when pokes >= 8 : refuse "the void declines to be a game."` },
+{ name:"LOADING", src:
+`@title LOADING
+@about patience
+@bg dots
+obj bar : text "________" at=center
+every 3 : say "loading…"
+at 4 : become bar text "#_______"
+at 9 : become bar text "###_____"
+at 14 : become bar text "######__"
+at 19 : become bar text "########" ; end "it was the loading screen all along."` },
+{ name:"CONSENT", src:
+`@title CONSENT
+@about terms
+obj ok : text "I AGREE" at=center move=flee
+on tap : add tries 1 ; say "the button moved."
+when tries >= 10 : refuse "you never agreed. nothing was installed."` },
+{ name:"BUTTERFLY", src:
+`@title BUTTERFLY
+@about longing
+@bg bubbles
+obj you : emoji 🧒 at=bottom move=chase
+obj b : emoji 🦋 at=top move=flee
+on hit you b : win "you caught it. it stopped being beautiful."
+when time >= 20 : end "it tired before you did, and landed elsewhere."` },
+{ name:"TUESDAY MORNING", src:
+`@title TUESDAY MORNING
+@about growing up
+@bg stars
+obj you : emoji 🐛 at=bottom move=tap
+every 1 : spawn emoji 🍃 at=top move=fall tag=leaf
+on hit you #leaf : score +1
+at 12 : become you emoji 🦋 ; say "you grew up." ; flash
+when score >= 15 : win "you ate enough. you flew."` },
+{ name:"MEETINGS", src:
+`@title MEETINGS
+@about dread
+@bg grid
+obj you : emoji 👆 at=bottom move=tap
+every 1.2 : spawn emoji 📆 at=scatter move=still tag=mtg
+on tap #mtg : destroy it ; score +1 ; say "declined."
+when count #mtg >= 14 : lose "your calendar is full."` },
+{ name:"RAIN", src:
+`@title RAIN
+@about weather
+@lives 3
+obj you : emoji 🧍 at=bottom move=tap
+every 0.5 : spawn emoji 💧 at=top move=fall tag=drop
+on hit you #drop : life -1 ; say "drenched."
+when time >= 25 : win "it passed. it always does."` },
+{ name:"GARDEN", src:
+`@title GARDEN
+@about tending
+@bg plain
+obj you : emoji 💧 at=bottom move=tap
+every 1.6 : spawn emoji 🌱 at=scatter move=still tag=seed
+on hit you #seed : become it emoji 🌸 ; score +1 ; say "bloom."
+when score >= 6 : win "the garden is enough."` },
+{ name:"DIET", src:
+`@title DIET
+@about willpower
+@bg dots
+@lives 3
+obj you : emoji 🏃 at=center move=tap
+every 2 : spawn emoji 🍩 at=top move=seek tag=treat speed=0.7
+on hit you #treat : life -1 ; say "you caved."
+when time >= 20 : win "you resisted. thin and unfulfilled."` },
+{ name:"BAGGAGE", src:
+`@title BAGGAGE
+@about accumulation
+@bg grid
+obj you : emoji 🧍 at=bottom move=tap
+every 1 : spawn emoji 🧳 at=top move=fall tag=bag
+on hit you #bag : tune you speed -0.12 ; score +1 ; say "you carry it now."
+when score >= 8 : win "you carried everything. you can barely move."` },
+{ name:"FIREFLIES", src:
+`@title FIREFLIES
+@about summer
+@bg bubbles
+obj you : emoji 🫙 at=bottom move=tap
+every 1.3 : spawn emoji ✨ at=scatter move=drift tag=fly
+on hit you #fly : score +1 ; say "caught one."
+when score >= 8 : win "the jar glows. summer holds still."
+when time >= 40 : end "they drifted off. summer ended anyway."` },
+{ name:"STARGAZING", src:
+`@title STARGAZING
+@about calm
+@bg stars
+obj you : emoji 🧺 at=bottom move=tap
+every 0.9 : spawn emoji ⭐ at=top move=fall tag=star
+on hit you #star : score +1
+when score >= 12 : win "a basket of light. enough."` },
+{ name:"METEOR", src:
+`@title METEOR
+@about the end
+@lives 3
+obj you : emoji 🚀 at=bottom move=tap
+every 0.45 : spawn emoji ☄️ at=top move=fall tag=rock speed=1.3
+on hit you #rock : life -1 ; say "hull breach."
+when time >= 28 : win "you flew through. the sky is quiet now."` },
+{ name:"DEBT", src:
+`@title DEBT
+@about money
+@lives 3
+obj you : emoji 🏃 at=center move=tap
+every 2.2 : spawn emoji 🧾 at=top move=seek tag=bill
+on hit you #bill : life -1 ; say "interest."
+when time >= 22 : win "you outran it. this month."` },
+{ name:"INSOMNIA", src:
+`@title INSOMNIA
+@about 3am
+obj you : emoji 😩 at=bottom move=chase
+obj z : emoji 💤 at=top move=flee
+on hit you z : win "you slept. the alarm rings in nine minutes."
+when time >= 25 : refuse "sleep will not be caught. it has to come to you."` },
+{ name:"NOTIFICATIONS", src:
+`@title NOTIFICATIONS
+@about attention
+@bg grid
+obj you : emoji 👆 at=bottom move=tap
+every 0.9 : spawn emoji 🔴 at=scatter move=still tag=dot
+on tap #dot : destroy it ; score +1 ; say "cleared."
+when count #dot >= 12 : lose "you'll never be caught up."
+when score >= 20 : win "inbox zero. it won't last."` },
+{ name:"WEEDS", src:
+`@title WEEDS
+@about upkeep
+obj you : emoji ✋ at=bottom move=tap
+every 1 : spawn emoji 🌿 at=scatter move=still tag=weed
+on tap #weed : destroy it ; score +1
+when count #weed >= 14 : lose "the garden returns to the wild."
+when score >= 18 : win "tidy. for an afternoon."` },
+{ name:"BUBBLE WRAP", src:
+`@title BUBBLE WRAP
+@about satisfaction
+@bg dots
+obj you : emoji 👆 at=bottom move=tap
+every 0.5 : spawn emoji 🟦 at=scatter move=still tag=pop
+on tap #pop : destroy it ; score +1 ; say "pop."
+when score >= 25 : win "every one. perfect."` },
+{ name:"PATIENCE", src:
+`@title PATIENCE
+@about fermentation
+obj jug : emoji 🍇 at=center
+at 6 : become jug emoji 🍾 ; say "fermenting…"
+at 14 : become jug emoji 🍷 ; end "it became wine. it took longer than the game."` },
+{ name:"CAREER", src:
+`@title CAREER
+@about time
+@bg stars
+obj me : emoji 👶 at=center
+at 4 : become me emoji 🧑 ; say "you grew."
+at 9 : become me emoji 💼 ; say "you worked."
+at 14 : become me emoji 👴 ; say "you aged."
+at 18 : become me emoji 🪦 ; end "that was the career."` },
+{ name:"THAW", src:
+`@title THAW
+@about spring
+@lives 4
+obj you : emoji ☃️ at=bottom move=tap
+every 1.3 : spawn emoji ☀️ at=top move=fall tag=sun
+on hit you #sun : life -1 ; tune you scale -0.12 ; say "you melt."
+when time >= 22 : win "you lasted the day. tomorrow is warmer."` },
+{ name:"KETTLE", src:
+`@title KETTLE
+@about tea
+obj k : emoji 🫖 at=center
+on tap : say "a watched pot…"
+at 18 : become k emoji ♨️ ; win "it boiled. you may have tea now."` },
+{ name:"VIGIL", src:
+`@title VIGIL
+@about grief
+obj c : emoji 🕯️ at=center
+every 1 : say "…"
+on tap : say "you cup the flame."
+at 20 : become c emoji 💨 ; end "it burned out. you stayed the whole time."` },
+{ name:"THE 8:15", src:
+`@title THE 8:15
+@about waiting
+obj stop : text "BUS STOP" at=top
+obj you : emoji 🧍 at=bottom move=tap
+on tap : say "you check the schedule again."
+when taps >= 14 : refuse "the bus is not coming. it was cancelled in 2019."` },
+{ name:"TUTORIAL", src:
+`@title TUTORIAL
+@about onboarding
+obj you : emoji 🎮 at=center move=tap
+at 3 : say "move to begin."
+at 7 : say "now collect."
+at 11 : say "now win."
+at 15 : end "the tutorial is the game. there is nothing after it."` },
+{ name:"HIGH SCORE", src:
+`@title HIGH SCORE
+@about glory
+obj a : text "AAA" at=center
+on tap : add letters 1 ; say "▮"
+when letters >= 3 : end "first place. you never played. you placed anyway."` },
+{ name:"CREDITS", src:
+`@title CREDITS
+@about everyone
+@bg stars
+every 0.8 : spawn text "thank you" at=bottom move=rise tag=name
+at 16 : end "you played nothing. the credits were the whole thing."` },
+{ name:"NO", src:
+`@title NO
+@about boundaries
+obj you : emoji 🧍 at=center move=tap
+on tap : add asks 1 ; say "no."
+when asks >= 10 : refuse "good. you've learned to say it."` },
+{ name:"MEH", src:
+`@title MEH
+@about apathy
+obj you : emoji 😐 at=center move=tap
+on tap : say "meh."
+when taps >= 12 : end "meh."` },
+{ name:"OUT OF ORDER", src:
+`@title OUT OF ORDER
+@about machines
+obj sign : text "OUT OF ORDER" at=center
+on tap : shake ; say "it does not work."
+when taps >= 8 : refuse "it was never going to work."` },
+{ name:"RED FLAGS", src:
+`@title RED FLAGS
+@about dating
+@lives 3
+obj you : emoji 🥰 at=bottom move=tap
+every 0.8 : spawn emoji 💖 at=top move=fall tag=love
+every 1.7 : spawn emoji 🚩 at=top move=fall tag=flag speed=1.1
+on hit you #love : score +1
+on hit you #flag : life -1 ; say "you ignored it."
+when score >= 14 : win "love, somehow, despite everything."` },
+{ name:"GHOSTED", src:
+`@title GHOSTED
+@about silence
+obj you : emoji 📱 at=bottom move=tap
+every 1 : spawn emoji 💬 at=top move=fall tag=text
+on hit you #text : score +1 ; say "they replied!"
+at 12 : end "they stopped. you'll reread the old ones."` },
+{ name:"PICNIC", src:
+`@title PICNIC
+@about defense
+obj you : emoji 🧺 at=center move=tap
+every 0.7 : spawn emoji 🐜 at=scatter move=seek tag=ant
+on hit you #ant : score +1 ; say "shoo!"
+when count #ant >= 16 : lose "the ants won the picnic."
+when score >= 22 : win "you defended lunch."` },
+{ name:"ESCAPE", src:
+`@title ESCAPE
+@about exits
+obj door : emoji 🚪 at=center move=flee
+on tap : add tries 1 ; say "locked."
+when tries >= 10 : refuse "there is no exit. there is only the lobby."` },
+{ name:"STAGE FRIGHT", src:
+`@title STAGE FRIGHT
+@about being seen
+@lives 3
+obj you : emoji 😰 at=bottom move=tap
+every 0.6 : spawn emoji 🔦 at=top move=seek tag=light speed=0.9
+on hit you #light : life -1 ; say "they're looking."
+when time >= 20 : win "the curtain fell. you survived being seen."` },
+{ name:"AUTUMN", src:
+`@title AUTUMN
+@about letting go
+obj you : emoji 🧹 at=bottom move=tap
+every 0.7 : spawn emoji 🍂 at=top move=fall tag=leaf
+on hit you #leaf : score +1
+when score >= 16 : win "the yard is clear. the tree is bare."` },
+{ name:"TAXES", src:
+`@title TAXES
+@about april
+@lives 1
+obj you : emoji 🧾 at=bottom move=tap
+every 0.8 : spawn emoji 📄 at=top move=fall tag=form
+every 2 : spawn emoji 🔍 at=top move=fall tag=audit speed=1.2
+on hit you #form : score +1 ; say "filed."
+on hit you #audit : life -1 ; say "audited."
+when score >= 15 : win "filed on time. the dread lifts for a year."` },
+{ name:"SISYPHUS", src:
+`@title SISYPHUS
+@about absurdity
+obj rock : emoji 🪨 at=center
+on tap : add pushes 1 ; shake ; say "you push. it does not move."
+when pushes >= 14 : end "one must imagine you content."` },
+{ name:"SPARK", src:
+`@title SPARK
+@about love, later
+@lives 5
+obj you : emoji 💗 at=bottom move=tap
+every 1.4 : spawn emoji 💧 at=top move=fall tag=cold
+every 3 : spawn emoji 🔥 at=top move=fall tag=warm
+on hit you #cold : life -1 ; say "it dims."
+on hit you #warm : life +1 ; say "it kindles."
+when time >= 26 : win "still burning. quieter, but burning."` },
+{ name:"PARTY", src:
+`@title PARTY
+@about introversion
+@lives 3
+obj you : emoji 😅 at=center move=tap
+every 0.8 : spawn emoji 🗣️ at=scatter move=seek tag=person
+on hit you #person : life -1 ; say "small talk."
+when time >= 18 : win "you made it to 9pm. you may leave now."` },
+{ name:"MICROWAVE", src:
+`@title MICROWAVE
+@about dinner
+obj food : emoji 🍲 at=center
+on tap : add stirs 1 ; say "you check it."
+at 16 : become food emoji 🔥 ; lose "you forgot. it's lava now."
+when stirs >= 6 : win "ding. dinner is served."` },
+{ name:"PIANO", src:
+`@title PIANO
+@about practice
+obj p : emoji 🎹 at=center move=tap
+on tap : say "plink" ; add notes 1
+on key a : say "do" ; add notes 1
+when notes >= 8 : win "a tune, almost."` },
+{ name:"FIRST SNOW", src:
+`@title FIRST SNOW
+@about winter
+@bg dots
+obj you : emoji 👅 at=bottom move=tap
+every 0.7 : spawn emoji ❄️ at=top move=fall tag=flake
+on hit you #flake : score +1 ; say "caught it."
+when score >= 10 : win "the first snow. you are eight again."` },
+{ name:"COMMUTE", src:
+`@title COMMUTE
+@about monday
+@lives 3
+obj you : emoji 🚗 at=bottom move=tap
+every 0.6 : spawn emoji 🕳️ at=top move=fall tag=hole
+on hit you #hole : life -1 ; say "clunk."
+when time >= 20 : win "you made it to work. unfortunately."` },
+{ name:"SECRET", src:
+`@title SECRET
+@about keeping
+obj you : emoji 🤐 at=center move=tap
+every 1.5 : spawn emoji 🗨️ at=scatter move=seek tag=q
+on hit you #q : add told 1 ; say "you almost said it."
+when told >= 5 : lose "you told. it's everywhere now."
+when time >= 20 : win "you kept it. it sits in you like a stone."` },
+{ name:"ELEVATOR", src:
+`@title ELEVATOR
+@about smalltalk
+obj other : emoji 🧍 at=top
+obj you : emoji 🧍 at=bottom move=tap
+on tap : add floors 1 ; say "…"
+when floors >= 9 : end "ground floor. you said nothing. neither did they."` }
+];
+
+let libIdx=0;
+const libSel=document.getElementById("lib");
+LIBRARY.forEach((g,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=g.name; libSel.appendChild(o); });
+libSel.addEventListener("change",()=>{ libIdx=+libSel.value; audioOn(); loadSource(LIBRARY[libIdx].src); });
+function cycleLib(d){ libIdx=(libIdx+d+LIBRARY.length)%LIBRARY.length; libSel.value=libIdx; audioOn(); loadSource(LIBRARY[libIdx].src); }
+
+// editor
+const editor=document.getElementById("editor");
+document.getElementById("edit-btn").addEventListener("click",()=>{ document.getElementById("src").value = LIBRARY[libIdx] ? (document.getElementById("src").value||LIBRARY[libIdx].src) : ""; editor.classList.remove("hidden"); });
+document.getElementById("close-btn").addEventListener("click",()=>editor.classList.add("hidden"));
+document.getElementById("run-btn").addEventListener("click",()=>{ const src=document.getElementById("src").value; editor.classList.add("hidden"); audioOn(); loadSource(src); });
+
+// boot
+resize();
+loadSource(LIBRARY[0].src);
+requestAnimationFrame(loop);
+
+// expose for headless testing
+window.__arcr = { parseArcr, loadSource, setupGame, update, get state(){return state;}, get S(){return S;}, get ending(){return ending;},
+  tap(){ tapQ++; }, play(){ startGame(); }, lib:LIBRARY, objs(){return OBJ;}, prog(){return PROG;}, steer(nx,ny){ target.x=nx; target.y=ny; }, W:()=>W, H:()=>H };
+</script>
+</body>
+</html>

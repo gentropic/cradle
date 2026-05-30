@@ -43,7 +43,7 @@ Read top-down for the conceptual story (what does cradle do?) or bottom-up for t
 
 Plus reference schemes (`gh:`, `gist:`, `zenodo:`, `doi:`, `rentry:`, `url:`) for content addressed by location rather than inlined. Codecs: `raw`, `deflate`, optional `brotli`, optional `deflate-dict.<dict-id>` (pako-polyfilled).
 
-**`@gcu/cradle`** — A static bootloader at `gentropic.org/c` that consumes a capsule, resolves it to bytes, inspects the first line for a `!<format-name><version>+<params>` magic header, and dispatches to a renderer registered for that format. Curated registry (no third-party renderers — fork the source); total offline guarantee (every renderer cached after first online load). Installable as a PWA.
+**`@gcu/cradle`** — A static bootloader at `gentropic.org/cradle` that consumes a capsule, resolves it to bytes, inspects the first line for a `!<format-name><version>+<params>` magic header, and dispatches to a renderer registered for that format. Curated registry (no third-party renderers — fork the source); total offline guarantee (every renderer cached after first online load). Installable as a PWA.
 
 **`SPEC-menu.md`** (and siblings `SPEC-doorbell.md`, future `SPEC-lostfound.md`, ...) — The content format for one specific renderer. Defines what bytes look like once dispatched. Menu is the canonical render-only example, evolved from the retired `q1-spec.md`. Doorbell is the canonical side-effect-bearing example, using browser-native X25519 + AES-GCM to deliver end-to-end encrypted pings via a public relay.
 
@@ -52,7 +52,7 @@ Plus reference schemes (`gh:`, `gist:`, `zenodo:`, `doi:`, `rentry:`, `url:`) fo
 A cradle URL looks like:
 
 ```
-https://gentropic.org/c#<capsule>
+https://gentropic.org/cradle#<capsule>
 ```
 
 For a QR-encoded menu, the capsule is typically `q:d.menu-ptbr_<base45>`. For a notebook shared from Auditable, it might be `gh:user/repo@branch:notebook.ipynb`. Same bootloader, same dispatch, different renderers.
@@ -71,14 +71,14 @@ The name is the receiving dock a capsule settles into — it accepts the capsule
 
 Working reference code, deployed (when published) at `gentropic.org/cradle`:
 
-- `cradle.html` — the canonical bootloader. Single HTML file; pulls in pako for dictionary deflate. Resolves a capsule from the URL fragment, reads the magic line, and dispatches to an embedded **menu** or **doorbell** renderer. Registers the service worker for offline PWA install.
+- `index.html` — the canonical bootloader. Single self-contained HTML file with pako (dictionary deflate) inlined — no third-party fetch, so the offline guarantee holds even on first load. Resolves a capsule from the URL fragment, reads the magic line, and dispatches to an embedded **menu** or **doorbell** renderer. Registers the service worker for offline PWA install.
 - `menu-editor.html` — authoring tool for menus. Generates the `q:d.menu-<locale>_<base45>` capsule and renders a QR.
 - `doorbell-config.html` — authoring tool for doorbells. Generates the X25519 keypair (private stored locally only), the topic, the configuration, and a printable QR sticker.
 - `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-maskable.svg` — PWA assets enabling offline operation and home-screen install.
 - `verify_vectors.py` — generates the capsule / menu test vectors used in the specs.
 - `verify_doorbell.py` — reference Python implementation of the doorbell encryption envelope; produces test vectors and interops with the browser implementation.
 
-These are working code, not normative — the specs are the contract. The capsule (transport) layer also has a separate, test-covered implementation inside ep (`gentropic/ep` → `src/js/capsule.js`), which is the seed for an extracted `@gcu/capsule` package; `cradle.html` re-inlines a subset of the same logic so it stays a single self-contained file.
+These are working code, not normative — the specs are the contract. The capsule (transport) layer also has a separate, test-covered implementation inside ep (`gentropic/ep` → `src/js/capsule.js`), which is the seed for an extracted `@gcu/capsule` package; `index.html` re-inlines a subset of the same logic so it stays a single self-contained file.
 
 ## Status
 

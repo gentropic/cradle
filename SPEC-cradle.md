@@ -51,7 +51,7 @@ A share URL is processed as follows:
 1. **Page load.** The bootloader HTML loads. Service worker (if registered) intercepts and serves from cache when available.
 2. **Fragment read.** `location.hash` is read and stripped of its leading `#`.
 3. **Capsule resolution.** The fragment is passed to `@gcu/capsule`'s dispatcher, which resolves the capsule to a `Uint8Array` of bytes.
-4. **Magic-byte inspection.** The first up to 64 bytes of the resolved payload are inspected for a magic-byte prefix (§5).
+4. **Magic-byte inspection.** The leading bytes of the resolved payload, up to the first newline (`0x0A`) or 4096 bytes, whichever comes first, are inspected for a magic-byte prefix (§5).
 5. **Renderer selection.** The format-name from the magic-byte prefix is looked up in the renderer registry.
 6. **Renderer dispatch.** The renderer module is dynamic-imported, then invoked with the parsed payload header and the remaining body bytes.
 7. **Mount.** The renderer mounts its UI into the bootloader's root element.
@@ -133,17 +133,6 @@ const RENDERERS = {
   doorbell:  () => import('./renderers/doorbell.js'),
   // ...
 };
-
-// In sw.js:
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open('cradle-v1').then(c => c.addAll([
-    '/cradle/',
-    '/cradle/renderers/menu.js',
-    '/cradle/renderers/doorbell.js',
-    // ...all renderers, no exceptions
-  ])));
-});
-```
 
 // In sw.js:
 self.addEventListener('install', e => {
@@ -335,6 +324,7 @@ The renderers shipped with the canonical bootloader at `gentropic.org/cradle`, a
 |-------------|----------|------|-------------|
 | `menu`      | 1        | `SPEC-menu.md`     | Restaurant menu DSL, evolved from q1 |
 | `doorbell`  | 1        | `SPEC-doorbell.md` | QR-doorbell ping page with X25519 + AES-GCM encryption |
+| `arcr`      | 1        | `SPEC-arcr.md`     | Micro-game DSL — one self-contained game per capsule (neo-dada arcade) |
 | `lostfound` | (planned) | `SPEC-lostfound.md` (TBD) | Anonymous "found it, contact owner" |
 
 Additional renderers may be added by PR to the cradle repository.
@@ -352,6 +342,9 @@ Round-trip examples illustrating the dispatch grammar:
 
 !doorbell1+pubkey=AbCdEf...,topic=xY9z\n<doorbell config bytes>
   → renderer: doorbell, version: 1, params: "pubkey=...,topic=..."
+
+!arcr1+seed=42\n<arcr program text>
+  → renderer: arcr, version: 1, params: "seed=42"  (params optional; seed defaults to a hash of the body)
 ```
 
 The renderer is responsible for parsing `format-params`. The dispatcher only enforces that `format-params` is a single line of printable ASCII.
