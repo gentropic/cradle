@@ -747,9 +747,9 @@ function validate(source) {
   const warnings = [];
   if (!source.trim()) return { warnings: ["empty source"], fatal: true };
   const lines = source.split("\n");
-  const m = lines[0].match(/^!q(\d+)\+([A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?)$/);
+  const m = lines[0].match(/^!menu(\d+)\+([A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?)$/);
   if (!m) return { warnings: [`first line must be !menu1+<locale>, got ${JSON.stringify(lines[0])}`], fatal: true };
-  if (parseInt(m[1]) !== 1) return { warnings: [`unsupported q version: ${m[1]}`], fatal: true };
+  if (parseInt(m[1]) !== 1) return { warnings: [`unsupported menu version: ${m[1]}`], fatal: true };
   const locale = m[2];
   if (!DICTS[locale]) return { warnings: [`unknown locale: ${locale}`], fatal: true };
   const validTags = VALID_TAGS_BY_LOCALE[locale] || new Set();

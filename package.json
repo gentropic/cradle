@@ -1,0 +1,10 @@
+{
+  "name": "cradle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static capsule bootloader + curated renderers (menu, doorbell, arcr).",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
