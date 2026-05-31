@@ -316,14 +316,17 @@
   body.mode-print .qr-section, body.mode-print .menu-preview { display: none; }
   body.mode-print .print-preview { display: block; }
   #print-preview-inner { zoom: 0.46; width: max-content; margin: 0 auto; }
-  /* 1-up print output (body) */
-  #print-area > .menu { background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); width: 190mm; max-width: 190mm; margin: 0 auto; }
-  /* 1-up preview: the menu at full page width with page-break guides drawn on top */
-  .preview-1up { position: relative; background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); margin: 0 auto; }
-  .preview-1up > .menu { box-shadow: none; }
-  .page-break { position: absolute; left: 0; right: 0; border-top: 1.6px dashed #c0392b; pointer-events: none; }
-  .page-break span { position: absolute; right: 3mm; top: 1.2mm; font: 700 3.4mm var(--font-sans); color: #fff;
-    background: #c0392b; padding: 0.3mm 2mm; border-radius: 2mm; }
+  /* 1-up: real paginated A4 pages (block-packed; items never split) with a
+     continuation header + page-number footer on multi-page menus */
+  .print-page { position: relative; box-sizing: border-box; background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18);
+    margin: 0 auto 8mm; padding: 14mm; overflow: hidden; }
+  .print-page > .menu { background: none !important; box-shadow: none; }
+  .print-page > .menu > :first-child { margin-top: 0; }
+  .print-page.has-head > .menu { margin-top: 9mm; }
+  .page-head { position: absolute; top: 7mm; left: 14mm; right: 14mm; font: 600 2.9mm var(--font-sans);
+    color: #aaa; letter-spacing: 0.08em; text-transform: uppercase; padding-bottom: 1.5mm; border-bottom: 0.3mm solid #e2e2e2; }
+  .page-foot { position: absolute; bottom: 7mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between;
+    font: 2.9mm var(--font-sans); color: #bbb; padding-top: 1.5mm; border-top: 0.3mm solid #eee; }
   .menu-sheet { background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); box-sizing: border-box;
     display: grid; overflow: hidden; padding: 8mm; gap: 6mm; }
   .menu-sheet.cut { gap: 9mm; }
@@ -340,7 +343,8 @@
   @media print {
     body > *:not(#print-area) { display: none !important; }
     #print-area { display: block; }
-    #print-area > .menu { box-shadow: none; width: auto; max-width: none; }
+    .print-page { box-shadow: none; margin: 0; break-after: page; }
+    .print-page:last-child { break-after: auto; }
     .menu-sheet { box-shadow: none; }                  /* its mm size == the page */
     .menu-sheet:not(:last-child) { page-break-after: always; }
   }
@@ -711,7 +715,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -912,6 +918,7 @@ const UI = {
     "print.perSheet": "Per sheet", "print.paper": "Paper", "print.cutMarks": "cut marks",
     "print.go": "Print…", "print.hint": "Copies and double-sided are set in your browser's print dialog. 2/4-per-sheet print the menu repeated, to cut apart.",
     "print.overflow": "✂ The menu is taller than the cell — parts will be cut off. Use fewer per sheet, or shorten the menu.",
+    "print.continued": "continued",
     "grp.header": "Header", "grp.style": "Style", "grp.status": "Fees & validity",
     "grp.social": "Social", "grp.sections": "Menu sections", "grp.footer": "Footer text",
     "f.menulang": "Menu language", "f.title": "Restaurant name", "f.subtitle": "Subtitle",
@@ -949,6 +956,7 @@ const UI = {
     "print.perSheet": "Por folha", "print.paper": "Papel", "print.cutMarks": "marcas de corte",
     "print.go": "Imprimir…", "print.hint": "Cópias e frente-e-verso são definidos na caixa de impressão do navegador. 2/4 por folha imprimem o cardápio repetido, para recortar.",
     "print.overflow": "✂ O cardápio é mais alto que a célula — partes serão cortadas. Use menos por folha, ou encurte o cardápio.",
+    "print.continued": "continuação",
     "grp.header": "Cabeçalho", "grp.style": "Estilo", "grp.status": "Taxas e validade",
     "grp.social": "Redes sociais", "grp.sections": "Seções do cardápio", "grp.footer": "Rodapé",
     "f.menulang": "Idioma do cardápio", "f.title": "Nome do restaurante", "f.subtitle": "Subtítulo",
@@ -1442,6 +1450,37 @@ function measureMenuHeightPx(tmpl, accVar, html, widthCss) {
   tmp.remove();
   return h;
 }
+// pack the menu's top-level blocks into real A4 pages: items never split, a
+// section heading is never orphaned from its first item, and multi-page menus
+// get a continuation header + a page-number footer. Returns the pages' HTML.
+function paginate1up(tmpl, accVar, html, pw, ph, title) {
+  const PXMM = 96 / 25.4, padMm = 14, footMm = 9, headMm = 9;
+  const usableBase = ph - 2 * padMm - footMm, contentWmm = pw - 2 * padMm;
+  const tmp = document.createElement("div");
+  tmp.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden";
+  tmp.innerHTML = `<div class="menu tmpl-${tmpl}" style="${accVar}width:${contentWmm}mm;padding:0">${html}</div>`;
+  document.body.appendChild(tmp);
+  const blocks = Array.from(tmp.firstChild.children).map((b) => ({
+    html: b.outerHTML, h: b.getBoundingClientRect().height, isH2: b.tagName === "H2",
+  }));
+  tmp.remove();
+  const usablePx = (idx) => (idx === 0 ? usableBase : usableBase - headMm) * PXMM;
+  const pages = []; let cur = [], curH = 0;
+  for (let i = 0; i < blocks.length; i++) {
+    let need = blocks[i].h;
+    if (blocks[i].isH2 && i + 1 < blocks.length) need += blocks[i + 1].h;  // keep heading + first item
+    if (curH + need > usablePx(pages.length) && cur.length) { pages.push(cur); cur = []; curH = 0; }
+    cur.push(blocks[i]); curH += blocks[i].h;
+  }
+  if (cur.length) pages.push(cur);
+  const N = pages.length, multi = N > 1, esc = (s) => escapeHtml(String(s));
+  return pages.map((pg, pi) => {
+    const head = (multi && pi > 0) ? `<div class="page-head">${esc(title)} · ${esc(t("print.continued"))}</div>` : "";
+    const foot = multi ? `<div class="page-foot"><span>${esc(title)}</span><span>${pi + 1} / ${N}</span></div>` : "";
+    return `<div class="print-page${head ? " has-head" : ""}" style="width:${pw}mm;height:${ph}mm">${head}` +
+      `<div class="menu tmpl-${tmpl}" style="${accVar}width:100%;padding:0">${pg.map((b) => b.html).join("")}</div>${foot}</div>`;
+  }).join("");
+}
 // print composition — lay the rendered menu onto real-mm sheets; the preview shows
 // page boundaries (1-up paginates) or an overflow warning (2/4-up cell clips)
 function buildPrintArea() {
@@ -1461,15 +1500,10 @@ function buildPrintArea() {
   const [pw, ph] = paper === "Letter" ? [215.9, 279.4] : [210, 297];
   const PXMM = 96 / 25.4;
 
-  if (up === 1) {                                             // one menu, flows + paginates
-    if (out) out.innerHTML = `<div class="menu tmpl-${tmpl}" style="${accVar}">${html}</div>`;
-    if (prev) {
-      const pages = Math.max(1, Math.ceil(measureMenuHeightPx(tmpl, accVar, html, pw + "mm") / (ph * PXMM) - 0.01));
-      let lines = "";
-      for (let i = 1; i < pages; i++) lines += `<div class="page-break" style="top:${(i * ph).toFixed(2)}mm"><span>${i + 1}</span></div>`;
-      prev.innerHTML = `<div class="preview-1up" data-pages="${pages}" style="width:${pw}mm">` +
-        `<div class="menu tmpl-${tmpl}" style="${accVar}width:${pw}mm">${html}</div>${lines}</div>`;
-    }
+  if (up === 1) {                                            // real paginated A4 pages (output + preview share them)
+    const pagesHTML = paginate1up(tmpl, accVar, html, pw, ph, menuTitle(document.getElementById("src").value));
+    if (out) out.innerHTML = pagesHTML;
+    if (prev) prev.innerHTML = pagesHTML;
     if (warn) warn.style.display = "none";
     return;
   }
