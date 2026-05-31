@@ -440,6 +440,12 @@
   font-size: 0.78rem; color: var(--menu-fg-muted);
 }
 .menu .footer-line { margin: 0.22rem 0; }
+.menu .legend {
+  display: flex; flex-wrap: wrap; gap: 0.3rem 0.85rem; margin: 0 0 0.85rem;
+  font-size: 0.74rem; color: var(--menu-fg-muted);
+}
+.menu .legend-item { display: inline-flex; align-items: baseline; gap: 0.3rem; }
+.menu .legend-item .tag { margin-left: 0; }
 .menu .socials { display: flex; gap: 0.55rem; margin: 0.7rem 0; flex-wrap: wrap; }
 .menu .socials a {
   display: inline-flex; align-items: center; gap: 0.3rem; text-decoration: none;
@@ -617,6 +623,8 @@
         <div class="accent-swatches" id="accent-swatches"></div>
         <div class="field-row"><label data-i18n="f.leaders" for="f-leaders">Dot leaders</label>
           <input type="checkbox" id="f-leaders" checked></div>
+        <div class="field-row"><label data-i18n="f.legend" for="f-legend">Tag legend</label>
+          <input type="checkbox" id="f-legend" checked></div>
       </div></details></div>
 
       <div class="form-group"><details><summary data-i18n="grp.status">Fees &amp; validity</summary><div class="group-body">
@@ -750,7 +758,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -873,6 +883,9 @@ function renderMenuHTML(body, locale, attribution) {
   const parts = [];
   // dot leaders (name ⋯⋯ price) are the default; @leaders: off restores full-width rules
   const leaders = !/^(off|false|no|0)$/i.test(dirs.leaders || "");
+  // tag legend: on by default (decodes the v/g/p pills, which have no hover on paper);
+  // @legend: off suppresses it. Built below from the tags actually used, in vocab order.
+  const legendOn = !/^(off|false|no|0)$/i.test(dirs.legend || "");
 
   // valid_until: a quiet "valid through X" footer line while current, escalating to a
   // warning banner once expired.
@@ -910,6 +923,19 @@ function renderMenuHTML(body, locale, attribution) {
     }
   }
 
+  // legend: collect tags actually used (in the locale vocab's order), decode each
+  let legendHtml = "";
+  if (legendOn) {
+    const used = new Set();
+    for (const b of parsed.blocks) if (b.type === "item") for (const tg of b.tags) used.add(tg);
+    const keys = Object.keys(strings.tags).filter(k => used.has(k));
+    if (keys.length) {
+      legendHtml = `<div class="legend">` + keys.map(k =>
+        `<span class="legend-item"><span class="tag">${escapeHtml(k)}</span> ${escapeHtml(strings.tags[k])}</span>`
+      ).join("") + `</div>`;
+    }
+  }
+
   const footerLines = [];
   if (dirs.service) footerLines.push(strings.service(dirs.service));
   if (dirs.couvert) footerLines.push(strings.couvert(dirs.couvert));
@@ -918,8 +944,9 @@ function renderMenuHTML(body, locale, attribution) {
   if (validUntilOk && !validUntilExpired && /^(true|yes|on|1)$/i.test(dirs.valid_show || "")) {
     footerLines.push(strings.validThrough(dirs.valid_until));
   }
-  if (dirs.social || footerLines.length) {
+  if (dirs.social || footerLines.length || legendHtml) {
     let footer = '<footer>';
+    footer += legendHtml;   // dietary key first — closest to the items it decodes
     for (const l of footerLines) footer += `<div class="footer-line">${escapeHtml(l)}</div>`;
     if (dirs.social) {
       footer += '<div class="socials">';
@@ -969,7 +996,7 @@ const UI = {
     "grp.header": "Header", "grp.style": "Style", "grp.status": "Fees & validity",
     "grp.social": "Social", "grp.sections": "Menu sections", "grp.footer": "Footer text",
     "f.menulang": "Menu language", "f.title": "Restaurant name", "f.subtitle": "Subtitle",
-    "f.template": "Template", "f.accent": "Accent color", "f.leaders": "Dot leaders",
+    "f.template": "Template", "f.accent": "Accent color", "f.leaders": "Dot leaders", "f.legend": "Tag legend",
     "f.validUntil": "Valid until", "f.validShow": "Show date on menu",
     "f.service": "Service charge", "f.couvert": "Couvert",
     "btn.addLink": "+ Add link", "btn.addSection": "+ Add section", "btn.addItem": "+ Add item",
@@ -1009,7 +1036,7 @@ const UI = {
     "grp.header": "Cabeçalho", "grp.style": "Estilo", "grp.status": "Taxas e validade",
     "grp.social": "Redes sociais", "grp.sections": "Seções do cardápio", "grp.footer": "Rodapé",
     "f.menulang": "Idioma do cardápio", "f.title": "Nome do restaurante", "f.subtitle": "Subtítulo",
-    "f.template": "Modelo", "f.accent": "Cor de destaque", "f.leaders": "Linha pontilhada",
+    "f.template": "Modelo", "f.accent": "Cor de destaque", "f.leaders": "Linha pontilhada", "f.legend": "Legenda de tags",
     "f.validUntil": "Válido até", "f.validShow": "Mostrar data no cardápio",
     "f.service": "Taxa de serviço", "f.couvert": "Couvert",
     "btn.addLink": "+ Adicionar link", "btn.addSection": "+ Adicionar seção", "btn.addItem": "+ Adicionar item",
@@ -1178,6 +1205,7 @@ function parseToFormState(source) {
     locale, template: parsed.directives.template || "minimal",
     accent: parsed.directives.accent || "",
     leaders: !/^(off|false|no|0)$/i.test(parsed.directives.leaders || ""),
+    legend: !/^(off|false|no|0)$/i.test(parsed.directives.legend || ""),
     valid_until: parsed.directives.valid_until || "",
     valid_show: /^(true|yes|on|1)$/i.test(parsed.directives.valid_show || ""),
     service: parsed.directives.service || "",
@@ -1220,6 +1248,7 @@ function serializeFromFormState(s) {
   if (s.template && s.template !== "minimal") out += `@template: ${s.template}\n`;
   if (s.accent) out += `@accent: ${s.accent}\n`;
   if (s.leaders === false) out += `@leaders: off\n`;
+  if (s.legend === false) out += `@legend: off\n`;
   if (s.valid_until) out += `@valid_until: ${s.valid_until}\n`;
   if (s.valid_until && s.valid_show) out += `@valid_show: true\n`;
   if (s.service) out += `@service: ${s.service}\n`;
@@ -1785,6 +1814,7 @@ function populateForm(state) {
   document.getElementById("f-subtitle").value = state.subtitle || "";
   document.getElementById("f-template").value = VALID_TEMPLATES.includes(state.template) ? state.template : "minimal";
   document.getElementById("f-leaders").checked = state.leaders !== false;   // default on
+  document.getElementById("f-legend").checked = state.legend !== false;     // default on
   syncTemplatePicker();
   document.getElementById("f-accent-text").value = state.accent || "";
   const colorPicker = document.getElementById("f-accent-picker");
@@ -1807,6 +1837,7 @@ function readFormState() {
     template: document.getElementById("f-template").value,
     accent: document.getElementById("f-accent-text").value.trim(),
     leaders: document.getElementById("f-leaders").checked,
+    legend: document.getElementById("f-legend").checked,
     valid_until: document.getElementById("f-valid-until").value.trim(),
     valid_show: document.getElementById("f-valid-show").checked,
     service: document.getElementById("f-service").value.trim(),
@@ -2102,7 +2133,7 @@ document.getElementById("src").addEventListener("input", () => {
 });
 
 document.getElementById("f-locale").addEventListener("change", () => { flushFormToSource(); flushSourceToForm(); });
-for (const id of ["f-title", "f-subtitle", "f-template", "f-accent-text", "f-leaders",
+for (const id of ["f-title", "f-subtitle", "f-template", "f-accent-text", "f-leaders", "f-legend",
                    "f-valid-until", "f-valid-show", "f-service", "f-couvert", "f-footer"]) {
   document.getElementById(id).addEventListener("input", flushFormToSource);
   document.getElementById(id).addEventListener("change", flushFormToSource);

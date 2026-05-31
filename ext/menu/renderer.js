@@ -97,6 +97,9 @@ function renderMenuHTML(body, locale, attribution) {
   const parts = [];
   // dot leaders (name ⋯⋯ price) are the default; @leaders: off restores full-width rules
   const leaders = !/^(off|false|no|0)$/i.test(dirs.leaders || "");
+  // tag legend: on by default (decodes the v/g/p pills, which have no hover on paper);
+  // @legend: off suppresses it. Built below from the tags actually used, in vocab order.
+  const legendOn = !/^(off|false|no|0)$/i.test(dirs.legend || "");
 
   // valid_until: a quiet "valid through X" footer line while current, escalating to a
   // warning banner once expired.
@@ -134,6 +137,19 @@ function renderMenuHTML(body, locale, attribution) {
     }
   }
 
+  // legend: collect tags actually used (in the locale vocab's order), decode each
+  let legendHtml = "";
+  if (legendOn) {
+    const used = new Set();
+    for (const b of parsed.blocks) if (b.type === "item") for (const tg of b.tags) used.add(tg);
+    const keys = Object.keys(strings.tags).filter(k => used.has(k));
+    if (keys.length) {
+      legendHtml = `<div class="legend">` + keys.map(k =>
+        `<span class="legend-item"><span class="tag">${escapeHtml(k)}</span> ${escapeHtml(strings.tags[k])}</span>`
+      ).join("") + `</div>`;
+    }
+  }
+
   const footerLines = [];
   if (dirs.service) footerLines.push(strings.service(dirs.service));
   if (dirs.couvert) footerLines.push(strings.couvert(dirs.couvert));
@@ -142,8 +158,9 @@ function renderMenuHTML(body, locale, attribution) {
   if (validUntilOk && !validUntilExpired && /^(true|yes|on|1)$/i.test(dirs.valid_show || "")) {
     footerLines.push(strings.validThrough(dirs.valid_until));
   }
-  if (dirs.social || footerLines.length) {
+  if (dirs.social || footerLines.length || legendHtml) {
     let footer = '<footer>';
+    footer += legendHtml;   // dietary key first — closest to the items it decodes
     for (const l of footerLines) footer += `<div class="footer-line">${escapeHtml(l)}</div>`;
     if (dirs.social) {
       footer += '<div class="socials">';

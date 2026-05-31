@@ -81,6 +81,12 @@
   font-size: 0.78rem; color: var(--menu-fg-muted);
 }
 .menu .footer-line { margin: 0.22rem 0; }
+.menu .legend {
+  display: flex; flex-wrap: wrap; gap: 0.3rem 0.85rem; margin: 0 0 0.85rem;
+  font-size: 0.74rem; color: var(--menu-fg-muted);
+}
+.menu .legend-item { display: inline-flex; align-items: baseline; gap: 0.3rem; }
+.menu .legend-item .tag { margin-left: 0; }
 .menu .socials { display: flex; gap: 0.55rem; margin: 0.7rem 0; flex-wrap: wrap; }
 .menu .socials a {
   display: inline-flex; align-items: center; gap: 0.3rem; text-decoration: none;
