@@ -95,6 +95,8 @@ function renderMenuHTML(body, locale, attribution) {
   const parsed = parseMenuBody(body);
   const dirs = parsed.directives;
   const parts = [];
+  // dot leaders (name ⋯⋯ price) are the default; @leaders: off restores full-width rules
+  const leaders = !/^(off|false|no|0)$/i.test(dirs.leaders || "");
 
   // valid_until: a quiet "valid through X" footer line while current, escalating to a
   // warning banner once expired.
@@ -160,5 +162,5 @@ function renderMenuHTML(body, locale, attribution) {
 
   if (attribution) parts.push(`<div class="attribution">${escapeHtml(attribution)}</div>`);
 
-  return { html: parts.join(""), template: dirs.template || "minimal", accent: dirs.accent || null, lang: locale };
+  return { html: parts.join(""), template: dirs.template || "minimal", accent: dirs.accent || null, lang: locale, leaders };
 }

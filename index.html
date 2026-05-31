@@ -89,6 +89,13 @@
 .menu a { color: var(--menu-accent); text-decoration: underline; text-underline-offset: 2px; }
 .menu hr { border: 0; border-top: 1px solid var(--menu-rule); margin: 1.75rem 0 1rem; }
 .menu .item { padding: 0.55rem 0; }   /* leaders + whitespace separate rows, not a full rule */
+/* @leaders: off → the pre-leaders look: full-width rule between items, dots hidden (the
+   leader span still grows, so name stays left / price right). Placed BEFORE the templates so
+   per-template .item overrides — warm's no-rule, card's boxes — still win, faithfully
+   restoring the original per-template behaviour. */
+.menu.ruled .item { border-bottom: 1px solid var(--menu-rule); }
+.menu.ruled .item:last-of-type { border-bottom: none; }
+.menu.ruled .leader { border-bottom: none; }
 .menu .item-line { display: flex; align-items: baseline; }
 .menu .item-name { font-family: var(--menu-name); font-size: 1rem; font-weight: 600; min-width: 0; }
 /* dot leaders: an empty flex-grow span whose dotted underline sits on the text
@@ -552,6 +559,8 @@ function renderMenuHTML(body, locale, attribution) {
   const parsed = parseMenuBody(body);
   const dirs = parsed.directives;
   const parts = [];
+  // dot leaders (name ⋯⋯ price) are the default; @leaders: off restores full-width rules
+  const leaders = !/^(off|false|no|0)$/i.test(dirs.leaders || "");
 
   // valid_until: a quiet "valid through X" footer line while current, escalating to a
   // warning banner once expired.
@@ -617,7 +626,7 @@ function renderMenuHTML(body, locale, attribution) {
 
   if (attribution) parts.push(`<div class="attribution">${escapeHtml(attribution)}</div>`);
 
-  return { html: parts.join(""), template: dirs.template || "minimal", accent: dirs.accent || null, lang: locale };
+  return { html: parts.join(""), template: dirs.template || "minimal", accent: dirs.accent || null, lang: locale, leaders };
 }
 // @build:menu-renderer:end
 
@@ -626,7 +635,7 @@ function menuRenderer(header, body, ctx) {
   const r = renderMenuHTML(text, header.params, "decoded · " + ctx.bootloaderUrl);
   document.documentElement.lang = r.lang;
   // the mount IS the menu root: scope the template CSS to it; override accent only when set
-  ctx.mount.className = "menu tmpl-" + r.template;
+  ctx.mount.className = "menu tmpl-" + r.template + (r.leaders ? "" : " ruled");
   if (r.accent && ctx.mount.style) ctx.mount.style.setProperty("--menu-accent", r.accent);
   ctx.mount.innerHTML = r.html;
   // let the template own the whole page: fill the body with the menu's background

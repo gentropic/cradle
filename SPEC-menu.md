@@ -68,6 +68,7 @@ Directives MUST appear before any heading or content. Decoders MUST ignore direc
 |-----|------|---------|---------|
 | `@template` | enum | `minimal` | Visual template: `minimal`, `bistro`, `serif`, `dark`, `warm`, `noir`, `newsprint`, `card` |
 | `@accent` | CSS color | none | Accent for headings and active elements |
+| `@leaders` | bool (`off`) | on | Item style: by default a dot leader (`name ⋯⋯ price`) fills the gap between name and price. Set `off` to use a full-width rule between items instead (templates with their own item treatment — e.g. `warm`, `card` — keep it) |
 | `@valid_until` | ISO 8601 date | none | Expiry guard: decoder shows a staleness banner once today > this date (always). While current, shows a "valid through &lt;date&gt;" footer line **only if** `@valid_show` is on |
 | `@valid_show` | bool (`true`) | off | Opt in to the "valid through &lt;date&gt;" footer line while the menu is current (requires `@valid_until`) |
 | `@service` | percentage | none | Service charge note rendered in footer |

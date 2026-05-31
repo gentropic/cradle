@@ -47,6 +47,13 @@
 .menu a { color: var(--menu-accent); text-decoration: underline; text-underline-offset: 2px; }
 .menu hr { border: 0; border-top: 1px solid var(--menu-rule); margin: 1.75rem 0 1rem; }
 .menu .item { padding: 0.55rem 0; }   /* leaders + whitespace separate rows, not a full rule */
+/* @leaders: off → the pre-leaders look: full-width rule between items, dots hidden (the
+   leader span still grows, so name stays left / price right). Placed BEFORE the templates so
+   per-template .item overrides — warm's no-rule, card's boxes — still win, faithfully
+   restoring the original per-template behaviour. */
+.menu.ruled .item { border-bottom: 1px solid var(--menu-rule); }
+.menu.ruled .item:last-of-type { border-bottom: none; }
+.menu.ruled .leader { border-bottom: none; }
 .menu .item-line { display: flex; align-items: baseline; }
 .menu .item-name { font-family: var(--menu-name); font-size: 1rem; font-weight: 600; min-width: 0; }
 /* dot leaders: an empty flex-grow span whose dotted underline sits on the text

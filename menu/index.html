@@ -406,6 +406,13 @@
 .menu a { color: var(--menu-accent); text-decoration: underline; text-underline-offset: 2px; }
 .menu hr { border: 0; border-top: 1px solid var(--menu-rule); margin: 1.75rem 0 1rem; }
 .menu .item { padding: 0.55rem 0; }   /* leaders + whitespace separate rows, not a full rule */
+/* @leaders: off → the pre-leaders look: full-width rule between items, dots hidden (the
+   leader span still grows, so name stays left / price right). Placed BEFORE the templates so
+   per-template .item overrides — warm's no-rule, card's boxes — still win, faithfully
+   restoring the original per-template behaviour. */
+.menu.ruled .item { border-bottom: 1px solid var(--menu-rule); }
+.menu.ruled .item:last-of-type { border-bottom: none; }
+.menu.ruled .leader { border-bottom: none; }
 .menu .item-line { display: flex; align-items: baseline; }
 .menu .item-name { font-family: var(--menu-name); font-size: 1rem; font-weight: 600; min-width: 0; }
 /* dot leaders: an empty flex-grow span whose dotted underline sits on the text
@@ -608,6 +615,8 @@
           <input type="color" id="f-accent-picker" value="#444444">
           <input type="text" id="f-accent-text" data-i18n-ph="ph.accent" placeholder="#c4453a or color name" style="flex: 1;"></div>
         <div class="accent-swatches" id="accent-swatches"></div>
+        <div class="field-row"><label data-i18n="f.leaders" for="f-leaders">Dot leaders</label>
+          <input type="checkbox" id="f-leaders" checked></div>
       </div></details></div>
 
       <div class="form-group"><details><summary data-i18n="grp.status">Fees &amp; validity</summary><div class="group-body">
@@ -740,7 +749,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -860,6 +871,8 @@ function renderMenuHTML(body, locale, attribution) {
   const parsed = parseMenuBody(body);
   const dirs = parsed.directives;
   const parts = [];
+  // dot leaders (name ⋯⋯ price) are the default; @leaders: off restores full-width rules
+  const leaders = !/^(off|false|no|0)$/i.test(dirs.leaders || "");
 
   // valid_until: a quiet "valid through X" footer line while current, escalating to a
   // warning banner once expired.
@@ -925,7 +938,7 @@ function renderMenuHTML(body, locale, attribution) {
 
   if (attribution) parts.push(`<div class="attribution">${escapeHtml(attribution)}</div>`);
 
-  return { html: parts.join(""), template: dirs.template || "minimal", accent: dirs.accent || null, lang: locale };
+  return { html: parts.join(""), template: dirs.template || "minimal", accent: dirs.accent || null, lang: locale, leaders };
 }
 // @build:menu-renderer:end
 const VALID_TEMPLATES = ["minimal", "bistro", "serif", "dark", "warm", "noir", "newsprint", "card"];
@@ -956,7 +969,7 @@ const UI = {
     "grp.header": "Header", "grp.style": "Style", "grp.status": "Fees & validity",
     "grp.social": "Social", "grp.sections": "Menu sections", "grp.footer": "Footer text",
     "f.menulang": "Menu language", "f.title": "Restaurant name", "f.subtitle": "Subtitle",
-    "f.template": "Template", "f.accent": "Accent color",
+    "f.template": "Template", "f.accent": "Accent color", "f.leaders": "Dot leaders",
     "f.validUntil": "Valid until", "f.validShow": "Show date on menu",
     "f.service": "Service charge", "f.couvert": "Couvert",
     "btn.addLink": "+ Add link", "btn.addSection": "+ Add section", "btn.addItem": "+ Add item",
@@ -996,7 +1009,7 @@ const UI = {
     "grp.header": "Cabeçalho", "grp.style": "Estilo", "grp.status": "Taxas e validade",
     "grp.social": "Redes sociais", "grp.sections": "Seções do cardápio", "grp.footer": "Rodapé",
     "f.menulang": "Idioma do cardápio", "f.title": "Nome do restaurante", "f.subtitle": "Subtítulo",
-    "f.template": "Modelo", "f.accent": "Cor de destaque",
+    "f.template": "Modelo", "f.accent": "Cor de destaque", "f.leaders": "Linha pontilhada",
     "f.validUntil": "Válido até", "f.validShow": "Mostrar data no cardápio",
     "f.service": "Taxa de serviço", "f.couvert": "Couvert",
     "btn.addLink": "+ Adicionar link", "btn.addSection": "+ Adicionar seção", "btn.addItem": "+ Adicionar item",
@@ -1164,6 +1177,7 @@ function parseToFormState(source) {
   const state = {
     locale, template: parsed.directives.template || "minimal",
     accent: parsed.directives.accent || "",
+    leaders: !/^(off|false|no|0)$/i.test(parsed.directives.leaders || ""),
     valid_until: parsed.directives.valid_until || "",
     valid_show: /^(true|yes|on|1)$/i.test(parsed.directives.valid_show || ""),
     service: parsed.directives.service || "",
@@ -1205,6 +1219,7 @@ function serializeFromFormState(s) {
   let out = `!menu1+${s.locale}\n`;
   if (s.template && s.template !== "minimal") out += `@template: ${s.template}\n`;
   if (s.accent) out += `@accent: ${s.accent}\n`;
+  if (s.leaders === false) out += `@leaders: off\n`;
   if (s.valid_until) out += `@valid_until: ${s.valid_until}\n`;
   if (s.valid_until && s.valid_show) out += `@valid_show: true\n`;
   if (s.service) out += `@service: ${s.service}\n`;
@@ -1252,7 +1267,7 @@ function socialLink(prefix, handle) {
 function renderToFrame(bodyText, locale, frameEl) {
   const r = renderMenuHTML(bodyText, locale, "decoded from QR · gentropic.org/cradle");
   const tmpl = VALID_TEMPLATES.includes(r.template) ? r.template : "minimal";
-  frameEl.className = "menu-frame menu tmpl-" + tmpl;
+  frameEl.className = "menu-frame menu tmpl-" + tmpl + (r.leaders ? "" : " ruled");
   if (r.accent) frameEl.style.setProperty("--menu-accent", r.accent); // else the template default
   else frameEl.style.removeProperty("--menu-accent");
   frameEl.innerHTML = r.html;
@@ -1487,10 +1502,10 @@ const PRINT_LAYOUTS = {              // sheet/cell geometry in mm + furniture re
   2: { cols: 2, rows: 1, sheetPad: 8,  gap: 8,  cellPad: 5, foot: 5, head: 0 },
   4: { cols: 2, rows: 2, sheetPad: 8,  gap: 8,  cellPad: 5, foot: 5, head: 0 },
 };
-function typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, headHpx) {
+function typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, headHpx, ruled) {
   const tmp = document.createElement("div");
   tmp.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden";
-  tmp.innerHTML = `<div class="menu tmpl-${tmpl}" style="${accVar}width:${contentWmm}mm;padding:0">${html}</div>`;
+  tmp.innerHTML = `<div class="menu tmpl-${tmpl}${ruled || ""}" style="${accVar}width:${contentWmm}mm;padding:0">${html}</div>`;
   document.body.appendChild(tmp);
   const menuEl = tmp.firstChild, kids = Array.from(menuEl.children);
   const r = menuEl.getBoundingClientRect(), mTop = r.top, mH = r.height;
@@ -1539,6 +1554,7 @@ function buildPrintArea() {
   const warn = document.getElementById("print-warn");
   const src = document.getElementById("menu-frame");
   if (!src || (!out && !prev)) return;
+  const ruled = src.classList.contains("ruled") ? " ruled" : "";   // carry the @leaders choice into print
   const upBtn = document.querySelector("#print-up .seg-btn.active");
   const up = upBtn ? +upBtn.dataset.up : 1;
   const cut = document.getElementById("print-cut").checked;
@@ -1564,11 +1580,11 @@ function buildPrintArea() {
   const pad = keepColor ? PAD[up][fill] : 0;
   const contentWmm = CW - 2 * mat - 2 * pad;
   const usableHpx = (CH - 2 * mat - 2 * pad - L.foot) * PRINT_PXMM;
-  const { pages, heads, tooTall, bg } = typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, L.head * PRINT_PXMM);
+  const { pages, heads, tooTall, bg } = typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, L.head * PRINT_PXMM, ruled);
   const P = pages.length;
   // colored panel fills its area (min-height) with an inner buffer; white stays flush, pad 0
   const menuSty = `${accVar}width:100%;padding:${pad}mm` + (keepColor ? ";min-height:100%;box-sizing:border-box" : "");
-  const menuOf = (pg) => `<div class="menu tmpl-${tmpl}${keepColor ? " keep-color" : ""}" style="${menuSty}">${pg.join("")}</div>`;
+  const menuOf = (pg) => `<div class="menu tmpl-${tmpl}${ruled}${keepColor ? " keep-color" : ""}" style="${menuSty}">${pg.join("")}</div>`;
   // bleed floods the whole cut area with the template bg (so head/foot bands + any gaps are
   // covered to the cut edge); card/white keep a white mat via the container's padding.
   const cellBg = fill === "bleed" ? `background:${bg};` : "";
@@ -1768,6 +1784,7 @@ function populateForm(state) {
   document.getElementById("f-title").value = state.title || "";
   document.getElementById("f-subtitle").value = state.subtitle || "";
   document.getElementById("f-template").value = VALID_TEMPLATES.includes(state.template) ? state.template : "minimal";
+  document.getElementById("f-leaders").checked = state.leaders !== false;   // default on
   syncTemplatePicker();
   document.getElementById("f-accent-text").value = state.accent || "";
   const colorPicker = document.getElementById("f-accent-picker");
@@ -1789,6 +1806,7 @@ function readFormState() {
     locale: document.getElementById("f-locale").value,
     template: document.getElementById("f-template").value,
     accent: document.getElementById("f-accent-text").value.trim(),
+    leaders: document.getElementById("f-leaders").checked,
     valid_until: document.getElementById("f-valid-until").value.trim(),
     valid_show: document.getElementById("f-valid-show").checked,
     service: document.getElementById("f-service").value.trim(),
@@ -2084,7 +2102,7 @@ document.getElementById("src").addEventListener("input", () => {
 });
 
 document.getElementById("f-locale").addEventListener("change", () => { flushFormToSource(); flushSourceToForm(); });
-for (const id of ["f-title", "f-subtitle", "f-template", "f-accent-text",
+for (const id of ["f-title", "f-subtitle", "f-template", "f-accent-text", "f-leaders",
                    "f-valid-until", "f-valid-show", "f-service", "f-couvert", "f-footer"]) {
   document.getElementById(id).addEventListener("input", flushFormToSource);
   document.getElementById(id).addEventListener("change", flushFormToSource);
