@@ -649,8 +649,12 @@
           <input type="checkbox" id="print-cut"></div>
         <div class="field-row"><label data-i18n="print.contCue" for="print-cont">continued cue</label>
           <input type="checkbox" id="print-cont" checked></div>
-        <div class="field-row"><label data-i18n="print.keepColor" for="print-color">template colors</label>
-          <input type="checkbox" id="print-color"></div>
+        <div class="field-row"><label data-i18n="print.bg" for="print-bg">background</label>
+          <select id="print-bg">
+            <option value="white" data-i18n="print.bgWhite">white paper</option>
+            <option value="card" data-i18n="print.bgCard">color card</option>
+            <option value="bleed" data-i18n="print.bgBleed">full bleed</option>
+          </select></div>
         <button class="add-btn" id="print-go" style="margin-top:0.7rem" data-i18n="print.go">Print…</button>
         <p class="print-warn" id="print-warn" data-i18n="print.overflow" style="display:none"></p>
         <p class="print-hint" data-i18n="print.hint" style="font-size:0.74rem;color:var(--fg-faint);margin:0.7rem 0 0;line-height:1.45"></p>
@@ -734,7 +738,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -939,7 +945,7 @@ const UI = {
     "tab.form": "Form", "tab.source": "Source", "tab.print": "Print",
     "print.perSheet": "Per sheet", "print.paper": "Paper", "print.cutMarks": "cut marks",
     "print.contCue": "continued cue", "print.contNext": "continued →",
-    "print.keepColor": "template colors",
+    "print.bg": "background", "print.bgWhite": "white paper", "print.bgCard": "color card", "print.bgBleed": "full bleed",
     "print.go": "Print…", "print.hint": "Copies and double-sided are set in your browser's print dialog. 2/4-per-sheet print the menu repeated, to cut apart.",
     "print.overflow": "✂ The menu is taller than the cell — parts will be cut off. Use fewer per sheet, or shorten the menu.",
     "print.continued": "continued",
@@ -979,7 +985,7 @@ const UI = {
     "tab.form": "Formulário", "tab.source": "Código", "tab.print": "Imprimir",
     "print.perSheet": "Por folha", "print.paper": "Papel", "print.cutMarks": "marcas de corte",
     "print.contCue": "indicar continuação", "print.contNext": "continua →",
-    "print.keepColor": "cores do template",
+    "print.bg": "fundo", "print.bgWhite": "papel branco", "print.bgCard": "cartão colorido", "print.bgBleed": "sangria total",
     "print.go": "Imprimir…", "print.hint": "Cópias e frente-e-verso são definidos na caixa de impressão do navegador. 2/4 por folha imprimem o cardápio repetido, para recortar.",
     "print.overflow": "✂ O cardápio é mais alto que a célula — partes serão cortadas. Use menos por folha, ou encurte o cardápio.",
     "print.continued": "continuação",
@@ -1484,6 +1490,7 @@ function typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, headHpx) {
   document.body.appendChild(tmp);
   const menuEl = tmp.firstChild, kids = Array.from(menuEl.children);
   const r = menuEl.getBoundingClientRect(), mTop = r.top, mH = r.height;
+  const bg = getComputedStyle(menuEl).backgroundColor;   // template's resolved bg (for full-bleed flood)
   const top = kids.map((k) => k.getBoundingClientRect().top - mTop);
   let curSection = null;
   const blocks = kids.map((k, i) => {
@@ -1517,7 +1524,7 @@ function typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, headHpx) {
     cur.push(b.html); acc += b.h;
   }
   if (cur.length) { heads.push(pages.length === 0 ? null : contHead(first)); pages.push(cur); }
-  return { pages, heads, tooTall };
+  return { pages, heads, tooTall, bg };
 }
 // Compose the menu onto real-mm sheets. 1-up → one paginated A4 page per sheet
 // (continuation header + page footer). N-up → each page repeated across N cells;
@@ -1532,7 +1539,8 @@ function buildPrintArea() {
   const up = upBtn ? +upBtn.dataset.up : 1;
   const cut = document.getElementById("print-cut").checked;
   const contCue = document.getElementById("print-cont").checked;
-  const keepColor = document.getElementById("print-color").checked;
+  const fill = document.getElementById("print-bg").value;   // "white" | "card" | "bleed"
+  const keepColor = fill !== "white";
   const paper = document.getElementById("print-paper").value;
   const tmpl = document.getElementById("f-template").value;
   const accent = document.getElementById("f-accent-text").value.trim();
@@ -1542,11 +1550,24 @@ function buildPrintArea() {
   const L = PRINT_LAYOUTS[up], esc = (s) => escapeHtml(String(s));
   const cellOuterW = (pw - 2 * L.sheetPad - (L.cols - 1) * L.gap) / L.cols;
   const cellOuterH = (ph - 2 * L.sheetPad - (L.rows - 1) * L.gap) / L.rows;
-  const contentWmm = cellOuterW - 2 * L.cellPad;
-  const usableHpx = (cellOuterH - 2 * L.cellPad - L.foot) * PRINT_PXMM;
-  const { pages, heads, tooTall } = typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, L.head * PRINT_PXMM);
+  // The cut area is the page (1-up) or one cell (N-up). `mat` = white margin inside it
+  // (kept for white/card, dropped for bleed); `pad` = the colored panel's inner buffer so
+  // text never touches the colour/cut edge. White mode reproduces the original geometry.
+  const CW = up === 1 ? pw : cellOuterW, CH = up === 1 ? ph : cellOuterH;
+  const baseMat = up === 1 ? L.sheetPad : L.cellPad;
+  const PAD = { 1: { card: 7, bleed: 12 }, 2: { card: 4, bleed: 5 }, 4: { card: 4, bleed: 5 } };
+  const mat = fill === "bleed" ? 0 : baseMat;
+  const pad = keepColor ? PAD[up][fill] : 0;
+  const contentWmm = CW - 2 * mat - 2 * pad;
+  const usableHpx = (CH - 2 * mat - 2 * pad - L.foot) * PRINT_PXMM;
+  const { pages, heads, tooTall, bg } = typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, L.head * PRINT_PXMM);
   const P = pages.length;
-  const menuOf = (pg) => `<div class="menu tmpl-${tmpl}${keepColor ? " keep-color" : ""}" style="${accVar}width:100%;padding:0">${pg.join("")}</div>`;
+  // colored panel fills its area (min-height) with an inner buffer; white stays flush, pad 0
+  const menuSty = `${accVar}width:100%;padding:${pad}mm` + (keepColor ? ";min-height:100%;box-sizing:border-box" : "");
+  const menuOf = (pg) => `<div class="menu tmpl-${tmpl}${keepColor ? " keep-color" : ""}" style="${menuSty}">${pg.join("")}</div>`;
+  // bleed floods the whole cut area with the template bg (so head/foot bands + any gaps are
+  // covered to the cut edge); card/white keep a white mat via the container's padding.
+  const cellBg = fill === "bleed" ? `background:${bg};` : "";
 
   let content;
   if (up === 1) {                                            // one paginated page per sheet
@@ -1556,12 +1577,12 @@ function buildPrintArea() {
         : "";
       const cue = (contCue && p < P - 1) ? `<span class="cont-cue">${esc(t("print.contNext"))}</span>` : "";
       const foot = (P > 1) ? `<div class="page-foot"><span>${esc(title)}</span>${cue}<span>${p + 1} / ${P}</span></div>` : "";
-      return `<div class="print-page${head ? " has-head" : ""}" style="width:${pw}mm;height:${ph}mm">${head}${menuOf(pg)}${foot}</div>`;
+      return `<div class="print-page${head ? " has-head" : ""}" style="width:${pw}mm;height:${ph}mm;padding:${mat}mm;${cellBg}">${head}${menuOf(pg)}${foot}</div>`;
     }).join("");
   } else {                                                   // each page repeated across N cells, one sheet per page
     content = pages.map((pg, p) => {
       const num = (P > 1) ? `<div class="cell-num">${p + 1}/${P}</div>` : "";
-      const oneCell = `<div class="menu-cell">${menuOf(pg)}${num}</div>`;
+      const oneCell = `<div class="menu-cell" style="padding:${mat}mm;${cellBg}">${menuOf(pg)}${num}</div>`;
       return `<div class="menu-sheet${cut ? " cut" : ""}" style="width:${pw}mm;height:${ph}mm;` +
         `grid-template-columns:repeat(${L.cols},1fr);grid-template-rows:repeat(${L.rows},1fr);` +
         `padding:${L.sheetPad}mm;gap:${L.gap}mm">${oneCell.repeat(L.cols * L.rows)}</div>`;
@@ -2049,7 +2070,7 @@ document.querySelectorAll("#print-up .seg-btn").forEach((b) => b.addEventListene
 document.getElementById("print-paper").addEventListener("change", () => { updatePageStyle(); buildPrintArea(); });
 document.getElementById("print-cut").addEventListener("change", buildPrintArea);
 document.getElementById("print-cont").addEventListener("change", buildPrintArea);
-document.getElementById("print-color").addEventListener("change", buildPrintArea);
+document.getElementById("print-bg").addEventListener("change", buildPrintArea);
 document.getElementById("print-go").addEventListener("click", () => window.print());
 
 let updateTimer = null;
