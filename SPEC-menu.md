@@ -68,7 +68,8 @@ Directives MUST appear before any heading or content. Decoders MUST ignore direc
 |-----|------|---------|---------|
 | `@template` | enum | `minimal` | Visual template: `minimal`, `bistro`, `serif`, `dark` |
 | `@accent` | CSS color | none | Accent for headings and active elements |
-| `@valid_until` | ISO 8601 date | none | Decoder shows a discreet "valid through &lt;date&gt;" footer line while current; a staleness banner once today > this date |
+| `@valid_until` | ISO 8601 date | none | Expiry guard: decoder shows a staleness banner once today > this date (always). While current, shows a "valid through &lt;date&gt;" footer line **only if** `@valid_show` is on |
+| `@valid_show` | bool (`true`) | off | Opt in to the "valid through &lt;date&gt;" footer line while the menu is current (requires `@valid_until`) |
 | `@service` | percentage | none | Service charge note rendered in footer |
 | `@couvert` | decimal | none | Couvert charge rendered in footer |
 | `@social` | comma-list | none | `prefix=handle` pairs (see §3.1.1) |
@@ -154,7 +155,7 @@ The renderer MUST:
 
 1. Verify `version` is `1`. Reject other versions with a "newer menu format" error in the locale's prescribed phrasing.
 2. UTF-8-decode the body and parse per §3.
-3. Handle `@valid_until` (if set and a parseable date): while the menu is still current, show a discreet "valid through &lt;date&gt;" line in the footer area; once the current date is past it, instead show the staleness banner — which MUST be visually prominent and MUST appear above the menu content. (The two are mutually exclusive: a current menu shows the footer line, an expired one shows the banner.)
+3. Handle `@valid_until` (if set and a parseable date): once the current date is past it, show the staleness banner (always — a safety guard; it MUST be visually prominent and MUST appear above the menu content). While the menu is still current, show a discreet "valid through &lt;date&gt;" line in the footer area **only if `@valid_show` is enabled** (default off — many menus set `@valid_until` purely as the expiry guard and don't want to advertise the date). The banner and the footer line are mutually exclusive.
 4. Display `@service` and `@couvert` in the footer area, in the locale's prescribed phrasing.
 5. Treat unknown directive keys, unknown pipe-row tags, and unknown `@social` prefixes as silently ignored (forward compatibility).
 6. Render a discreet attribution line indicating the menu came from a QR/capsule and naming the bootloader (e.g., "decoded · gentropic.org/cradle").

@@ -132,7 +132,11 @@ function renderMenuHTML(body, locale, attribution) {
   const footerLines = [];
   if (dirs.service) footerLines.push(strings.service(dirs.service));
   if (dirs.couvert) footerLines.push(strings.couvert(dirs.couvert));
-  if (validUntilOk && !validUntilExpired) footerLines.push(strings.validThrough(dirs.valid_until));
+  // opt-in: the "valid through" line shows only when @valid_show is on (the expiry
+  // banner above is always-on regardless — it's a safety guard).
+  if (validUntilOk && !validUntilExpired && /^(true|yes|on|1)$/i.test(dirs.valid_show || "")) {
+    footerLines.push(strings.validThrough(dirs.valid_until));
+  }
   if (dirs.social || footerLines.length) {
     let footer = '<footer>';
     for (const l of footerLines) footer += `<div class="footer-line">${escapeHtml(l)}</div>`;

@@ -100,7 +100,7 @@ test("bootloader menu render matches the snapshot fixture", () => {
   assert.deepStrictEqual(accent, fx.accent);
 });
 
-test("valid_until: quiet 'valid through' line while current, warning banner once expired", () => {
+test("valid_until: @valid_show opts the line in (hidden by default); banner shows once expired", () => {
   const render = (menu) => {
     const dictId = menu.includes("pt-BR") ? "menu-ptbr" : "menu-enus";
     const cap = buildDictCapsule(menu, dictId, sb.__dicts[dictId]);
@@ -109,14 +109,19 @@ test("valid_until: quiet 'valid through' line while current, warning banner once
     sb.__R.menu(header, body, { mount, bootloaderUrl: "x", capsule: cap });
     return mount.innerHTML;
   };
-  const futurePt = render("!menu1+pt-BR\n@valid_until: 2099-12-31\n# X\nItem | 5");
-  assert.match(futurePt, /Cardápio válido até .*2099/, "current pt-BR menu shows the valid-through line");
-  assert.ok(!futurePt.includes('class="stale"'), "current menu must not show the expired banner");
+  // hidden by default — @valid_until alone is just the expiry guard
+  const hidden = render("!menu1+pt-BR\n@valid_until: 2099-12-31\n# X\nItem | 5");
+  assert.ok(!/válido até/.test(hidden), "valid-through line hidden without @valid_show");
+  assert.ok(!hidden.includes('class="stale"'), "current menu has no expired banner");
 
-  const futureEn = render("!menu1+en-US\n@valid_until: 2099-12-31\n# X\nItem | 5");
-  assert.match(futureEn, /Menu valid through .*2099/, "current en-US menu shows the valid-through line");
+  // opt-in via @valid_show
+  const shownPt = render("!menu1+pt-BR\n@valid_until: 2099-12-31\n@valid_show: true\n# X\nItem | 5");
+  assert.match(shownPt, /Cardápio válido até .*2099/, "@valid_show shows the line (pt-BR)");
+  const shownEn = render("!menu1+en-US\n@valid_until: 2099-12-31\n@valid_show: true\n# X\nItem | 5");
+  assert.match(shownEn, /Menu valid through .*2099/, "@valid_show shows the line (en-US)");
 
-  const expired = render("!menu1+pt-BR\n@valid_until: 2020-01-01\n# X\nItem | 5");
+  // expired: the banner shows regardless, and never the valid-through line
+  const expired = render("!menu1+pt-BR\n@valid_until: 2020-01-01\n@valid_show: true\n# X\nItem | 5");
   assert.ok(expired.includes('class="stale"'), "expired menu shows the warning banner");
-  assert.ok(!/válido até/.test(expired), "expired menu must not also show the valid-through line");
+  assert.ok(!/válido até/.test(expired), "expired menu has no valid-through line");
 });

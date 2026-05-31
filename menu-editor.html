@@ -346,6 +346,7 @@
 
       <div class="form-group"><details><summary>Status</summary><div class="group-body">
         <div class="field-row"><label>Valid until</label><input type="date" id="f-valid-until"></div>
+        <div class="field-row"><label>Show date on menu</label><input type="checkbox" id="f-valid-show"></div>
         <div class="field-row"><label>Service charge</label><input type="text" id="f-service" placeholder="10%"></div>
         <div class="field-row"><label>Couvert</label><input type="text" id="f-couvert" placeholder="8.00"></div>
       </div></details></div>
@@ -426,7 +427,9 @@
 // ============================================================
 const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vinhos tintos\n## Espumantes\n## Entradas\n## Principais\n## Massas\n## Sobremesas\n## Sushi\n## Sashimi\n## Hot rolls\n## Combinados\n## Pratos quentes\n## Bebidas\n## Cafés\nmanjericão, molho de tomate, parmesão reggiano, azeite extra virgem, salmão grelhado, filé mignon, picanha, frango à parmegiana, risoto de cogumelos, sorvete de creme, frutas vermelhas, leite de coco, calda de caramelo, calda de chocolate, molho madeira, molho de pimenta, carpaccio, bruschetta, tiramisù, cheesecake, petit gateau, pudim, spaghetti, linguine, ravioli, lasanha, nhoque, fettuccine, queijo, presunto, alho, cebola, tomate, batata, arroz, salmão, atum, camarão, filé, frango, carne, peixe, polvo, lula, yakisoba, niguiri, sashimi, uramaki, hot roll, harumaki, gyoza, tempura, philadelphia, california, espresso, cappuccino, café com leite, mocha, chocolate quente, tapioca, pão de queijo, brigadeiro, beijinho, porção, unidades, garrafa, taça, copo, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 const DICTS = { "pt-BR": DICT_PT_BR, "en-US": DICT_EN_US };
@@ -566,7 +569,11 @@ function renderMenuHTML(body, locale, attribution) {
   const footerLines = [];
   if (dirs.service) footerLines.push(strings.service(dirs.service));
   if (dirs.couvert) footerLines.push(strings.couvert(dirs.couvert));
-  if (validUntilOk && !validUntilExpired) footerLines.push(strings.validThrough(dirs.valid_until));
+  // opt-in: the "valid through" line shows only when @valid_show is on (the expiry
+  // banner above is always-on regardless — it's a safety guard).
+  if (validUntilOk && !validUntilExpired && /^(true|yes|on|1)$/i.test(dirs.valid_show || "")) {
+    footerLines.push(strings.validThrough(dirs.valid_until));
+  }
   if (dirs.social || footerLines.length) {
     let footer = '<footer>';
     for (const l of footerLines) footer += `<div class="footer-line">${escapeHtml(l)}</div>`;
@@ -707,6 +714,7 @@ function parseToFormState(source) {
     locale, template: parsed.directives.template || "minimal",
     accent: parsed.directives.accent || "",
     valid_until: parsed.directives.valid_until || "",
+    valid_show: /^(true|yes|on|1)$/i.test(parsed.directives.valid_show || ""),
     service: parsed.directives.service || "",
     couvert: parsed.directives.couvert || "",
     socials, title: "", subtitle: "", sections: [], footer: "",
@@ -747,6 +755,7 @@ function serializeFromFormState(s) {
   if (s.template && s.template !== "minimal") out += `@template: ${s.template}\n`;
   if (s.accent) out += `@accent: ${s.accent}\n`;
   if (s.valid_until) out += `@valid_until: ${s.valid_until}\n`;
+  if (s.valid_until && s.valid_show) out += `@valid_show: true\n`;
   if (s.service) out += `@service: ${s.service}\n`;
   if (s.couvert) out += `@couvert: ${s.couvert}\n`;
   if (s.socials && s.socials.length) {
@@ -1122,6 +1131,7 @@ function populateForm(state) {
   if (state.accent && /^#[0-9a-fA-F]{6}$/.test(state.accent)) colorPicker.value = state.accent;
   else colorPicker.value = "#444444";
   document.getElementById("f-valid-until").value = state.valid_until || "";
+  document.getElementById("f-valid-show").checked = !!state.valid_show;
   document.getElementById("f-service").value = state.service || "";
   document.getElementById("f-couvert").value = state.couvert || "";
   const socials = document.getElementById("f-socials"); socials.innerHTML = "";
@@ -1136,6 +1146,7 @@ function readFormState() {
     template: document.getElementById("f-template").value,
     accent: document.getElementById("f-accent-text").value.trim(),
     valid_until: document.getElementById("f-valid-until").value.trim(),
+    valid_show: document.getElementById("f-valid-show").checked,
     service: document.getElementById("f-service").value.trim(),
     couvert: document.getElementById("f-couvert").value.trim(),
     socials: [],
@@ -1415,7 +1426,7 @@ document.getElementById("src").addEventListener("input", () => {
 
 document.getElementById("f-locale").addEventListener("change", () => { flushFormToSource(); flushSourceToForm(); });
 for (const id of ["f-title", "f-subtitle", "f-template", "f-accent-text",
-                   "f-valid-until", "f-service", "f-couvert", "f-footer"]) {
+                   "f-valid-until", "f-valid-show", "f-service", "f-couvert", "f-footer"]) {
   document.getElementById(id).addEventListener("input", flushFormToSource);
   document.getElementById(id).addEventListener("change", flushFormToSource);
 }
