@@ -29,11 +29,12 @@ test("contact dispatches via !contact1 and renders the card scaffold", () => {
 
 test("action buttons: only present directives, with the right schemes (digits cleaned)", () => {
   const r = renderContact("!contact1+en-US\n@tel: +55 (31) 99999-8888\n@wa: 5531999998888\n@email: jane@x.com\n@site: studio.com\n@map: Rua X 10, BH\n# Jane");
-  assert.match(r.html, /href="tel:\+553199999888"/, "tel: keeps + and digits only");
+  assert.match(r.html, /href="tel:\+5531999998888"/, "tel: keeps + and digits only");
   assert.match(r.html, /href="https:\/\/wa\.me\/5531999998888"/, "wa.me strips +");
   assert.match(r.html, /href="mailto:jane@x\.com"/);
   assert.match(r.html, /href="https:\/\/studio\.com"/, "bare host gets https://");
-  assert.match(r.html, /href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=Rua%20X%2010%2C%20BH"/);
+  // the & in the maps query is HTML-escaped to &amp; in the attribute (browser decodes it)
+  assert.match(r.html, /href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=Rua%20X%2010%2C%20BH"/);
   // en-US labels
   assert.match(r.html, /Call<\/span>/);
   assert.match(r.html, /Website<\/span>/);
