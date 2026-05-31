@@ -25,6 +25,5 @@ yarn-error.log*
 .env.*
 !.env.example
 
-# NOTE: unlike sibling repos, CLAUDE.md here is COMMITTED on purpose —
-# it's the shared hand-off / orientation doc for whoever (human or agent)
-# picks this repo up. Keep it in version control.
+# Agent context — never committed (kept local only)
+CLAUDE.md
