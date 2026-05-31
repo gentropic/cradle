@@ -27,3 +27,11 @@ test("arcr dictionary: factory === bootloader", () => {
   assert.ok(typeof boot === "string" && boot.length > 0, "bootloader DICT_ARCR missing");
   assert.strictEqual(boot, factory, "arcr dictionary drifted between factory and bootloader");
 });
+
+test("contact dictionary: editor === bootloader", () => {
+  const boot = extractConst("index.html", "DICT_CONTACT");
+  const editor = extractConst("contact/index.html", "DICT_CONTACT");
+  assert.ok(typeof boot === "string" && boot.length > 0, "bootloader DICT_CONTACT missing");
+  assert.ok(typeof editor === "string" && editor.length > 0, "editor DICT_CONTACT missing");
+  assert.strictEqual(boot, editor, "contact dictionary drifted between editor and bootloader");
+});

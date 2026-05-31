@@ -377,13 +377,12 @@ function base45Encode(bytes) {
   }
   return out;
 }
-// contact has no dictionary — plain deflate via the inline scheme (base64). NB: the
-// q:d<base45> form is ambiguous when the base45 starts with "." (parseQ reads it as a
-// deflate-dict id), so use inline:deflate: which the bootloader parses unambiguously.
+const DICT_CONTACT = "ig= in= gh= x= yt= minimal dark bold mono www. .com.br https:// · *\n\n# +55 \n@avatar: \n@org: \n@role: \n@map: \n@social: \n@site: \n@email: \n@wa: \n@accent: #\n@tel: \n@template: \n!contact1+en-US\n!contact1+pt-BR\n";
+const dictBytes = td.encode(DICT_CONTACT);
+// dict-keyed deflate -> q:d.contact_<base45> (QR alphanumeric mode). The dict is
+// byte-identical to the bootloader's (single-sourced via build/build.js).
 function makeCapsule(program) {
-  const d = pako.deflateRaw(td.encode(program), { level: 9 });
-  let s = ""; for (let i = 0; i < d.length; i++) s += String.fromCharCode(d[i]);
-  return "inline:deflate:" + btoa(s);
+  return "q:d.contact_" + base45Encode(pako.deflateRaw(td.encode(program), { level: 9, dictionary: dictBytes }));
 }
 
 const $ = (id) => document.getElementById(id);

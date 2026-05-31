@@ -14,7 +14,7 @@ const ROOT = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(ROOT, f), "utf8");
 const write = (f, s) => fs.writeFileSync(path.join(ROOT, f), s);
 
-const dicts = { ...require("../ext/menu/dict.js"), ...require("../ext/arcr/dict.js") };
+const dicts = { ...require("../ext/menu/dict.js"), ...require("../ext/arcr/dict.js"), ...require("../ext/contact/dict.js") };
 const { generateArcrRenderer } = require("./lib/arcr-renderer.js");
 
 // --- replace a `const <varName> = <...>;` definition with a single source ---
@@ -35,6 +35,8 @@ const DICTS = [
   ["menu/index.html",   "DICT_PT_BR",     "menu-ptbr"],
   ["menu/index.html",   "DICT_EN_US",     "menu-enus"],
   ["arcr/factory.html", "DICT_ARCR",      "arcr"],
+  ["index.html",        "DICT_CONTACT",   "contact"],
+  ["contact/index.html","DICT_CONTACT",   "contact"],
 ];
 
 // the canonical 50-game library lives in arcr/index.html; pull it out as static
