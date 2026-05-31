@@ -328,6 +328,7 @@
   .page-head .cont-mark { text-transform: none; font-weight: 400; opacity: 0.85; }
   .page-foot { position: absolute; bottom: 7mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between;
     font: 2.9mm var(--font-sans); color: #bbb; padding-top: 1.5mm; border-top: 0.3mm solid #eee; }
+  .page-foot .cont-cue { font-style: italic; opacity: 0.9; }
   .menu-sheet { background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); box-sizing: border-box;
     display: grid; overflow: hidden; }   /* padding + gap set inline per layout */
   .menu-cell { position: relative; overflow: hidden; box-sizing: border-box; padding: 5mm; }
@@ -634,6 +635,8 @@
           <select id="print-paper"><option value="A4">A4</option><option value="Letter">US Letter</option></select></div>
         <div class="field-row"><label data-i18n="print.cutMarks" for="print-cut">cut marks</label>
           <input type="checkbox" id="print-cut"></div>
+        <div class="field-row"><label data-i18n="print.contCue" for="print-cont">continued cue</label>
+          <input type="checkbox" id="print-cont" checked></div>
         <button class="add-btn" id="print-go" style="margin-top:0.7rem" data-i18n="print.go">Print…</button>
         <p class="print-warn" id="print-warn" data-i18n="print.overflow" style="display:none"></p>
         <p class="print-hint" data-i18n="print.hint" style="font-size:0.74rem;color:var(--fg-faint);margin:0.7rem 0 0;line-height:1.45"></p>
@@ -715,7 +718,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -917,6 +922,7 @@ const UI = {
     "save.saved": "saved", "save.saving": "saving…",
     "tab.form": "Form", "tab.source": "Source", "tab.print": "Print",
     "print.perSheet": "Per sheet", "print.paper": "Paper", "print.cutMarks": "cut marks",
+    "print.contCue": "continued cue", "print.contNext": "continued →",
     "print.go": "Print…", "print.hint": "Copies and double-sided are set in your browser's print dialog. 2/4-per-sheet print the menu repeated, to cut apart.",
     "print.overflow": "✂ The menu is taller than the cell — parts will be cut off. Use fewer per sheet, or shorten the menu.",
     "print.continued": "continued",
@@ -955,6 +961,7 @@ const UI = {
     "save.saved": "salvo", "save.saving": "salvando…",
     "tab.form": "Formulário", "tab.source": "Código", "tab.print": "Imprimir",
     "print.perSheet": "Por folha", "print.paper": "Papel", "print.cutMarks": "marcas de corte",
+    "print.contCue": "indicar continuação", "print.contNext": "continua →",
     "print.go": "Imprimir…", "print.hint": "Cópias e frente-e-verso são definidos na caixa de impressão do navegador. 2/4 por folha imprimem o cardápio repetido, para recortar.",
     "print.overflow": "✂ O cardápio é mais alto que a célula — partes serão cortadas. Use menos por folha, ou encurte o cardápio.",
     "print.continued": "continuação",
@@ -1506,6 +1513,7 @@ function buildPrintArea() {
   const upBtn = document.querySelector("#print-up .seg-btn.active");
   const up = upBtn ? +upBtn.dataset.up : 1;
   const cut = document.getElementById("print-cut").checked;
+  const contCue = document.getElementById("print-cont").checked;
   const paper = document.getElementById("print-paper").value;
   const tmpl = document.getElementById("f-template").value;
   const accent = document.getElementById("f-accent-text").value.trim();
@@ -1527,7 +1535,8 @@ function buildPrintArea() {
       const head = heads[p]
         ? `<div class="page-head"><span class="cont-sec">${esc(heads[p])}</span> <span class="cont-mark">· ${esc(t("print.continued"))}</span></div>`
         : "";
-      const foot = (P > 1) ? `<div class="page-foot"><span>${esc(title)}</span><span>${p + 1} / ${P}</span></div>` : "";
+      const cue = (contCue && p < P - 1) ? `<span class="cont-cue">${esc(t("print.contNext"))}</span>` : "";
+      const foot = (P > 1) ? `<div class="page-foot"><span>${esc(title)}</span>${cue}<span>${p + 1} / ${P}</span></div>` : "";
       return `<div class="print-page${head ? " has-head" : ""}" style="width:${pw}mm;height:${ph}mm">${head}${menuOf(pg)}${foot}</div>`;
     }).join("");
   } else {                                                   // each page repeated across N cells, one sheet per page
@@ -2020,6 +2029,7 @@ document.querySelectorAll("#print-up .seg-btn").forEach((b) => b.addEventListene
 }));
 document.getElementById("print-paper").addEventListener("change", () => { updatePageStyle(); buildPrintArea(); });
 document.getElementById("print-cut").addEventListener("change", buildPrintArea);
+document.getElementById("print-cont").addEventListener("change", buildPrintArea);
 document.getElementById("print-go").addEventListener("click", () => window.print());
 
 let updateTimer = null;
