@@ -1,0 +1,5 @@
+# Keep line endings LF everywhere. The build regenerates regions of index.html
+# from arcr.html and compares against the committed file; mixed CRLF/LF would make
+# `node build/build.js --check` (and the test suite) fail spuriously on a Windows
+# checkout. Forcing LF keeps the build stable across platforms.
+* text=auto eol=lf
