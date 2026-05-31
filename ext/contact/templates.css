@@ -1,0 +1,113 @@
+/* Contact (vCard hub) visuals — the SINGLE SOURCE for how a contact card looks.
+   Scoped to a `.contact` root so the bootloader render and the editor preview are
+   pixel-identical. Inlined into index.html + contact/index.html by build/build.js
+   (between @build:contact-templates markers). Edit here, then `npm run build`.
+
+   Each template sets its palette via --contact-* custom properties; an author's
+   @accent overrides --contact-accent inline (consumer-applied). No web fonts. */
+
+.contact {
+  --contact-accent: #3b6ea5;
+  --contact-bg: #ffffff;
+  --contact-fg: #1d2530;
+  --contact-fg-muted: #6a7280;
+  --contact-fg-faint: #aab2bd;
+  --contact-rule: rgba(0, 0, 0, 0.12);
+  --contact-btn-bg: #ffffff;
+  --contact-avatar-fg: #ffffff;
+  --contact-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  box-sizing: border-box;
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 2.75rem 1.5rem 3rem;
+  background: var(--contact-bg);
+  color: var(--contact-fg);
+  font-family: var(--contact-sans);
+  line-height: 1.5;
+  text-align: center;
+  -webkit-text-size-adjust: 100%;
+}
+.contact * { box-sizing: border-box; }
+.contact-avatar {
+  width: 92px; height: 92px; border-radius: 50%; margin: 0 auto 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--contact-accent); color: var(--contact-avatar-fg);
+  font-size: 2.2rem; font-weight: 600; line-height: 1; overflow: hidden;
+}
+.contact-name { font-size: 1.6rem; font-weight: 700; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
+.contact-tagline { color: var(--contact-fg-muted); margin: 0; font-size: 1rem; }
+.contact-bio { color: var(--contact-fg); margin: 0.9rem 0 0; font-size: 0.94rem; }
+.contact-bio:first-of-type { margin-top: 1rem; }
+.contact a { color: var(--contact-accent); }
+
+.contact-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 1.6rem 0 0; }
+@media (min-width: 360px) { .contact-actions { grid-template-columns: 1fr 1fr 1fr; } }
+.contact-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.32rem;
+  min-height: 76px; padding: 0.7rem 0.4rem; text-decoration: none;
+  border: 1px solid var(--contact-rule); border-radius: 12px;
+  background: var(--contact-btn-bg); color: var(--contact-fg);
+  font-size: 0.82rem; font-weight: 500;
+  transition: border-color 0.15s, transform 0.05s;
+}
+.contact-btn:hover, .contact-btn:focus-visible { border-color: var(--contact-accent); outline: none; }
+.contact-btn:active { transform: scale(0.98); }
+.contact-btn-emoji { font-size: 1.45rem; line-height: 1; }
+
+.contact-socials { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.6rem; margin: 1.3rem 0 0; }
+.contact-social {
+  display: inline-flex; width: 42px; height: 42px; align-items: center; justify-content: center;
+  border: 1px solid var(--contact-rule); border-radius: 50%;
+  color: var(--contact-fg-muted); text-decoration: none; transition: color 0.15s, border-color 0.15s;
+}
+.contact-social:hover { color: var(--contact-accent); border-color: var(--contact-accent); }
+.contact-social svg { width: 18px; height: 18px; }
+
+.contact-save {
+  display: block; width: 100%; margin: 1.6rem 0 0; padding: 0.9rem 1rem; border-radius: 11px;
+  background: var(--contact-accent); color: #fff; text-decoration: none;
+  font-size: 1rem; font-weight: 600; text-align: center;
+  transition: transform 0.05s, filter 0.15s;
+}
+.contact-save:hover { filter: brightness(1.06); }
+.contact-save:active { transform: scale(0.99); }
+
+.contact .attribution {
+  margin-top: 1.75rem; font-size: 0.68rem; color: var(--contact-fg-faint);
+  letter-spacing: 0.04em; text-align: center;
+}
+
+/* ============================== templates ============================== */
+
+/* minimal — clean light card with a blue accent (the base above). */
+
+/* dark — near-black, soft on the eyes, light accent */
+.contact.tmpl-dark {
+  --contact-bg: #15171c; --contact-fg: #e8eaed; --contact-fg-muted: #9aa0aa; --contact-fg-faint: #5a606b;
+  --contact-rule: rgba(255, 255, 255, 0.14); --contact-btn-bg: rgba(255, 255, 255, 0.03);
+  --contact-accent: #6ea8e0; --contact-avatar-fg: #15171c;
+}
+
+/* bold — warm accent, rounded-square avatar, accent name */
+.contact.tmpl-bold {
+  --contact-accent: #e0533b;
+}
+.contact.tmpl-bold .contact-avatar { border-radius: 20px; }
+.contact.tmpl-bold .contact-name { color: var(--contact-accent); }
+
+/* mono — typographic, monochrome, square avatar, no accent fill */
+.contact.tmpl-mono {
+  --contact-accent: #1a1a1a;
+  --contact-avatar-fg: #1a1a1a;
+}
+.contact.tmpl-mono .contact-avatar {
+  background: none; border: 2px solid var(--contact-fg); border-radius: 0;
+}
+.contact.tmpl-mono .contact-save { background: var(--contact-fg); }
+
+/* ============================== print ============================== */
+@media print {
+  .contact { max-width: none; }
+  .contact .attribution, .contact-save { display: none; }   /* not useful on paper */
+  .contact-btn { break-inside: avoid; }
+}

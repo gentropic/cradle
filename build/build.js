@@ -88,6 +88,14 @@ function build() {
     out[f] = inlineBetween(get(f), "@build:menu-templates:start", "@build:menu-templates:end", menuTemplatesSrc, "menu-templates");
   }
 
+  // shared contact (vCard hub) renderer + template CSS -> bootloader (+ editor once it lands)
+  const contactRendererSrc = read("ext/contact/renderer.js");
+  const contactTemplatesSrc = read("ext/contact/templates.css");
+  for (const f of ["index.html"]) {
+    out[f] = inlineBetween(get(f), "@build:contact-renderer:start", "@build:contact-renderer:end", contactRendererSrc, "contact-renderer");
+    out[f] = inlineBetween(get(f), "@build:contact-templates:start", "@build:contact-templates:end", contactTemplatesSrc, "contact-templates");
+  }
+
   const stale = Object.keys(out).filter((f) => out[f] !== read(f));
   if (CHECK) {
     if (stale.length) { console.error("build out of date — run `npm run build`. stale: " + stale.join(", ")); process.exit(1); }
