@@ -166,3 +166,49 @@ test("`shoot` projectiles: fire, travel a heading, and clear targets via on hit"
   assert.match(idx, /v==="shoot"/, "shoot action present in the bootloader");
   assert.match(idx, /o\.move==="shot"/, "ballistic motion present in the bootloader");
 });
+
+test("gameplay RNG is seeded — identical seed → identical play (SPEC-arcr §10)", () => {
+  const xs = (seed) => {
+    A.loadSource("@title D\nobj you : emoji 🙂 at=center move=tap\nevery 0.3 : spawn emoji ⭐ at=top tag=s\nwhen time >= 99 : end \"x\"", seed);
+    A.play();
+    for (let i = 0; i < 120; i++) A.update(0.05);
+    return A.objs().filter((o) => o.tag === "s").map((o) => Math.round(o.x)).join(",");
+  };
+  assert.ok(xs(42).length > 0, "stars actually spawned (jitter is exercised)");
+  assert.strictEqual(xs(42), xs(42), "same seed replays spawn positions identically");
+  assert.notStrictEqual(xs(42), xs(43), "a different seed produces a different layout");
+});
+
+test("`chance` fires ~p/sec and is deterministic per seed", () => {
+  const count = (seed) => {
+    A.loadSource("@title C\nobj you : emoji 🙂 at=center move=tap\nchance 2 : add c 1\nwhen time >= 99 : end \"x\"", seed);
+    A.play();
+    for (let i = 0; i < 100; i++) A.update(0.05); // 5 s of game time, expected ≈ 10 fires
+    return A.S.vars.c || 0;
+  };
+  const a = count(7);
+  assert.strictEqual(a, count(7), "same seed → identical number of chance fires");
+  assert.ok(a >= 3 && a <= 20, "`chance 2` over 5 s fired a plausible count (~10), got " + a);
+});
+
+test("`on miss <ref>` penalizes an object that left the field uncaught", () => {
+  A.loadSource(["@title MISS", "@lives 1", "obj you : emoji 🧺 at=bottom move=tap",
+    "every 0.5 : spawn emoji ⭐ at=top move=fall tag=star", "on miss #star : life -1",
+    'when lives <= 0 : lose "dropped one."'].join("\n"), 7);
+  A.play();
+  for (let i = 0; i < 400 && !["win","lose","end","refuse"].includes(A.state); i++) { A.steer(0.02, 0.85); A.update(0.05); } // hug the corner, catch nothing
+  assert.strictEqual(A.state, "lose", "letting a star fall past cost the only life");
+});
+
+test("`spawn <n>` bursts n objects, and `{var}` interpolates in text", () => {
+  A.loadSource("@title BURST\nobj you : emoji 🙂 at=center move=tap\nat 0.1 : spawn 5 emoji ⭐ at=scatter tag=s\nwhen count #s >= 5 : win \"five.\"", 7);
+  A.play();
+  for (let i = 0; i < 20 && !["win","lose","end","refuse"].includes(A.state); i++) A.update(0.05);
+  assert.strictEqual(A.objs().filter((o) => o.alive && o.tag === "s").length, 5, "`spawn 5` made five objects");
+  assert.strictEqual(A.state, "win");
+
+  A.loadSource("@title I\nobj you : emoji 🙂 at=center move=tap\non tap : score +1\nwhen taps >= 3 : end \"final {score}!\"", 7);
+  A.play();
+  for (let i = 0; i < 60 && !["win","lose","end","refuse"].includes(A.state); i++) { A.tap(); A.update(0.05); }
+  assert.strictEqual(A.ending.msg, "final 3!", "{score} interpolated into the ending message");
+});

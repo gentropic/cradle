@@ -4,7 +4,7 @@
 **Engine:** `gewgaw` — the reference micro-game engine for `arcr` (this spec). Future
 engines (3D, gamepad, …) would join the family under their own magic-line version/params.
 **Magic line:** `!arcr1+<params>`
-**Status:** Draft v0.3
+**Status:** Draft v0.4
 **Editor:** Arthur Endlein Correia
 **Last revised:** 2026-05-30
 
@@ -215,12 +215,25 @@ The left side of a rule. One event per rule.
 | `on tap <ref>`     | a tap lands on object `<ref>` (name or `#tag`)         |
 | `on key <k>`       | key `<k>` is pressed                                    |
 | `on hit <a> <b>`   | objects/tags `<a>` and `<b>` overlap (collision)       |
+| `on miss <ref>`    | an object `<ref>` leaves the field *uncaught* (see below) |
 | `every <n>`        | repeatedly, every `<n>` seconds                        |
+| `chance <p>`       | randomly, ~`<p>` times per second (seeded — see below) |
 | `at <n>`           | once, at `time == <n>`                                 |
 | `when <cond>`      | once, the first frame `<cond>` becomes true (§9)       |
 
 In `on hit you #heart`, `you` is the player object and `#heart` is any object tagged
 `heart`. Collision uses the rendered radii; the engine handles it.
+
+`on miss <ref>` fires when a *still-alive* object matching `<ref>` drifts off the field
+(e.g. a falling item the player never caught). An object consumed by a collision is gone,
+not missed — so `on miss` is the clean way to penalize letting good things slip past
+(`on miss #fruit : life -1`). `<ref>` (the missed object) is available to the rule as `it`.
+
+`chance <p>` is the engine's randomness. It is evaluated on a fixed internal time-step and
+fires with the rate `<p>` (expected times per second), drawing from the **seeded** gameplay
+PRNG — so a given capsule + seed produces the *same* random run every time, on every device
+(§10). `chance 0.5 : spawn emoji 💀 at=scatter move=fall tag=doom` rains an unpredictable —
+but reproducible — hazard about once every two seconds.
 
 ## 8. Conditions (`when …`)
 
@@ -249,8 +262,8 @@ The right side of a rule; one or more, `;`-separated, executed in order.
 
 | action                         | effect                                                        |
 |--------------------------------|---------------------------------------------------------------|
-| `say "text"`                   | show a line of narration (engine fades it in/out)             |
-| `spawn <kind> <arg> [props]`   | create an object now (usually with `move=fall tag=…`)         |
+| `say "text"`                   | show a line of narration (supports `{…}` interpolation, below) |
+| `spawn [n] <kind> <arg> [props]` | create an object now (optional leading `n` = a burst, ≤ 64) |
 | `shoot [from <ref>] <kind> [arg] [dir] [props]` | fire a ballistic projectile (see below)      |
 | `destroy [n] <ref>`            | remove `n` (default: all) objects matching `<ref>`           |
 | `move <name> <zone>` \| `move <name> random` | reposition an object                          |
@@ -267,6 +280,11 @@ The right side of a rule; one or more, `;`-separated, executed in order.
 | `lose "text"`                  | end — defeat screen with `text`                               |
 | `end "text"`                   | end — neutral, no win/lose (the game is simply over)         |
 | `refuse "text"`                | end — the game declines to continue (a flavored neutral end) |
+
+**Text interpolation.** Inside `say` and the ending strings (`win`/`lose`/`end`/`refuse`),
+`{score}`, `{lives}`, `{time}`, `{taps}`, and `{<uservar>}` are replaced with their live
+values: `say "coins: {coins}"`, `end "final {score} in {time}s"`. An unknown name is left
+as literal text.
 
 **`shoot`** fires a projectile that flies a straight heading and is culled when it leaves
 the field. Its `<kind> [arg]` is written exactly like `obj`/`spawn` (`shoot emoji ⚡`,
@@ -470,6 +488,13 @@ when lives <= 0 : lose "the bills won."
 
 ## 15. Changelog
 
+- **v0.4** (2026-05-31) — randomness becomes real and first-class. **Gameplay determinism
+  is now enforced** (§10): spawn jitter, `at=scatter`, and `move random` draw from a seeded
+  per-game PRNG, so a capsule + seed replays identically (previously these leaked
+  `Math.random`). On that foundation: the **`chance <p>`** event (~p random fires/sec,
+  seeded — §7); **`on miss <ref>`** (an object left the field uncaught — §7); **`spawn [n]`**
+  burst counts (§9); and **`{…}` text interpolation** of `score`/`lives`/`time`/`taps`/vars
+  in `say` and endings (§9). Engine + test suite cover all of it.
 - **v0.3** (2026-05-30) — five engine additions: **compound conditions** (`and`/`or`
   joining comparisons in a `when`, left-to-right, no precedence — §8); the **`sound <id>`**
   action (named cues `ding`/`blip`/`pop`/`thud`/`buzz`/`chord` — §9); **keyboard play**

@@ -799,12 +799,12 @@ function parseArcr(src){
         at:(props.at||"center").toLowerCase(), speed:+(props.speed||1)||1, size:(props.size||"normal").toLowerCase(), order:order++, scene:sceneNo };
       continue;
     }
-    if (t[0]==="on" || t[0]==="every" || t[0]==="at" || t[0]==="when"){
+    if (t[0]==="on" || t[0]==="every" || t[0]==="at" || t[0]==="when" || t[0]==="chance"){
       const ci = t.indexOf(":");
       if (ci<0){ warnings.push("rule needs `event : action` → "+line); continue; }
       const ev = t.slice(0,ci);
       const actions = t.slice(ci+1).join(" ").split(";").map(a=>tokenize(a.trim())).filter(a=>a.length);
-      rules.push({ ev, actions, fired:false, next: ev[0]==="every" ? (+ev[1]||1) : null, scene:sceneNo });
+      rules.push({ ev, actions, fired:false, next: ev[0]==="every" ? (+ev[1]||1) : ev[0]==="chance" ? CHANCE_TICK : null, scene:sceneNo });
       continue;
     }
     warnings.push("unrecognized → "+line);
@@ -812,7 +812,7 @@ function parseArcr(src){
   // surface what the HUD should show
   const txt = src;
   const flags = {
-    score: /(^|\n)\s*(on|every|at|when)[^\n]*\bscore\b/.test(txt) || /score\s*[+\-=]/.test(txt),
+    score: /(^|\n)\s*(on|every|at|when|chance)[^\n]*\bscore\b/.test(txt) || /score\s*[+\-=]/.test(txt),
     lives: ("lives" in directives) || /\blife\s*[+\-]/.test(txt) || /when[^\n]*\blives\b/.test(txt),
     timeGoal: 0,
     scoreGoal: 0,
@@ -933,6 +933,8 @@ function drawBackground(){ const p=PAL,bg=PROG.directives.bg||"plain",t=frame/60
 // INTERPRETER  (SPEC-arcr §4 execution model)
 // ============================================================
 let PROG=null, PAL=null, AUD={wave:"square",root:50}, SEED=1;
+let RNG=mulberry32(1);                   // seeded GAMEPLAY rng (spawn jitter, scatter, move random, chance) — reset per game in setupGame
+const CHANCE_TICK=0.1;                   // `chance` is evaluated on this fixed game-time step (frame-rate independent, deterministic)
 let state="card";                       // card | play | win | lose | end | refuse
 let OBJ=[], S=null, parts=[], shake=0, msgs=[], ending=null, tapQ=0, lastBg="plain", scene=1, totalTime=0, pendingScene=null;
 const target = { x:0.5, y:0.85 };
@@ -947,8 +949,8 @@ function spawnObj(spec){ // {kind,arg,tag,move,speed,at,size}
   const o = { name:"_s"+(frame)+"_"+OBJ.length, kind:spec.kind||"emoji", arg:spec.arg||"", tag:spec.tag||null,
     move:spec.move||"fall", speed:+spec.speed||1, size:spec.size||"normal", scale:1, alive:true, sx:1, sy:1 };
   if (spec.x!=null){ o.x=spec.x; o.y=spec.y; }
-  else if (spec.at==="scatter"){ const rr=radOf(o); o.x=rr+Math.random()*(W-2*rr); o.y=H*(0.12+Math.random()*0.5); }
-  else { const z=zonePix(spec.at||"top"); o.x = (spec.at&&spec.at!=="top") ? z[0] : (radOf(o)+Math.random()*(W-2*radOf(o))); o.y=z[1]; }
+  else if (spec.at==="scatter"){ const rr=radOf(o); o.x=rr+RNG()*(W-2*rr); o.y=H*(0.12+RNG()*0.5); }
+  else { const z=zonePix(spec.at||"top"); o.x = (spec.at&&spec.at!=="top") ? z[0] : (radOf(o)+RNG()*(W-2*radOf(o))); o.y=z[1]; }
   OBJ.push(o); return o; }
 
 // instantiate one scene's declared objects (auto-spread per zone) and (re)arm its rules
@@ -957,11 +959,11 @@ function placeScene(prog, sceneNo){
   const byZone={}; for(const d of decl){ (byZone[d.at]=byZone[d.at]||[]).push(d); }
   for(const z in byZone){ const arr=byZone[z]; arr.forEach((d,i)=>{
     let x,y; const n=arr.length;
-    if(z==="scatter"){ const rr=W*0.052*(d.scale||1); x=rr+Math.random()*(W-2*rr); y=H*(0.12+Math.random()*0.5); }
+    if(z==="scatter"){ const rr=W*0.052*(d.scale||1); x=rr+RNG()*(W-2*rr); y=H*(0.12+RNG()*0.5); }
     else { const zp=zonePix(z); const span=Math.min(W*0.7, n*W*0.16); x = n>1 ? (W/2 - span/2 + span*(i+0.5)/n) : zp[0]; y=zp[1]; }
     OBJ.push({ ...d, x, y, scale:1, alive:true, sx:1, sy:1 });
   }); }
-  for(const r of prog.rules){ if((r.scene||1)===sceneNo){ r.fired=false; r.next = r.ev[0]==="every" ? (+r.ev[1]||1) : null; } }
+  for(const r of prog.rules){ if((r.scene||1)===sceneNo){ r.fired=false; r.next = r.ev[0]==="every" ? (+r.ev[1]||1) : r.ev[0]==="chance" ? CHANCE_TICK : null; } }
 }
 
 // transition to scene n: tear down the current stage, set up the next, scene-relative time
@@ -972,6 +974,7 @@ function gotoScene(n){
 
 function setupGame(prog,seed){
   PROG=prog; SEED=seed; PAL=buildPalette(prog,seed); buildBgField(prog,seed);
+  RNG=mulberry32((seed^0x9e3779b9)>>>0); // gameplay rng: identical seed → identical play (SPEC-arcr §10)
   const r=mulberry32(seed^0x55); AUD={ wave:["square","sawtooth","triangle"][Math.floor(r()*3)], root:48+Math.floor(r()*12) };
   OBJ=[]; parts=[]; msgs=[]; shake=0; ending=null; tapQ=0; frame=0; totalTime=0; pendingScene=null;
   S={ score:0, lives:("lives" in prog.directives)?(+prog.directives.lives||0):3, time:0, taps:0, vars:{} };
@@ -995,7 +998,9 @@ function evalCond(c){
 
 function burst(x,y,color,n,spd){ for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2,s=spd*(0.3+Math.random());
   parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-spd*0.3,life:1,color,r:2+Math.random()*3}); } }
-function say(txt){ msgs.push({txt,life:2.4}); if(msgs.length>3) msgs.shift(); }
+// {score}/{lives}/{time}/{taps}/{var} → live values, for narration + endings
+function interp(s){ return String(s).replace(/\{(\w+)\}/g,(m,k)=> k==="score"?S.score : k==="lives"?S.lives : k==="time"?Math.floor(S.time) : k==="taps"?S.taps : (S&&k in S.vars)?S.vars[k] : m ); }
+function say(txt){ msgs.push({txt:interp(txt),life:2.4}); if(msgs.length>3) msgs.shift(); }
 
 function doAction(a, srcObj){
   const v=a[0];
@@ -1008,14 +1013,15 @@ function doAction(a, srcObj){
   if(v==="life"){ S.lives+=+a[1]||0; if((+a[1]||0)<0){ shake=Math.min(24,shake+16); sfxBad(); if(srcObj)burst(srcObj.x,srcObj.y,"#f55",14,240);} return; }
   if(v==="set"){ S.vars[a[1]]=+a[2]||0; return; }
   if(v==="add"){ S.vars[a[1]]=(S.vars[a[1]]||0)+(+a[2]||0); return; }
-  if(v==="spawn"){ const props={}; let arg=""; // first non-`key=value` token is the (optional) positional arg
-    for(let i=2;i<a.length;i++){ if(a[i].includes("=")){const j=a[i].indexOf("=");props[a[i].slice(0,j)]=unq(a[i].slice(j+1));} else if(!arg) arg=unq(a[i]); }
-    spawnObj({kind:a[1],arg,tag:props.tag,move:props.move,speed:props.speed,at:props.at,size:props.size}); return; }
+  if(v==="spawn"){ let st=1, n=1; if(/^\d+$/.test(a[1])){ n=Math.max(1,Math.min(64,+a[1]||1)); st=2; } // optional leading burst count
+    const kind=a[st]; const props={}; let arg=""; // first non-`key=value` token after kind is the (optional) positional arg
+    for(let i=st+1;i<a.length;i++){ if(a[i].includes("=")){const j=a[i].indexOf("=");props[a[i].slice(0,j)]=unq(a[i].slice(j+1));} else if(!arg) arg=unq(a[i]); }
+    for(let k=0;k<n;k++) spawnObj({kind,arg,tag:props.tag,move:props.move,speed:props.speed,at:props.at,size:props.size}); return; }
   if(v==="destroy"){ let n=Infinity,ref=a[1]; if(/^\d+$/.test(a[1])){n=+a[1];ref=a[2];}
     const targets = ref==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,ref));
     let c=0; for(const o of targets){ if(c>=n) break; o.alive=false; burst(o.x,o.y,PAL.fg,6,140); c++; } return; }
   if(v==="move"){ const o = a[1]==="it" ? srcObj : OBJ.find(x=>x.alive&&x.name===a[1]);
-    if(o){ if(a[2]==="random"){o.x=radOf(o)+Math.random()*(W-2*radOf(o)); o.y=H*(0.18+Math.random()*0.6);} else {const z=zonePix(a[2]); o.x=z[0]; o.y=z[1];} } return; }
+    if(o){ if(a[2]==="random"){o.x=radOf(o)+RNG()*(W-2*radOf(o)); o.y=H*(0.18+RNG()*0.6);} else {const z=zonePix(a[2]); o.x=z[0]; o.y=z[1];} } return; }
   if(v==="become"){ const targets = a[1]==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,a[1]));
     for(const o of targets){ o.kind=a[2]; o.arg=unq(a[3]||""); o.sx=1.4; o.sy=0.7; } return; }
   if(v==="tune"){ const prop=a[2], d=+a[3]||0; const targets = a[1]==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,a[1]));
@@ -1045,7 +1051,7 @@ function doAction(a, srcObj){
     return; }
   if(v==="sound"){ playCue(a[1]||""); return; }
   if(v==="goto"){ pendingScene = parseInt(a[1]) || 1; return; }
-  if(v==="win"||v==="lose"||v==="end"||v==="refuse"){ if(!ending){ ending={type:v,msg:unq(a.slice(1).join(" "))}; } return; }
+  if(v==="win"||v==="lose"||v==="end"||v==="refuse"){ if(!ending){ ending={type:v,msg:interp(unq(a.slice(1).join(" ")))}; } return; }
 }
 function fire(rule, srcObj){ for(const a of rule.actions) doAction(a, srcObj); }
 
@@ -1075,6 +1081,7 @@ function update(dt){
   for(const r of PROG.rules){
     if((r.scene||1)!==scene) continue;
     if(r.ev[0]==="every"){ while(S.time>=r.next){ r.next+=(+r.ev[1]||1); fire(r); } }
+    else if(r.ev[0]==="chance"){ const p=+r.ev[1]||0; while(S.time>=r.next){ r.next+=CHANCE_TICK; if(RNG()<p*CHANCE_TICK) fire(r); } } // ~p times/sec, deterministic
     else if(r.ev[0]==="at"&&!r.fired&&S.time>=(+r.ev[1]||0)){ r.fired=true; fire(r); }
   }
   if(ending) return endGame();
@@ -1116,8 +1123,15 @@ function update(dt){
   // safety net: a game with no reachable ending is force-ended (SPEC-arcr §11) — total time, not scene time
   if(totalTime>=SAFETY){ ending={type:"end",msg:""}; return endGame(); }
 
-  // cull dead / offscreen, decay juice
-  OBJ=OBJ.filter(o=>o.alive && o.y>-H*0.2 && o.y<H*1.2 && o.x>-W*0.2 && o.x<W*1.2);
+  // cull: drop dead objects; an alive object that left the field is "missed" → fire `on miss <ref>` then drop it
+  const kept=[];
+  for(const o of OBJ){
+    const onField = o.y>-H*0.2 && o.y<H*1.2 && o.x>-W*0.2 && o.x<W*1.2;
+    if(o.alive && onField){ kept.push(o); continue; }
+    if(o.alive && !onField){ for(const r of PROG.rules){ if(r.ev[0]==="on"&&r.ev[1]==="miss"&&(r.scene||1)===scene&&refMatch(o,r.ev[2])) fire(r,o); } }
+  }
+  OBJ=kept;
+  if(ending) return endGame();
   for(const p of parts){ p.vy+=700*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt*1.6; } parts=parts.filter(p=>p.life>0);
   for(const m of msgs) m.life-=dt; msgs=msgs.filter(m=>m.life>0);
   shake*=Math.pow(0.0015,dt);

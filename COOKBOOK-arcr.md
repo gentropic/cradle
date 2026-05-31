@@ -108,11 +108,13 @@ shakes, and screens are automatic.
 | `on tap <ref>` | a tap lands on object/`#tag` |
 | `on key k` | key pressed |
 | `on hit a b` | `a` and `b` overlap (names or `#tag`; `you` is the player) |
+| `on miss <ref>` | an object left the field **uncaught** (the clean way to punish letting things slip past) |
 | `every n` | every `n` seconds |
+| `chance p` | randomly, ~`p` times/sec (seeded — same capsule plays the same every time) |
 | `at n` | once, at time `n` |
 | `when <cond>` | once, the first frame `<cond>` becomes true |
 
-**Refs**: `name` · `#tag` · `it` (the object this rule fired on — the tapped/collided one).
+**Refs**: `name` · `#tag` · `it` (the object this rule fired on — the tapped/collided/missed one).
 
 **Conditions** (for `when`): `<expr> op <number>`, where `op` is `== != >= <= > <` and
 `<expr>` is `score`, `lives`, `time`, `taps`, a variable, or `count <ref>` (how many
@@ -123,8 +125,8 @@ no precedence, no parentheses**: `when score >= 5 and lives > 0 : win "…"`.
 
 | | |
 |---|---|
-| `say "text"` | a line of narration |
-| `spawn kind arg props` | create an object now |
+| `say "text"` | a line of narration; `{score}`/`{lives}`/`{time}`/`{taps}`/`{var}` interpolate live values |
+| `spawn [n] kind arg props` | create an object now (optional leading `n` = a burst) |
 | `shoot [from <ref>] kind [arg] [dir] props` | fire a projectile — `dir` = `up/down/left/right` or `at <ref>`; `from <ref>` = every match fires |
 | `destroy [n] <ref>` | remove n (default all) matching |
 | `move <name> <zone>` / `move <name> random` | reposition |
@@ -209,6 +211,25 @@ when score >= 6 : win "the sky is clear."
 are and meets the descending foe. Bullets collide through an ordinary `on hit`, so a shooter
 is just *catch, at a distance*. For bullet-hell, flip it: `every 1 : shoot from #ufo emoji 💢
 down` makes every UFO fire at once.
+
+### Luck (`chance` + `on miss`)
+
+```
+@title FORTUNE
+@about luck
+@lives 3
+obj you : emoji 🧺 at=bottom move=tap
+chance 1.5 : spawn emoji 🍀 at=top move=fall tag=luck
+chance 0.4 : spawn emoji 💀 at=top move=fall tag=curse
+on hit you #luck : score +1 ; sound ding
+on hit you #curse : life -1 ; sound buzz
+on miss #luck : say "{score} caught…"
+when score >= 5 : win "fortune favors the basket."
+when lives <= 0 : lose "your luck ran out."
+```
+*Why it works:* `chance` makes the stream unpredictable — but seeded, so *this* capsule
+always deals the same hand. `on miss` lets fortune slip through your fingers, and `{score}`
+narrates the running tally. Gacha inside a gacha.
 
 ### Tap-to-clear (whack)
 
