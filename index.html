@@ -263,6 +263,34 @@
   .error pre { background: rgba(0,0,0,0.04); padding: 0.5rem; overflow-x: auto;
                font-size: 0.8rem; }
 
+  /* ---------- landing (shown at the root with no capsule in the fragment) ---------- */
+  .landing-hero { text-align: center; padding: 0.5rem 0 0.5rem; }
+  .landing-mark { width: 72px; height: 72px; display: block; margin: 0 auto 0.85rem; }
+  .landing h1 { font-size: 2.2rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  .landing-tagline { color: var(--fg-muted); font-size: 1.05rem; margin: 0; }
+  .landing-lead { font-size: 1.02rem; margin: 1.75rem 0; }
+  .landing-lead strong { font-weight: 600; }
+  .landing h2 { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.1em;
+                color: var(--fg-faint); font-weight: 700; margin: 2.25rem 0 0.9rem; }
+  .tools { display: grid; gap: 0.7rem; }
+  @media (min-width: 480px) { .tools { grid-template-columns: 1fr 1fr 1fr; } }
+  .tool-card { display: block; text-decoration: none; color: inherit;
+               border: 1px solid var(--rule); border-radius: 11px; padding: 1rem 1.1rem;
+               transition: border-color 0.15s, transform 0.05s; }
+  .tool-card:hover, .tool-card:focus-visible { border-color: var(--fg); outline: none; }
+  .tool-card:active { transform: scale(0.99); }
+  .tool-emoji { font-size: 1.6rem; line-height: 1; }
+  .tool-name { font-weight: 600; margin: 0.55rem 0 0.2rem; }
+  .tool-desc { font-size: 0.85rem; color: var(--fg-muted); margin: 0; line-height: 1.4; }
+  .landing-steps { margin: 0; padding-left: 1.2rem; }
+  .landing-steps li { margin: 0.35rem 0; }
+  .install-hint { margin: 2.25rem 0 0; padding: 0.85rem 1rem; background: var(--tag-bg);
+                  border-radius: 9px; font-size: 0.92rem; color: var(--fg-muted); }
+  .landing-foot { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule);
+                  font-size: 0.84rem; color: var(--fg-faint); text-align: center; }
+  .landing-foot a { color: var(--fg-muted); }
+  .landing a { color: var(--fg); text-underline-offset: 2px; }
+
   /* ---------- doorbell renderer styles ---------- */
   .doorbell-title { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; color: var(--fg); }
   .doorbell-info { background: var(--tag-bg); padding: 0.85rem 1rem; border-radius: 6px;
@@ -1482,15 +1510,64 @@ function parseMagicLine(bytes) {
 
 const BOOTLOADER_URL = location.origin + location.pathname;
 
+// Shown at the bare root (no capsule in the fragment): a welcome, not an error.
+// Inline + offline — no fetch — and it never touches the fragment path.
+function renderLanding(root) {
+  root.innerHTML = `
+  <div class="landing">
+    <div class="landing-hero">
+      <svg class="landing-mark" viewBox="0 0 256 256" role="img" aria-label="cradle">
+        <rect width="256" height="256" rx="56" fill="#1a1a1a"/>
+        <path d="M 56 128 Q 128 204 200 128" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round"/>
+        <rect x="86" y="76" width="84" height="40" rx="20" fill="#fff"/>
+      </svg>
+      <h1>cradle</h1>
+      <p class="landing-tagline">Tiny payloads — shared as a link or a QR, rendered offline.</p>
+    </div>
+
+    <p class="landing-lead">A <strong>capsule</strong> is a compact string — small enough for a URL
+    or a printed QR code — that resolves to bytes. cradle reads the tag on those bytes and brings
+    them to life with a <strong>curated, built-in renderer</strong>. No third-party code ever runs,
+    and once installed it works fully offline.</p>
+
+    <h2>Make something</h2>
+    <div class="tools">
+      <a class="tool-card" href="menu/">
+        <div class="tool-emoji">🍽️</div>
+        <p class="tool-name">Menu</p>
+        <p class="tool-desc">Restaurant menus → a share link or a printable QR.</p></a>
+      <a class="tool-card" href="arcr/factory.html">
+        <div class="tool-emoji">🕹️</div>
+        <p class="tool-name">Arcade</p>
+        <p class="tool-desc">QR-sized one-screen micro-games.</p></a>
+      <a class="tool-card" href="doorbell/">
+        <div class="tool-emoji">🔔</div>
+        <p class="tool-name">Doorbell</p>
+        <p class="tool-desc">Scan-to-notify, end-to-end encrypted via a relay.</p></a>
+    </div>
+
+    <h2>How it works</h2>
+    <ol class="landing-steps">
+      <li>Author a payload in one of the tools above.</li>
+      <li>Share the link, or print the QR.</li>
+      <li>Whoever opens it lands here — and cradle renders it, offline-capable.</li>
+    </ol>
+
+    <div class="install-hint">📲 Tip: install cradle as an app (your browser's <em>Add to Home
+    Screen</em> / <em>Install</em>) for instant, offline access.</div>
+
+    <div class="landing-foot">
+      Part of the <a href="https://gentropic.org">GCU</a> stack ·
+      <a href="https://github.com/gentropic/cradle">source &amp; specs</a>
+    </div>
+  </div>`;
+}
+
 async function main() {
   const root = document.getElementById("root");
   try {
     const frag = fragmentDecode(location.hash.slice(1));
-    if (!frag) {
-      root.innerHTML =
-        '<div class="error">No capsule. This page renders payloads addressed by cradle capsules in the URL fragment. See <a href="https://gentropic.org">gentropic.org</a>.</div>';
-      return;
-    }
+    if (!frag) { renderLanding(root); return; }
 
     const bytes = resolveCapsule(frag, DICTS);
     const { header, body } = parseMagicLine(bytes);
