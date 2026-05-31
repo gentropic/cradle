@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>menu editor</title>
 <link rel="manifest" href="manifest.webmanifest">
+<style id="print-page-style">@page { size: A4; margin: 0; }</style>
 <meta name="theme-color" content="#fafaf8">
 <style>
   :root {
@@ -299,6 +300,41 @@
     min-height: 320px; transition: background 0.15s; }
   .phone-screen::after { content: ""; position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
     width: 32%; height: 4px; border-radius: 2px; background: rgba(130,130,130,0.55); z-index: 3; pointer-events: none; }
+
+  /* segmented control (per-sheet) */
+  .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 5px; overflow: hidden; }
+  .seg-btn { font: inherit; font-size: 0.85rem; padding: 0.3rem 0.85rem; background: #fff; color: var(--fg-muted);
+    border: none; cursor: pointer; }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+  .seg-btn.active { background: var(--accent); color: #fff; }
+
+  /* print composition — the menu laid out on real-mm sheets for paper output.
+     On screen, `zoom` shrinks the mm sheet to fit the pane; @media print resets it. */
+  #print-mode { padding: 0 1rem 1rem; }
+  #print-area { display: none; }                       /* body-level: print output only */
+  .print-preview { display: none; padding: 1.5rem 1rem; background: #d7d7db; }
+  body.mode-print .qr-section, body.mode-print .menu-preview { display: none; }
+  body.mode-print .print-preview { display: block; }
+  #print-preview-inner { zoom: 0.46; width: max-content; margin: 0 auto; }
+  /* shared by the body output + the pane preview clone */
+  #print-area > .menu, #print-preview-inner > .menu {
+    background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); width: 190mm; max-width: 190mm; margin: 0 auto;
+  }
+  .menu-sheet { background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); box-sizing: border-box;
+    display: grid; overflow: hidden; padding: 8mm; gap: 6mm; }
+  .menu-sheet.cut { gap: 9mm; }
+  .menu-cell { position: relative; overflow: hidden; display: flex; justify-content: center; align-items: flex-start; }
+  .menu-cell > .menu { max-width: none; width: 480px; flex: none;
+    transform-origin: top center; transform: scale(var(--cell-scale, 1)); }
+  .menu-sheet.cut .menu-cell { outline: 0.2mm dashed #999; outline-offset: 2.5mm; }
+
+  @media print {
+    body > *:not(#print-area) { display: none !important; }
+    #print-area { display: block; }
+    #print-area > .menu { box-shadow: none; width: auto; max-width: none; }
+    .menu-sheet { box-shadow: none; }                  /* its mm size == the page */
+    .menu-sheet:not(:last-child) { page-break-after: always; }
+  }
   /* menu template visuals — single source: ext/menu/templates.css */
   /* @build:menu-templates:start */
 /* Menu template visuals — the SINGLE SOURCE for how a rendered menu looks.
@@ -494,16 +530,6 @@
            font-size: 0.85rem; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 300; }
   .toast.show { opacity: 1; }
 
-  /* printing the editor → just the menu (the .menu print rules from templates.css
-     handle the menu itself; here we strip the chrome and unframe the phone) */
-  @media print {
-    header, .pane:not(.preview-pane), .preview-pane > .pane-header, .qr-section { display: none !important; }
-    main.shell { display: block; }
-    .menu-preview { padding: 0; background: #fff; display: block; }
-    .phone { max-width: none; background: none; border-radius: 0; padding: 0; box-shadow: none; }
-    .phone-screen { border-radius: 0; min-height: 0; overflow: visible; }
-    .phone-screen::after { display: none; }
-  }
 </style>
 </head>
 <body>
@@ -533,6 +559,7 @@
       <div class="tabs">
         <button class="tab active" data-mode="form" data-i18n="tab.form">Form</button>
         <button class="tab" data-mode="source" data-i18n="tab.source">Source</button>
+        <button class="tab" data-mode="print" data-i18n="tab.print">Print</button>
       </div>
     </div>
 
@@ -585,6 +612,23 @@
 
     <div class="mode-panel" id="source-mode"><textarea id="src" spellcheck="false"></textarea></div>
 
+    <div class="mode-panel" id="print-mode">
+      <div class="form-group"><div class="group-body" style="padding-top:0.6rem">
+        <div class="field-row"><label data-i18n="print.perSheet">Per sheet</label>
+          <div class="seg" id="print-up">
+            <button type="button" class="seg-btn active" data-up="1">1</button>
+            <button type="button" class="seg-btn" data-up="2">2</button>
+            <button type="button" class="seg-btn" data-up="4">4</button>
+          </div></div>
+        <div class="field-row"><label data-i18n="print.paper">Paper</label>
+          <select id="print-paper"><option value="A4">A4</option><option value="Letter">US Letter</option></select></div>
+        <div class="field-row"><label data-i18n="print.cutMarks" for="print-cut">cut marks</label>
+          <input type="checkbox" id="print-cut"></div>
+        <button class="add-btn" id="print-go" style="margin-top:0.7rem" data-i18n="print.go">Print…</button>
+        <p class="print-hint" data-i18n="print.hint" style="font-size:0.74rem;color:var(--fg-faint);margin:0.7rem 0 0;line-height:1.45"></p>
+      </div></div>
+    </div>
+
     <div class="diagnostics" id="diagnostics">
       <div class="metric"><span data-i18n="diag.raw">raw</span> <strong id="m-raw">—</strong></div>
       <div class="metric"><span data-i18n="diag.defl">deflated</span> <strong id="m-defl">—</strong></div>
@@ -614,8 +658,12 @@
       </div>
     </div>
     <div class="menu-preview"><div class="phone"><div class="phone-screen"><div class="menu-frame menu tmpl-minimal" id="menu-frame"></div></div></div></div>
+    <div class="print-preview"><div id="print-preview-inner"></div></div>
   </section>
 </main>
+
+<!-- print output (body-level so @media print can hide everything else cleanly) -->
+<div id="print-area"></div>
 
 <!-- Import modal -->
 <div class="modal-backdrop" id="import-modal">
@@ -650,7 +698,11 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
+
 
 
 
@@ -844,7 +896,9 @@ const UI = {
     "hdr.import": "Import URL", "hdr.sample": "Load sample", "hdr.decoder": "decoder ↗",
     "uilang.title": "Interface language",
     "save.saved": "saved", "save.saving": "saving…",
-    "tab.form": "Form", "tab.source": "Source",
+    "tab.form": "Form", "tab.source": "Source", "tab.print": "Print",
+    "print.perSheet": "Per sheet", "print.paper": "Paper", "print.cutMarks": "cut marks",
+    "print.go": "Print…", "print.hint": "Copies and double-sided are set in your browser's print dialog. 2/4-per-sheet print the menu repeated, to cut apart.",
     "grp.header": "Header", "grp.style": "Style", "grp.status": "Fees & validity",
     "grp.social": "Social", "grp.sections": "Menu sections", "grp.footer": "Footer text",
     "f.menulang": "Menu language", "f.title": "Restaurant name", "f.subtitle": "Subtitle",
@@ -878,7 +932,9 @@ const UI = {
     "hdr.import": "Importar URL", "hdr.sample": "Carregar exemplo", "hdr.decoder": "decodificador ↗",
     "uilang.title": "Idioma da interface",
     "save.saved": "salvo", "save.saving": "salvando…",
-    "tab.form": "Formulário", "tab.source": "Código",
+    "tab.form": "Formulário", "tab.source": "Código", "tab.print": "Imprimir",
+    "print.perSheet": "Por folha", "print.paper": "Papel", "print.cutMarks": "marcas de corte",
+    "print.go": "Imprimir…", "print.hint": "Cópias e frente-e-verso são definidos na caixa de impressão do navegador. 2/4 por folha imprimem o cardápio repetido, para recortar.",
     "grp.header": "Cabeçalho", "grp.style": "Estilo", "grp.status": "Taxas e validade",
     "grp.social": "Redes sociais", "grp.sections": "Seções do cardápio", "grp.footer": "Rodapé",
     "f.menulang": "Idioma do cardápio", "f.title": "Nome do restaurante", "f.subtitle": "Subtítulo",
@@ -1362,6 +1418,41 @@ function menuTitle(source) {
 // ============================================================
 // Form rendering (incremental, focus-stable)
 // ============================================================
+// print composition — lay the rendered menu onto real-mm sheets for paper output
+function buildPrintArea() {
+  const out = document.getElementById("print-area");          // body-level (print output)
+  const prev = document.getElementById("print-preview-inner"); // pane (screen preview, zoomed)
+  const src = document.getElementById("menu-frame");
+  if (!src || (!out && !prev)) return;
+  const upBtn = document.querySelector("#print-up .seg-btn.active");
+  const up = upBtn ? +upBtn.dataset.up : 1;
+  const cut = document.getElementById("print-cut").checked;
+  const paper = document.getElementById("print-paper").value;
+  const tmpl = document.getElementById("f-template").value;
+  const accent = document.getElementById("f-accent-text").value.trim();
+  const html = src.innerHTML;
+  const accVar = accent ? "--menu-accent:" + accent + ";" : "";
+  let content;
+  if (up === 1) {                                             // one menu, flows + paginates
+    content = `<div class="menu tmpl-${tmpl}" style="${accVar}">${html}</div>`;
+  } else {
+    const [pw, ph] = paper === "Letter" ? [215.9, 279.4] : [210, 297];
+    const cols = 2, rows = up / 2;
+    const cellMm = (pw - 16 - 6) / cols;                      // 8mm padding/side, 6mm gap
+    const scale = Math.min(0.95, (cellMm * 96 / 25.4) * 0.9 / 480).toFixed(3);
+    const cell = `<div class="menu-cell"><div class="menu tmpl-${tmpl}" style="--cell-scale:${scale};${accVar}">${html}</div></div>`;
+    content = `<div class="menu-sheet${cut ? " cut" : ""}" style="width:${pw}mm;height:${ph}mm;` +
+      `grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${cell.repeat(up)}</div>`;
+  }
+  if (out) out.innerHTML = content;
+  if (prev) prev.innerHTML = content;
+}
+function updatePageStyle() {
+  const paper = document.getElementById("print-paper").value;
+  document.getElementById("print-page-style").textContent =
+    "@page { size: " + (paper === "Letter" ? "letter" : "A4") + "; margin: 0; }";
+}
+
 // curated accent presets (tasteful restaurant colours) + a "template default" clear
 const ACCENT_PRESETS = ["#9c4724", "#7c2d3a", "#b8860b", "#2f5d3a", "#1f6f6f", "#1e3a5f", "#7a3b6e", "#3a3a3a"];
 function buildAccentSwatches() {
@@ -1644,6 +1735,7 @@ function update() {
     warningsEl.innerHTML = "<ul><li>encode error: " + escapeHtml(err.message) + "</li></ul>"; return;
   }
   renderToFrame(source.split("\n").slice(1).join("\n"), enc.locale, frameEl);
+  buildPrintArea();   // keep the print composition in sync (Ctrl+P works from any tab)
   let qrInfo;
   try { qrInfo = drawQR(enc.url, eccLevel, document.getElementById("qr-canvas")); }
   catch (err) {
@@ -1819,9 +1911,20 @@ document.querySelectorAll(".tab").forEach(tab => {
     tab.classList.add("active");
     const mode = tab.dataset.mode;
     document.getElementById(mode + "-mode").classList.add("active");
+    document.body.classList.toggle("mode-print", mode === "print");
     if (mode === "form") flushSourceToForm();
+    if (mode === "print") buildPrintArea();
   });
 });
+
+// print tab controls
+document.querySelectorAll("#print-up .seg-btn").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("#print-up .seg-btn").forEach((x) => x.classList.remove("active"));
+  b.classList.add("active"); buildPrintArea();
+}));
+document.getElementById("print-paper").addEventListener("change", () => { updatePageStyle(); buildPrintArea(); });
+document.getElementById("print-cut").addEventListener("change", buildPrintArea);
+document.getElementById("print-go").addEventListener("click", () => window.print());
 
 let updateTimer = null;
 document.getElementById("src").addEventListener("input", () => {
@@ -1912,6 +2015,7 @@ function downloadBlob(blob, filename) {
   applyI18n();   // localize the static chrome to the detected/remembered UI language
   buildTemplatePicker();
   buildAccentSwatches();
+  updatePageStyle();
   const params = new URLSearchParams(window.location.search);
   const fromParam = params.get("from") || params.get("shared_url") || params.get("shared_text");
   if (fromParam) {
