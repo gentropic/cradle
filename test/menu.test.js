@@ -126,3 +126,34 @@ test("valid_until: @valid_show opts the line in (hidden by default); banner show
   assert.ok(expired.includes('class="stale"'), "expired menu shows the warning banner");
   assert.ok(!/válido até/.test(expired), "expired menu has no valid-through line");
 });
+
+test("dot leaders: default on, @leaders: off flips the flag", () => {
+  const render = menuEnv("index.html");
+  assert.strictEqual(render("# X\nItem | 5", "pt-BR", "").leaders, true, "leaders on by default");
+  assert.strictEqual(render("@leaders: off\n# X\nItem | 5", "pt-BR", "").leaders, false, "@leaders: off flips it");
+});
+
+test("tag legend: built from used tags in vocab order; @legend: off suppresses", () => {
+  const render = menuEnv("index.html");
+  const on = render("# X\n## S\nA|5|d|p,v\nB|6||g", "pt-BR", "").html;   // tags used: v, g, p
+  assert.match(on, /<div class="legend">/, "legend present by default when tags exist");
+  // pt-BR vocab order is v, vg, g, l, p — so v before g before p, and vg/l (unused) absent
+  assert.match(on, /vegano[\s\S]*sem glúten[\s\S]*picante/, "legend in vocab order, only used tags");
+  assert.ok(!/vegetariano/.test(on), "unused tag (vg) not in legend");
+  assert.ok(!/class="legend"/.test(render("@legend: off\n# X\n## S\nA|5||v", "pt-BR", "").html), "@legend: off suppresses");
+  assert.ok(!/class="legend"/.test(render("# X\n## S\nA|5", "pt-BR", "").html), "no legend without tags");
+});
+
+test("multi-price: section columns + /-list prices align; empty token skips a column", () => {
+  const render = menuEnv("index.html");
+  const html = render("# X\n## Vinhos | taça | garrafa\nChianti|18/78\nBrunello|/220\nDoce|26", "pt-BR", "").html;
+  // column-header row carries the labels
+  assert.match(html, /<div class="cols"><span class="col-fill"><\/span><span class="col-h">taça<\/span><span class="col-h">garrafa<\/span><\/div>/);
+  // a /-list renders one .item-price.col cell per token
+  assert.match(html, /<span class="item-price col">R\$ 18,00<\/span><span class="item-price col">R\$ 78,00<\/span>/);
+  // leading empty token → empty first cell, price in the second
+  assert.match(html, /<span class="item-price col"><\/span><span class="item-price col">R\$ 220,00<\/span>/);
+  // a plain price stays a single (non-column) cell; a unit suffix is NOT split
+  assert.match(html, /<span class="item-price">R\$ 26,00<\/span>/);
+  assert.match(render("# X\nQueijo|34/kg", "pt-BR", "").html, /<span class="item-price">R\$ 34,00\/kg<\/span>/);
+});

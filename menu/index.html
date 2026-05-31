@@ -426,6 +426,16 @@
   font-size: 0.98rem; font-weight: 600; white-space: nowrap; color: var(--menu-fg);
   font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
+/* multi-price columns: fixed-width right-aligned cells so item prices line up under the
+   section's column headers (taça / garrafa, S / M / L, …) */
+.menu .item-price.col { min-width: 4.2rem; padding-left: 0.8rem; text-align: right; }
+.menu .cols { display: flex; align-items: baseline; margin: 0.05rem 0 0.35rem; }
+.menu .col-fill { flex: 1 1 auto; }
+.menu .col-h {
+  min-width: 4.2rem; padding-left: 0.8rem; text-align: right; flex-shrink: 0;
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--menu-fg-faint);
+}
 .menu .tag {
   display: inline-block; font-size: 0.62rem; font-weight: 600; padding: 0.06rem 0.42rem;
   border-radius: 999px; background: var(--menu-tag-bg); color: var(--menu-fg-muted);
@@ -759,7 +769,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -824,6 +836,15 @@ function formatPrice(price, locale) {
   if (!m) return price;
   return formatMoney(m[1], locale) + (m[2] || "");
 }
+// multi-price: "18/78" → ["R$ 18,00","R$ 78,00"]; an empty token ("/140") → "" (skip that
+// column). Returns null for a single price or a unit suffix ("34/kg"), which formatPrice owns.
+function splitPrices(price, locale) {
+  const raw = String(price == null ? "" : price);
+  if (!raw.includes("/")) return null;
+  const toks = raw.split("/");
+  if (toks.length === 2 && /^(kg|un)$/.test(toks[1].trim())) return null;
+  return toks.map(t => t.trim() === "" ? "" : formatMoney(t.trim(), locale));
+}
 function formatDate(iso, locale) {
   try {
     const d = new Date(iso + "T12:00:00");
@@ -847,7 +868,12 @@ function parseMenuBody(body) {
     }
     inDirective = false;
     if (line === "---") { blocks.push({ type: "hr" }); continue; }
-    if (line.startsWith("## ")) { blocks.push({ type: "h2", text: line.slice(3) }); continue; }
+    if (line.startsWith("## ")) {
+      // optional price columns: "## Vinhos | taça | garrafa" (h2 parsed before pipe-rows)
+      const hp = line.slice(3).split("|").map(s => s.trim());
+      blocks.push({ type: "h2", text: hp[0], cols: hp.slice(1).filter(Boolean) });
+      continue;
+    }
     if (line.startsWith("# ")) { blocks.push({ type: "h1", text: line.slice(2) }); continue; }
     if (line.includes("|")) {
       const parts = line.split("|").map(p => p.trim());
@@ -901,7 +927,14 @@ function renderMenuHTML(body, locale, attribution) {
 
   for (const b of parsed.blocks) {
     if (b.type === "h1") parts.push(`<h1>${renderInline(b.text)}</h1>`);
-    else if (b.type === "h2") parts.push(`<h2>${renderInline(b.text)}</h2>`);
+    else if (b.type === "h2") {
+      parts.push(`<h2>${renderInline(b.text)}</h2>`);
+      // a column-header row aligns over the items' price columns below
+      if (b.cols && b.cols.length) {
+        parts.push(`<div class="cols"><span class="col-fill"></span>` +
+          b.cols.map(c => `<span class="col-h">${renderInline(c)}</span>`).join("") + `</div>`);
+      }
+    }
     else if (b.type === "p") parts.push(`<p>${renderInline(b.text)}</p>`);
     else if (b.type === "hr") parts.push(`<hr>`);
     else if (b.type === "item") {
@@ -911,9 +944,15 @@ function renderMenuHTML(body, locale, attribution) {
         .join("");
       // name ⋯⋯ price on one line (dot leaders fill the gap via CSS), description
       // below spanning full width. The leader span only appears when there's a price.
-      const priceHtml = b.price
-        ? `<span class="leader"></span><span class="item-price">${escapeHtml(formatPrice(b.price, locale))}</span>`
-        : "";
+      // A "/"-list price renders as aligned columns (matching the section's headers).
+      const cells = splitPrices(b.price, locale);
+      let priceHtml = "";
+      if (cells) {
+        priceHtml = `<span class="leader"></span>` +
+          cells.map(c => `<span class="item-price col">${c ? escapeHtml(c) : ""}</span>`).join("");
+      } else if (b.price) {
+        priceHtml = `<span class="leader"></span><span class="item-price">${escapeHtml(formatPrice(b.price, locale))}</span>`;
+      }
       const descHtml = b.desc ? `<div class="item-desc">${renderInline(b.desc)}</div>` : "";
       parts.push(
         `<div class="item">` +
@@ -1004,6 +1043,7 @@ const UI = {
     "ph.footer": "Closing notes, reservations, disclaimers — markdown supported.",
     "ph.itemName": "Item name", "ph.itemDesc": "Description (optional)",
     "ph.sectionName": "Section name", "ph.handle": "handle",
+    "f.cols": "Price columns", "ph.sectionCols": "e.g. glass, bottle (optional)",
     "diag.raw": "raw", "diag.defl": "deflated", "diag.url": "URL", "diag.qr": "QR",
     "preview": "Preview",
     "qr.copyUrl": "copy URL", "qr.downloadQr": "download QR (PNG)", "qr.downloadMenu": "download .menu source",
@@ -1044,6 +1084,7 @@ const UI = {
     "ph.footer": "Observações, reservas, avisos — aceita markdown.",
     "ph.itemName": "Nome do item", "ph.itemDesc": "Descrição (opcional)",
     "ph.sectionName": "Nome da seção", "ph.handle": "usuário",
+    "f.cols": "Colunas de preço", "ph.sectionCols": "ex.: taça, garrafa (opcional)",
     "diag.raw": "bruto", "diag.defl": "comprimido", "diag.url": "URL", "diag.qr": "QR",
     "preview": "Prévia",
     "qr.copyUrl": "copiar URL", "qr.downloadQr": "baixar QR (PNG)", "qr.downloadMenu": "baixar código .menu",
@@ -1220,13 +1261,13 @@ function parseToFormState(source) {
         state.subtitle = b.text.replace(/^\*(.*)\*$/, "$1"); continue;
       }
       if (b.type === "h2" || (b.type === "h1" && state.title)) {
-        phase = "sections"; currentSection = { name: b.text, items: [] };
+        phase = "sections"; currentSection = { name: b.text, cols: b.cols || [], items: [] };
         state.sections.push(currentSection); continue;
       }
     }
     if (phase === "sections") {
       if (b.type === "h2" || b.type === "h1") {
-        currentSection = { name: b.text, items: [] }; state.sections.push(currentSection); continue;
+        currentSection = { name: b.text, cols: b.cols || [], items: [] }; state.sections.push(currentSection); continue;
       }
       if (b.type === "item") {
         if (!currentSection) { currentSection = { name: "Items", items: [] }; state.sections.push(currentSection); }
@@ -1260,7 +1301,8 @@ function serializeFromFormState(s) {
   if (s.title) out += `\n# ${s.title}\n`;
   if (s.subtitle) out += `\n*${s.subtitle}*\n`;
   for (const sec of s.sections) {
-    out += `\n## ${sec.name || ""}\n`;
+    const cols = sec.cols && sec.cols.length ? " | " + sec.cols.join(" | ") : "";
+    out += `\n## ${sec.name || ""}${cols}\n`;
     for (const it of sec.items) {
       const parts = [it.name || "", it.price || ""];
       const hasTags = it.tags && it.tags.length > 0;
@@ -1797,6 +1839,14 @@ function buildSectionBlock(sec, locale) {
   rmBtn.addEventListener("click", () => { block.remove(); flushFormToSource(); });
   head.appendChild(nameInp); head.appendChild(reorder); head.appendChild(rmBtn);
   const body = document.createElement("div"); body.className = "section-block-body";
+  // optional price columns (e.g. "taça, garrafa") → header row + aligned item price columns
+  const colsRow = document.createElement("div"); colsRow.className = "field-row section-cols-row";
+  const colsLab = document.createElement("label"); colsLab.setAttribute("data-i18n", "f.cols"); colsLab.textContent = t("f.cols");
+  const colsInp = document.createElement("input");
+  colsInp.type = "text"; colsInp.className = "section-cols";
+  colsInp.value = (sec.cols || []).join(", "); colsInp.placeholder = t("ph.sectionCols");
+  colsInp.addEventListener("input", flushFormToSource);
+  colsRow.appendChild(colsLab); colsRow.appendChild(colsInp); body.appendChild(colsRow);
   const itemsContainer = document.createElement("div"); itemsContainer.className = "items-container";
   for (const it of sec.items) itemsContainer.appendChild(buildItemRow(it, locale));
   const addItem = document.createElement("button");
@@ -1854,6 +1904,7 @@ function readFormState() {
   }
   for (const block of document.querySelectorAll("#f-sections .section-block")) {
     const name = block.querySelector("input.section-name").value.trim();
+    const cols = block.querySelector("input.section-cols").value.split(/[,|]/).map(s => s.trim()).filter(Boolean);
     const items = [];
     for (const row of block.querySelectorAll(".item-row")) {
       const tags = [];
@@ -1864,7 +1915,7 @@ function readFormState() {
         desc: row.querySelector("input.item-desc").value.trim(), tags,
       });
     }
-    state.sections.push({ name, items });
+    state.sections.push({ name, cols, items });
   }
   return state;
 }

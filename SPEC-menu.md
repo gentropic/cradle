@@ -103,11 +103,25 @@ The pipe-row is the single domain extension on top of markdown:
 
 - Fields are pipe-separated. The 3rd and 4th fields are OPTIONAL; an empty field is allowed (`Lasanha|48||g`).
 - `<name>` is rendered as the item name (left-aligned, primary).
-- `<price>` is rendered right-aligned. May be a bare decimal (`22`, `54.50`), or carry a unit suffix `/kg` or `/un`. The renderer prepends the locale's currency symbol.
+- `<price>` is rendered right-aligned. May be a bare decimal (`22`, `54.50`), or carry a unit suffix `/kg` or `/un`. The renderer prepends the locale's currency symbol. May also be a **`/`-separated list** of decimals (`18/78`, `6/8/10`) for multi-column pricing (§3.4); an empty token (`/220`) leaves that column blank for the row.
 - `<description>` is rendered below the name in muted style. Inline `**bold**`, `*italic*`, `[link](url)` are honored.
 - `<tags>` is a comma-separated list of single tokens drawn from the locale's vocabulary (§4). Unknown tags MUST be ignored.
 
 A line is a pipe-row iff it contains at least one `|` and does not begin with `@`, `#`, or `---`.
+
+### 3.4 Price columns (multi-price)
+
+A `## ` section heading MAY declare price columns by appending pipe-separated labels:
+
+```
+## Vinhos | taça | garrafa
+Chianti Classico | 18/78 | Toscana
+Brunello reserva | /220 | só garrafa
+```
+
+- The heading text is the part before the first `|`; the remaining `|`-separated tokens are **column labels**, rendered as a right-aligned header row under the heading. A heading with no `|` has no columns (unchanged).
+- Items in such a section give a `/`-separated price list (§3.3); each value renders as a fixed-width right-aligned cell aligned under its column. Values map left-to-right; an empty token (`/220`) blanks that column for the row.
+- Columns are a presentation convenience only — they reuse the existing `|` (headings) and `/` (prices) separators, add no new grammar, and are fully backward-compatible: a decoder that ignores them still renders each price. Mixed single-price and columned sections may coexist in one menu.
 
 ## 4. Locale vocabularies
 

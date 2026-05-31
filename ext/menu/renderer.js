@@ -38,6 +38,15 @@ function formatPrice(price, locale) {
   if (!m) return price;
   return formatMoney(m[1], locale) + (m[2] || "");
 }
+// multi-price: "18/78" → ["R$ 18,00","R$ 78,00"]; an empty token ("/140") → "" (skip that
+// column). Returns null for a single price or a unit suffix ("34/kg"), which formatPrice owns.
+function splitPrices(price, locale) {
+  const raw = String(price == null ? "" : price);
+  if (!raw.includes("/")) return null;
+  const toks = raw.split("/");
+  if (toks.length === 2 && /^(kg|un)$/.test(toks[1].trim())) return null;
+  return toks.map(t => t.trim() === "" ? "" : formatMoney(t.trim(), locale));
+}
 function formatDate(iso, locale) {
   try {
     const d = new Date(iso + "T12:00:00");
@@ -61,7 +70,12 @@ function parseMenuBody(body) {
     }
     inDirective = false;
     if (line === "---") { blocks.push({ type: "hr" }); continue; }
-    if (line.startsWith("## ")) { blocks.push({ type: "h2", text: line.slice(3) }); continue; }
+    if (line.startsWith("## ")) {
+      // optional price columns: "## Vinhos | taça | garrafa" (h2 parsed before pipe-rows)
+      const hp = line.slice(3).split("|").map(s => s.trim());
+      blocks.push({ type: "h2", text: hp[0], cols: hp.slice(1).filter(Boolean) });
+      continue;
+    }
     if (line.startsWith("# ")) { blocks.push({ type: "h1", text: line.slice(2) }); continue; }
     if (line.includes("|")) {
       const parts = line.split("|").map(p => p.trim());
@@ -115,7 +129,14 @@ function renderMenuHTML(body, locale, attribution) {
 
   for (const b of parsed.blocks) {
     if (b.type === "h1") parts.push(`<h1>${renderInline(b.text)}</h1>`);
-    else if (b.type === "h2") parts.push(`<h2>${renderInline(b.text)}</h2>`);
+    else if (b.type === "h2") {
+      parts.push(`<h2>${renderInline(b.text)}</h2>`);
+      // a column-header row aligns over the items' price columns below
+      if (b.cols && b.cols.length) {
+        parts.push(`<div class="cols"><span class="col-fill"></span>` +
+          b.cols.map(c => `<span class="col-h">${renderInline(c)}</span>`).join("") + `</div>`);
+      }
+    }
     else if (b.type === "p") parts.push(`<p>${renderInline(b.text)}</p>`);
     else if (b.type === "hr") parts.push(`<hr>`);
     else if (b.type === "item") {
@@ -125,9 +146,15 @@ function renderMenuHTML(body, locale, attribution) {
         .join("");
       // name ⋯⋯ price on one line (dot leaders fill the gap via CSS), description
       // below spanning full width. The leader span only appears when there's a price.
-      const priceHtml = b.price
-        ? `<span class="leader"></span><span class="item-price">${escapeHtml(formatPrice(b.price, locale))}</span>`
-        : "";
+      // A "/"-list price renders as aligned columns (matching the section's headers).
+      const cells = splitPrices(b.price, locale);
+      let priceHtml = "";
+      if (cells) {
+        priceHtml = `<span class="leader"></span>` +
+          cells.map(c => `<span class="item-price col">${c ? escapeHtml(c) : ""}</span>`).join("");
+      } else if (b.price) {
+        priceHtml = `<span class="leader"></span><span class="item-price">${escapeHtml(formatPrice(b.price, locale))}</span>`;
+      }
       const descHtml = b.desc ? `<div class="item-desc">${renderInline(b.desc)}</div>` : "";
       parts.push(
         `<div class="item">` +
