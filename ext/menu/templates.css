@@ -1,0 +1,128 @@
+/* Menu template visuals — the SINGLE SOURCE for how a rendered menu looks.
+   Scoped to a `.menu` root so the bootloader render and the editor preview are
+   pixel-identical. Inlined into index.html + menu-editor.html by build/build.js
+   (between @build:menu-templates markers). Edit here, then `npm run build`.
+
+   Each template sets its own palette + fonts via --menu-* custom properties; an
+   author's @accent overrides --menu-accent inline (consumer-applied) when present,
+   otherwise the template's tasteful default stands. No web fonts (offline). */
+
+.menu {
+  --menu-accent: #b1543a;
+  --menu-bg: #ffffff;
+  --menu-fg: #1f1d1b;
+  --menu-fg-muted: #6b655f;
+  --menu-fg-faint: #a39c94;
+  --menu-rule: rgba(0, 0, 0, 0.12);
+  --menu-tag-bg: rgba(0, 0, 0, 0.06);
+  --menu-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --menu-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --menu-head: var(--menu-sans);
+  --menu-name: var(--menu-sans);
+  --menu-maxw: 30rem;
+  box-sizing: border-box;
+  max-width: var(--menu-maxw);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  background: var(--menu-bg);
+  color: var(--menu-fg);
+  font-family: var(--menu-sans);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+.menu * { box-sizing: border-box; }
+.menu h1 {
+  font-family: var(--menu-head); font-size: 1.7rem; font-weight: 600; line-height: 1.15;
+  margin: 0 0 0.35rem; color: var(--menu-accent); letter-spacing: -0.01em;
+}
+.menu h1 + p { margin-top: 0; color: var(--menu-fg-muted); }   /* the subtitle line */
+.menu h2 {
+  font-family: var(--menu-sans); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--menu-fg-muted); margin: 2rem 0 0.6rem;
+  padding-bottom: 0.35rem; border-bottom: 1px solid var(--menu-rule);
+}
+.menu p { margin: 0.55rem 0; color: var(--menu-fg); }
+.menu p em { color: var(--menu-fg-muted); font-style: italic; }
+.menu strong { font-weight: 600; }
+.menu a { color: var(--menu-accent); text-decoration: underline; text-underline-offset: 2px; }
+.menu hr { border: 0; border-top: 1px solid var(--menu-rule); margin: 1.75rem 0 1rem; }
+.menu .item {
+  display: flex; gap: 1rem; align-items: baseline; padding: 0.6rem 0;
+  border-bottom: 1px solid var(--menu-rule);
+}
+.menu .item:last-of-type { border-bottom: none; }
+.menu .item-body { flex: 1; min-width: 0; }
+.menu .item-name { font-family: var(--menu-name); font-size: 1rem; font-weight: 600; }
+.menu .item-desc { font-size: 0.84rem; color: var(--menu-fg-muted); margin-top: 0.12rem; line-height: 1.4; }
+.menu .item-price {
+  font-size: 0.98rem; font-weight: 600; white-space: nowrap; color: var(--menu-fg);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.menu .tag {
+  display: inline-block; font-size: 0.62rem; font-weight: 600; padding: 0.06rem 0.42rem;
+  border-radius: 999px; background: var(--menu-tag-bg); color: var(--menu-fg-muted);
+  margin-left: 0.35rem; vertical-align: 1.5px; letter-spacing: 0.03em; text-transform: uppercase;
+}
+.menu .stale {
+  background: #fef3c7; color: #78350f; border: 1px solid #fbbf24;
+  padding: 0.7rem 0.9rem; border-radius: 6px; margin-bottom: 1.5rem; font-size: 0.88rem;
+}
+.menu footer {
+  margin-top: 2.25rem; padding-top: 1.1rem; border-top: 1px solid var(--menu-rule);
+  font-size: 0.78rem; color: var(--menu-fg-muted);
+}
+.menu .footer-line { margin: 0.22rem 0; }
+.menu .socials { display: flex; gap: 0.55rem; margin: 0.7rem 0; flex-wrap: wrap; }
+.menu .socials a {
+  display: inline-flex; align-items: center; gap: 0.3rem; text-decoration: none;
+  color: var(--menu-fg-muted); padding: 0.3rem 0.6rem; border: 1px solid var(--menu-rule);
+  border-radius: 999px; font-size: 0.78rem;
+}
+.menu .socials a:hover { color: var(--menu-accent); border-color: var(--menu-accent); }
+.menu .socials svg { width: 14px; height: 14px; flex-shrink: 0; }
+.menu .attribution {
+  font-size: 0.68rem; color: var(--menu-fg-faint); text-align: center;
+  margin-top: 1.5rem; letter-spacing: 0.04em;
+}
+
+/* ============================== templates ============================== */
+
+/* minimal — clean modern sans, white, airy (the base above). */
+
+/* bistro — classic cream paper, elegant serif, centered, dotted dividers */
+.menu.tmpl-bistro {
+  --menu-bg: #faf5ec; --menu-fg: #2b2620; --menu-fg-muted: #7a6f5f; --menu-fg-faint: #b3a795;
+  --menu-rule: rgba(80, 60, 30, 0.2); --menu-tag-bg: rgba(120, 90, 40, 0.12);
+  --menu-head: var(--menu-serif); --menu-name: var(--menu-serif); --menu-accent: #9c4724;
+}
+.menu.tmpl-bistro h1 { font-style: italic; font-size: 2.05rem; text-align: center; }
+.menu.tmpl-bistro h1 + p { text-align: center; font-style: italic; }
+.menu.tmpl-bistro h2 { border-bottom: none; text-align: center; letter-spacing: 0.22em; }
+.menu.tmpl-bistro .item { border-bottom-style: dotted; }
+.menu.tmpl-bistro .item-name { font-size: 1.1rem; font-weight: 500; }
+
+/* serif — editorial / magazine, full serif, larger type */
+.menu.tmpl-serif {
+  --menu-head: var(--menu-serif); --menu-name: var(--menu-serif); --menu-accent: #1f1d1b;
+  font-family: var(--menu-serif);
+}
+.menu.tmpl-serif h1 { font-size: 2.15rem; font-weight: 600; }
+.menu.tmpl-serif h2 { font-family: var(--menu-sans); }
+.menu.tmpl-serif .item-price { font-family: var(--menu-sans); }
+
+/* dark — moody bar / izakaya, near-black with a warm amber accent */
+.menu.tmpl-dark {
+  --menu-bg: #16140f; --menu-fg: #ece7df; --menu-fg-muted: #a59c8e; --menu-fg-faint: #5f594e;
+  --menu-rule: rgba(255, 255, 255, 0.14); --menu-tag-bg: rgba(255, 255, 255, 0.1);
+  --menu-accent: #e0a458;
+}
+.menu.tmpl-dark .stale { background: #3a2e0a; color: #fde68a; border-color: #92740f; }
+
+/* warm — cozy bakery / brunch, soft warm paper, friendly, no item rules */
+.menu.tmpl-warm {
+  --menu-bg: #fdf6f0; --menu-fg: #3a2e28; --menu-fg-muted: #8a7468; --menu-fg-faint: #c2ad9f;
+  --menu-rule: rgba(150, 90, 60, 0.16); --menu-tag-bg: rgba(190, 110, 70, 0.13); --menu-accent: #c4683a;
+}
+.menu.tmpl-warm h1 { font-weight: 700; }
+.menu.tmpl-warm h2 { color: var(--menu-accent); border-bottom: none; }
+.menu.tmpl-warm .item { border-bottom: none; padding: 0.5rem 0; }

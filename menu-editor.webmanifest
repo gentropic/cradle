@@ -1,0 +1,14 @@
+{
+  "name": "menu · cardápio",
+  "short_name": "menu",
+  "description": "Design a restaurant menu and share it as a QR code. · Monte um cardápio e compartilhe por QR code.",
+  "start_url": "./menu-editor.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fafaf8",
+  "theme_color": "#fafaf8",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

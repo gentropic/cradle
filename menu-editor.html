@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>menu editor</title>
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="menu-editor.webmanifest">
 <meta name="theme-color" content="#fafaf8">
 <style>
   :root {
@@ -150,7 +150,29 @@
   .form-group > details > .group-body { padding: 0.5rem 0.85rem 0.85rem; }
 
   .field-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.4rem 0; flex-wrap: wrap; }
+  .field-col { margin: 0.4rem 0; }
+  .field-col > label { display: block; font-size: 0.78rem; color: var(--fg-muted); margin-bottom: 0.35rem; }
   .field-row > label { font-size: 0.78rem; color: var(--fg-muted); min-width: 110px; flex-shrink: 0; }
+
+  /* visual template picker — live mini-renders using the real template CSS */
+  .tmpl-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; }
+  .tmpl-thumb { cursor: pointer; border: 1.5px solid var(--border-strong); border-radius: 6px;
+    overflow: hidden; padding: 0; background: #fff; font: inherit; display: flex; flex-direction: column; }
+  .tmpl-thumb:hover { border-color: var(--accent); }
+  .tmpl-thumb.sel { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+  .tt-prev.menu { max-width: none; margin: 0; padding: 6px 6px 7px; line-height: 1.25; min-height: 52px; }
+  .tt-h1 { display: block; font-family: var(--menu-head); color: var(--menu-accent);
+    font-size: 0.6rem; font-weight: 700; line-height: 1; margin-bottom: 4px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .tmpl-bistro .tt-h1, .tmpl-serif .tt-h1 { font-style: italic; }
+  .tmpl-bistro .tt-h1 { text-align: center; }
+  .tt-it { display: flex; justify-content: space-between; gap: 4px; font-family: var(--menu-name);
+    font-size: 0.5rem; color: var(--menu-fg); border-bottom: 1px solid var(--menu-rule); padding: 1.5px 0; }
+  .tmpl-warm .tt-it { border-bottom: none; }
+  .tt-it b { font-weight: 600; }
+  .tt-label { font-size: 0.62rem; font-weight: 600; text-align: center; padding: 0.25rem 0.1rem;
+    background: #fff; color: var(--fg-muted); border-top: 1px solid var(--border); }
+  .tmpl-thumb.sel .tt-label { color: var(--accent); }
   .field-row > input[type="text"], .field-row > input[type="date"],
   .field-row > input[type="number"], .field-row > select, .field-row > textarea {
     font: inherit; font-size: 0.85rem; padding: 0.35rem 0.5rem;
@@ -255,50 +277,139 @@
   .qr-actions .ecc-row select { font: inherit; font-size: 0.78rem; padding: 2px 6px;
                                  border: 1px solid var(--border-strong); background: white; border-radius: 3px; }
 
-  .menu-preview { padding: 0; background: white; }
-  .menu-frame { padding: 1.5rem 1.25rem 2rem; max-width: 480px; margin: 0 auto;
-                --menu-accent: #444; --menu-fg: #1a1a1a; --menu-fg-muted: #666; --menu-fg-faint: #999;
-                --menu-rule: rgba(0,0,0,0.1); --menu-tag-bg: rgba(0,0,0,0.06); --menu-bg: #fff;
-                color: var(--menu-fg); background: var(--menu-bg); line-height: 1.55; }
-  .menu-frame.tmpl-bistro h1 { font-family: Georgia, serif; font-style: italic; }
-  .menu-frame.tmpl-bistro .item-name { font-family: Georgia, serif; font-size: 1.05rem; }
-  .menu-frame.tmpl-serif { font-family: Georgia, serif; }
-  .menu-frame.tmpl-serif h2 { font-family: var(--font-sans); }
-  .menu-frame.tmpl-dark { background: #1a1a1a; color: #e8e8e8;
-                          --menu-fg: #e8e8e8; --menu-fg-muted: #aaa; --menu-fg-faint: #666;
-                          --menu-rule: rgba(255,255,255,0.15); --menu-tag-bg: rgba(255,255,255,0.08); }
-  .menu-frame h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.4rem; color: var(--menu-accent); }
-  .menu-frame h2 { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
-                   color: var(--menu-fg-muted); margin: 1.5rem 0 0.4rem; padding-bottom: 0.3rem;
-                   border-bottom: 1px solid var(--menu-rule); }
-  .menu-frame p { margin: 0.5rem 0; color: var(--menu-fg); }
-  .menu-frame p em { color: var(--menu-fg-muted); font-style: italic; }
-  .menu-frame a { color: var(--menu-accent); text-decoration: underline; text-underline-offset: 2px; }
-  .menu-frame hr { border: 0; border-top: 1px solid var(--menu-rule); margin: 1.75rem 0 1rem; }
-  .menu-frame .item { display: flex; gap: 1rem; align-items: baseline;
-                      padding: 0.55rem 0; border-bottom: 1px dotted var(--menu-rule); }
-  .menu-frame .item:last-child { border-bottom: none; }
-  .menu-frame .item-body { flex: 1; min-width: 0; }
-  .menu-frame .item-name { font-size: 0.95rem; font-weight: 500; }
-  .menu-frame .item-desc { font-size: 0.8rem; color: var(--menu-fg-muted); margin-top: 0.1rem; line-height: 1.4; }
-  .menu-frame .item-price { font-size: 0.9rem; font-weight: 500; white-space: nowrap;
-                             font-variant-numeric: tabular-nums; flex-shrink: 0; }
-  .menu-frame .tag { display: inline-block; font-size: 0.65rem; padding: 0.05rem 0.35rem;
-                     border-radius: 3px; background: var(--menu-tag-bg); color: var(--menu-fg-muted);
-                     margin-left: 0.3rem; vertical-align: 1px; }
-  .menu-frame .stale { background: #fef3c7; color: #78350f; border: 1px solid #fbbf24;
-                        padding: 0.6rem 0.8rem; border-radius: 4px; margin-bottom: 1.25rem; font-size: 0.85rem; }
-  .menu-frame footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--menu-rule);
-                        font-size: 0.75rem; color: var(--menu-fg-muted); }
-  .menu-frame .footer-line { margin: 0.2rem 0; }
-  .menu-frame .socials { display: flex; gap: 0.5rem; margin: 0.6rem 0; flex-wrap: wrap; }
-  .menu-frame .socials a { display: inline-flex; align-items: center; gap: 0.25rem;
-                            text-decoration: none; color: var(--menu-fg-muted);
-                            padding: 0.25rem 0.5rem; border: 1px solid var(--menu-rule);
-                            border-radius: 3px; font-size: 0.75rem; }
-  .menu-frame .socials svg { width: 12px; height: 12px; flex-shrink: 0; }
-  .menu-frame .attribution { font-size: 0.65rem; color: var(--menu-fg-faint); text-align: center;
-                              margin-top: 1.25rem; letter-spacing: 0.04em; }
+  /* preview container; the menu itself is styled by the single-sourced templates below */
+  .menu-preview { padding: 0; background: #fff; transition: background 0.15s; }
+  /* menu template visuals — single source: ext/menu/templates.css */
+  /* @build:menu-templates:start */
+/* Menu template visuals — the SINGLE SOURCE for how a rendered menu looks.
+   Scoped to a `.menu` root so the bootloader render and the editor preview are
+   pixel-identical. Inlined into index.html + menu-editor.html by build/build.js
+   (between @build:menu-templates markers). Edit here, then `npm run build`.
+
+   Each template sets its own palette + fonts via --menu-* custom properties; an
+   author's @accent overrides --menu-accent inline (consumer-applied) when present,
+   otherwise the template's tasteful default stands. No web fonts (offline). */
+
+.menu {
+  --menu-accent: #b1543a;
+  --menu-bg: #ffffff;
+  --menu-fg: #1f1d1b;
+  --menu-fg-muted: #6b655f;
+  --menu-fg-faint: #a39c94;
+  --menu-rule: rgba(0, 0, 0, 0.12);
+  --menu-tag-bg: rgba(0, 0, 0, 0.06);
+  --menu-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --menu-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --menu-head: var(--menu-sans);
+  --menu-name: var(--menu-sans);
+  --menu-maxw: 30rem;
+  box-sizing: border-box;
+  max-width: var(--menu-maxw);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  background: var(--menu-bg);
+  color: var(--menu-fg);
+  font-family: var(--menu-sans);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+.menu * { box-sizing: border-box; }
+.menu h1 {
+  font-family: var(--menu-head); font-size: 1.7rem; font-weight: 600; line-height: 1.15;
+  margin: 0 0 0.35rem; color: var(--menu-accent); letter-spacing: -0.01em;
+}
+.menu h1 + p { margin-top: 0; color: var(--menu-fg-muted); }   /* the subtitle line */
+.menu h2 {
+  font-family: var(--menu-sans); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--menu-fg-muted); margin: 2rem 0 0.6rem;
+  padding-bottom: 0.35rem; border-bottom: 1px solid var(--menu-rule);
+}
+.menu p { margin: 0.55rem 0; color: var(--menu-fg); }
+.menu p em { color: var(--menu-fg-muted); font-style: italic; }
+.menu strong { font-weight: 600; }
+.menu a { color: var(--menu-accent); text-decoration: underline; text-underline-offset: 2px; }
+.menu hr { border: 0; border-top: 1px solid var(--menu-rule); margin: 1.75rem 0 1rem; }
+.menu .item {
+  display: flex; gap: 1rem; align-items: baseline; padding: 0.6rem 0;
+  border-bottom: 1px solid var(--menu-rule);
+}
+.menu .item:last-of-type { border-bottom: none; }
+.menu .item-body { flex: 1; min-width: 0; }
+.menu .item-name { font-family: var(--menu-name); font-size: 1rem; font-weight: 600; }
+.menu .item-desc { font-size: 0.84rem; color: var(--menu-fg-muted); margin-top: 0.12rem; line-height: 1.4; }
+.menu .item-price {
+  font-size: 0.98rem; font-weight: 600; white-space: nowrap; color: var(--menu-fg);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.menu .tag {
+  display: inline-block; font-size: 0.62rem; font-weight: 600; padding: 0.06rem 0.42rem;
+  border-radius: 999px; background: var(--menu-tag-bg); color: var(--menu-fg-muted);
+  margin-left: 0.35rem; vertical-align: 1.5px; letter-spacing: 0.03em; text-transform: uppercase;
+}
+.menu .stale {
+  background: #fef3c7; color: #78350f; border: 1px solid #fbbf24;
+  padding: 0.7rem 0.9rem; border-radius: 6px; margin-bottom: 1.5rem; font-size: 0.88rem;
+}
+.menu footer {
+  margin-top: 2.25rem; padding-top: 1.1rem; border-top: 1px solid var(--menu-rule);
+  font-size: 0.78rem; color: var(--menu-fg-muted);
+}
+.menu .footer-line { margin: 0.22rem 0; }
+.menu .socials { display: flex; gap: 0.55rem; margin: 0.7rem 0; flex-wrap: wrap; }
+.menu .socials a {
+  display: inline-flex; align-items: center; gap: 0.3rem; text-decoration: none;
+  color: var(--menu-fg-muted); padding: 0.3rem 0.6rem; border: 1px solid var(--menu-rule);
+  border-radius: 999px; font-size: 0.78rem;
+}
+.menu .socials a:hover { color: var(--menu-accent); border-color: var(--menu-accent); }
+.menu .socials svg { width: 14px; height: 14px; flex-shrink: 0; }
+.menu .attribution {
+  font-size: 0.68rem; color: var(--menu-fg-faint); text-align: center;
+  margin-top: 1.5rem; letter-spacing: 0.04em;
+}
+
+/* ============================== templates ============================== */
+
+/* minimal — clean modern sans, white, airy (the base above). */
+
+/* bistro — classic cream paper, elegant serif, centered, dotted dividers */
+.menu.tmpl-bistro {
+  --menu-bg: #faf5ec; --menu-fg: #2b2620; --menu-fg-muted: #7a6f5f; --menu-fg-faint: #b3a795;
+  --menu-rule: rgba(80, 60, 30, 0.2); --menu-tag-bg: rgba(120, 90, 40, 0.12);
+  --menu-head: var(--menu-serif); --menu-name: var(--menu-serif); --menu-accent: #9c4724;
+}
+.menu.tmpl-bistro h1 { font-style: italic; font-size: 2.05rem; text-align: center; }
+.menu.tmpl-bistro h1 + p { text-align: center; font-style: italic; }
+.menu.tmpl-bistro h2 { border-bottom: none; text-align: center; letter-spacing: 0.22em; }
+.menu.tmpl-bistro .item { border-bottom-style: dotted; }
+.menu.tmpl-bistro .item-name { font-size: 1.1rem; font-weight: 500; }
+
+/* serif — editorial / magazine, full serif, larger type */
+.menu.tmpl-serif {
+  --menu-head: var(--menu-serif); --menu-name: var(--menu-serif); --menu-accent: #1f1d1b;
+  font-family: var(--menu-serif);
+}
+.menu.tmpl-serif h1 { font-size: 2.15rem; font-weight: 600; }
+.menu.tmpl-serif h2 { font-family: var(--menu-sans); }
+.menu.tmpl-serif .item-price { font-family: var(--menu-sans); }
+
+/* dark — moody bar / izakaya, near-black with a warm amber accent */
+.menu.tmpl-dark {
+  --menu-bg: #16140f; --menu-fg: #ece7df; --menu-fg-muted: #a59c8e; --menu-fg-faint: #5f594e;
+  --menu-rule: rgba(255, 255, 255, 0.14); --menu-tag-bg: rgba(255, 255, 255, 0.1);
+  --menu-accent: #e0a458;
+}
+.menu.tmpl-dark .stale { background: #3a2e0a; color: #fde68a; border-color: #92740f; }
+
+/* warm — cozy bakery / brunch, soft warm paper, friendly, no item rules */
+.menu.tmpl-warm {
+  --menu-bg: #fdf6f0; --menu-fg: #3a2e28; --menu-fg-muted: #8a7468; --menu-fg-faint: #c2ad9f;
+  --menu-rule: rgba(150, 90, 60, 0.16); --menu-tag-bg: rgba(190, 110, 70, 0.13); --menu-accent: #c4683a;
+}
+.menu.tmpl-warm h1 { font-weight: 700; }
+.menu.tmpl-warm h2 { color: var(--menu-accent); border-bottom: none; }
+.menu.tmpl-warm .item { border-bottom: none; padding: 0.5rem 0; }
+  /* @build:menu-templates:end */
 
   .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
            background: var(--fg); color: white; padding: 0.5rem 1rem; border-radius: 4px;
@@ -338,29 +449,30 @@
 
     <div class="mode-panel form-panel active" id="form-mode">
       <div class="form-group"><details open><summary data-i18n="grp.header">Header</summary><div class="group-body">
-        <div class="field-row"><label data-i18n="f.menulang">Menu language</label>
+        <div class="field-row"><label data-i18n="f.menulang" for="f-locale">Menu language</label>
           <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
-        <div class="field-row"><label data-i18n="f.title">Restaurant name</label>
+        <div class="field-row"><label data-i18n="f.title" for="f-title">Restaurant name</label>
           <input type="text" id="f-title" placeholder="Cantina del Garibaldi"></div>
-        <div class="field-row"><label data-i18n="f.subtitle">Subtitle</label>
+        <div class="field-row"><label data-i18n="f.subtitle" for="f-subtitle">Subtitle</label>
           <input type="text" id="f-subtitle" data-i18n-ph="ph.subtitle" placeholder="Italian kitchen · city"></div>
       </div></details></div>
 
       <div class="form-group"><details open><summary data-i18n="grp.style">Style</summary><div class="group-body">
-        <div class="field-row"><label data-i18n="f.template">Template</label>
-          <select id="f-template">
+        <div class="field-col"><label data-i18n="f.template" for="f-template">Template</label>
+          <div class="tmpl-picker" id="tmpl-picker" role="radiogroup"></div>
+          <select id="f-template" hidden>
             <option>minimal</option><option>bistro</option>
-            <option>serif</option><option>dark</option></select></div>
-        <div class="field-row"><label data-i18n="f.accent">Accent color</label>
+            <option>serif</option><option>dark</option><option>warm</option></select></div>
+        <div class="field-row"><label data-i18n="f.accent" for="f-accent-text">Accent color</label>
           <input type="color" id="f-accent-picker" value="#444444">
           <input type="text" id="f-accent-text" data-i18n-ph="ph.accent" placeholder="#c4453a or color name" style="flex: 1;"></div>
       </div></details></div>
 
       <div class="form-group"><details><summary data-i18n="grp.status">Fees &amp; validity</summary><div class="group-body">
-        <div class="field-row"><label data-i18n="f.validUntil">Valid until</label><input type="date" id="f-valid-until"></div>
-        <div class="field-row"><label data-i18n="f.validShow">Show date on menu</label><input type="checkbox" id="f-valid-show"></div>
-        <div class="field-row"><label data-i18n="f.service">Service charge</label><input type="text" id="f-service" placeholder="10%"></div>
-        <div class="field-row"><label data-i18n="f.couvert">Couvert</label><input type="text" id="f-couvert" placeholder="8.00"></div>
+        <div class="field-row"><label data-i18n="f.validUntil" for="f-valid-until">Valid until</label><input type="date" id="f-valid-until"></div>
+        <div class="field-row"><label data-i18n="f.validShow" for="f-valid-show">Show date on menu</label><input type="checkbox" id="f-valid-show"></div>
+        <div class="field-row"><label data-i18n="f.service" for="f-service">Service charge</label><input type="text" id="f-service" placeholder="10%"></div>
+        <div class="field-row"><label data-i18n="f.couvert" for="f-couvert">Couvert</label><input type="text" id="f-couvert" placeholder="8.00"></div>
       </div></details></div>
 
       <div class="form-group"><details><summary data-i18n="grp.social">Social</summary><div class="group-body">
@@ -410,7 +522,7 @@
         <div class="url-display" id="url-display">—</div>
       </div>
     </div>
-    <div class="menu-preview"><div class="menu-frame tmpl-minimal" id="menu-frame"></div></div>
+    <div class="menu-preview"><div class="menu-frame menu tmpl-minimal" id="menu-frame"></div></div>
   </section>
 </main>
 
@@ -441,7 +553,13 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
+
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
+
+
 
 
 
@@ -611,7 +729,7 @@ function renderMenuHTML(body, locale, attribution) {
   return { html: parts.join(""), template: dirs.template || "minimal", accent: dirs.accent || null, lang: locale };
 }
 // @build:menu-renderer:end
-const VALID_TEMPLATES = ["minimal", "bistro", "serif", "dark"];
+const VALID_TEMPLATES = ["minimal", "bistro", "serif", "dark", "warm"];
 const SOCIAL_PREFIXES = [
   ["ig", "Instagram"], ["fb", "Facebook"], ["x", "X"],
   ["tk", "TikTok"], ["ws", "WhatsApp"], ["web", "Website"],
@@ -923,9 +1041,14 @@ function socialLink(prefix, handle) {
 function renderToFrame(bodyText, locale, frameEl) {
   const r = renderMenuHTML(bodyText, locale, "decoded from QR · gentropic.org/cradle");
   const tmpl = VALID_TEMPLATES.includes(r.template) ? r.template : "minimal";
-  frameEl.className = "menu-frame tmpl-" + tmpl;
-  frameEl.style.setProperty("--menu-accent", r.accent || "#444");
+  frameEl.className = "menu-frame menu tmpl-" + tmpl;
+  if (r.accent) frameEl.style.setProperty("--menu-accent", r.accent); // else the template default
+  else frameEl.style.removeProperty("--menu-accent");
   frameEl.innerHTML = r.html;
+  // mirror the menu's background onto the preview pane for true WYSIWYG
+  try {
+    if (frameEl.parentElement) frameEl.parentElement.style.background = getComputedStyle(frameEl).backgroundColor;
+  } catch (e) { /* headless */ }
 }
 
 const VALID_TAGS_BY_LOCALE = {
@@ -1142,6 +1265,35 @@ function menuTitle(source) {
 // ============================================================
 // Form rendering (incremental, focus-stable)
 // ============================================================
+// visual template picker — live mini-renders (real template CSS) instead of a dropdown
+function buildTemplatePicker() {
+  const wrap = document.getElementById("tmpl-picker");
+  wrap.innerHTML = "";
+  for (const name of VALID_TEMPLATES) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "tmpl-thumb"; b.dataset.tmpl = name;
+    b.setAttribute("role", "radio"); b.title = name;
+    b.innerHTML = `<span class="tt-prev menu tmpl-${name}">` +
+      `<span class="tt-h1">Menu</span>` +
+      `<span class="tt-it"><b>Item</b><span>00</span></span>` +
+      `<span class="tt-it"><b>Item</b><span>00</span></span></span>` +
+      `<span class="tt-label">${name}</span>`;
+    b.addEventListener("click", () => {
+      document.getElementById("f-template").value = name;
+      syncTemplatePicker();
+      flushFormToSource();
+    });
+    wrap.appendChild(b);
+  }
+}
+function syncTemplatePicker() {
+  const cur = document.getElementById("f-template").value;
+  document.querySelectorAll(".tmpl-thumb").forEach((t) => {
+    const on = t.dataset.tmpl === cur;
+    t.classList.toggle("sel", on);
+    t.setAttribute("aria-checked", on ? "true" : "false");
+  });
+}
 function buildSocialRow(prefix, handle) {
   const div = document.createElement("div"); div.className = "social-row";
   const sel = document.createElement("select");
@@ -1248,6 +1400,7 @@ function populateForm(state) {
   document.getElementById("f-title").value = state.title || "";
   document.getElementById("f-subtitle").value = state.subtitle || "";
   document.getElementById("f-template").value = VALID_TEMPLATES.includes(state.template) ? state.template : "minimal";
+  syncTemplatePicker();
   document.getElementById("f-accent-text").value = state.accent || "";
   const colorPicker = document.getElementById("f-accent-picker");
   if (state.accent && /^#[0-9a-fA-F]{6}$/.test(state.accent)) colorPicker.value = state.accent;
@@ -1627,6 +1780,7 @@ function downloadBlob(blob, filename) {
 // ============================================================
 (function init() {
   applyI18n();   // localize the static chrome to the detected/remembered UI language
+  buildTemplatePicker();
   const params = new URLSearchParams(window.location.search);
   const fromParam = params.get("from") || params.get("shared_url") || params.get("shared_text");
   if (fromParam) {

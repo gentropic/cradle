@@ -82,6 +82,12 @@ function build() {
     out[f] = inlineBetween(get(f), "@build:menu-renderer:start", "@build:menu-renderer:end", menuRendererSrc, "menu-renderer");
   }
 
+  // shared menu template CSS -> bootloader + editor (single source, .menu-scoped)
+  const menuTemplatesSrc = read("ext/menu/templates.css");
+  for (const f of ["index.html", "menu-editor.html"]) {
+    out[f] = inlineBetween(get(f), "@build:menu-templates:start", "@build:menu-templates:end", menuTemplatesSrc, "menu-templates");
+  }
+
   const stale = Object.keys(out).filter((f) => out[f] !== read(f));
   if (CHECK) {
     if (stale.length) { console.error("build out of date — run `npm run build`. stale: " + stale.join(", ")); process.exit(1); }

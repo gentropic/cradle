@@ -90,12 +90,13 @@ test("bootloader menu render matches the snapshot fixture", () => {
   const fx = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "menu.snapshot.json"), "utf8"));
   const cap = buildDictCapsule(fx.menu, "menu-ptbr", sb.__dicts["menu-ptbr"]);
   const { header, body } = sb.__magic(sb.__resolve(cap, sb.__dicts));
-  const mount = { innerHTML: "" };
-  sb.document.body.className = ""; sb.document.documentElement.lang = "";
-  const accent = {}; sb.document.documentElement.style.setProperty = (k, v) => { accent[k] = v; };
+  // the mount IS the menu root now: it carries `menu tmpl-X` + the --menu-accent override
+  const accent = {};
+  const mount = { innerHTML: "", className: "", style: { setProperty: (k, v) => { accent[k] = v; } } };
+  sb.document.documentElement.lang = "";
   sb.__R.menu(header, body, { mount, bootloaderUrl: "https://gentropic.org/cradle", capsule: cap });
   assert.strictEqual(mount.innerHTML, fx.html, "menu render HTML drifted from the snapshot — re-check or regenerate the fixture");
-  assert.strictEqual(sb.document.body.className, fx.cls);
+  assert.strictEqual(mount.className, fx.cls);
   assert.strictEqual(sb.document.documentElement.lang, fx.lang);
   assert.deepStrictEqual(accent, fx.accent);
 });
