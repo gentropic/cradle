@@ -34,6 +34,14 @@
     color: var(--accent); border-color: var(--border); background: var(--bg);
   }
 
+  /* interface-language segmented toggle */
+  .uilang { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 4px; overflow: hidden; }
+  .uilang-btn { font: inherit; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+    padding: 0.25rem 0.5rem; background: white; color: var(--fg-faint); border: none; cursor: pointer; }
+  .uilang-btn + .uilang-btn { border-left: 1px solid var(--border); }
+  .uilang-btn:hover { color: var(--accent); }
+  .uilang-btn.active { background: var(--accent); color: white; }
+
   /* menu picker button */
   .picker-wrap { position: relative; }
   .picker-btn {
@@ -300,7 +308,7 @@
 </head>
 <body>
 <header>
-  <h1>menu editor</h1>
+  <h1 data-i18n="app.title">menu editor</h1>
   <div class="picker-wrap">
     <button class="picker-btn" id="picker-btn">
       <span class="picker-name" id="picker-current">Untitled</span>
@@ -308,62 +316,66 @@
     </button>
     <div class="picker-dropdown" id="picker-dropdown"></div>
   </div>
-  <span class="meta save-status" id="save-status">saved</span>
+  <span class="meta save-status" id="save-status" data-i18n="save.saved">saved</span>
   <span class="spacer"></span>
-  <button class="h-btn" id="open-import">Import URL</button>
-  <button class="h-btn" id="load-sample">Load sample</button>
-  <a href="https://gentropic.org/cradle" target="_blank">decoder ↗</a>
+  <div class="uilang" id="uilang" role="group" data-i18n-title="uilang.title" title="Interface language">
+    <button class="uilang-btn" type="button" data-lang="pt-BR">PT</button>
+    <button class="uilang-btn" type="button" data-lang="en">EN</button>
+  </div>
+  <button class="h-btn" id="open-import" data-i18n="hdr.import">Import URL</button>
+  <button class="h-btn" id="load-sample" data-i18n="hdr.sample">Load sample</button>
+  <a href="https://gentropic.org/cradle" target="_blank" data-i18n="hdr.decoder">decoder ↗</a>
 </header>
 
 <main class="shell">
   <section class="pane">
     <div class="pane-header">
       <div class="tabs">
-        <button class="tab active" data-mode="form">Form</button>
-        <button class="tab" data-mode="source">Source</button>
+        <button class="tab active" data-mode="form" data-i18n="tab.form">Form</button>
+        <button class="tab" data-mode="source" data-i18n="tab.source">Source</button>
       </div>
     </div>
 
     <div class="mode-panel form-panel active" id="form-mode">
-      <div class="form-group"><details open><summary>Header</summary><div class="group-body">
-        <div class="field-row"><label>Locale</label>
+      <div class="form-group"><details open><summary data-i18n="grp.header">Header</summary><div class="group-body">
+        <div class="field-row"><label data-i18n="f.menulang">Menu language</label>
           <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
-        <div class="field-row"><label>Restaurant name</label>
+        <div class="field-row"><label data-i18n="f.title">Restaurant name</label>
           <input type="text" id="f-title" placeholder="Cantina del Garibaldi"></div>
-        <div class="field-row"><label>Subtitle</label>
-          <input type="text" id="f-subtitle" placeholder="Cozinha italiana · cidade"></div>
+        <div class="field-row"><label data-i18n="f.subtitle">Subtitle</label>
+          <input type="text" id="f-subtitle" data-i18n-ph="ph.subtitle" placeholder="Italian kitchen · city"></div>
       </div></details></div>
 
-      <div class="form-group"><details open><summary>Style</summary><div class="group-body">
-        <div class="field-row"><label>Template</label>
+      <div class="form-group"><details open><summary data-i18n="grp.style">Style</summary><div class="group-body">
+        <div class="field-row"><label data-i18n="f.template">Template</label>
           <select id="f-template">
             <option>minimal</option><option>bistro</option>
             <option>serif</option><option>dark</option></select></div>
-        <div class="field-row"><label>Accent color</label>
+        <div class="field-row"><label data-i18n="f.accent">Accent color</label>
           <input type="color" id="f-accent-picker" value="#444444">
-          <input type="text" id="f-accent-text" placeholder="#c4453a or color name" style="flex: 1;"></div>
+          <input type="text" id="f-accent-text" data-i18n-ph="ph.accent" placeholder="#c4453a or color name" style="flex: 1;"></div>
       </div></details></div>
 
-      <div class="form-group"><details><summary>Status</summary><div class="group-body">
-        <div class="field-row"><label>Valid until</label><input type="date" id="f-valid-until"></div>
-        <div class="field-row"><label>Show date on menu</label><input type="checkbox" id="f-valid-show"></div>
-        <div class="field-row"><label>Service charge</label><input type="text" id="f-service" placeholder="10%"></div>
-        <div class="field-row"><label>Couvert</label><input type="text" id="f-couvert" placeholder="8.00"></div>
+      <div class="form-group"><details><summary data-i18n="grp.status">Fees &amp; validity</summary><div class="group-body">
+        <div class="field-row"><label data-i18n="f.validUntil">Valid until</label><input type="date" id="f-valid-until"></div>
+        <div class="field-row"><label data-i18n="f.validShow">Show date on menu</label><input type="checkbox" id="f-valid-show"></div>
+        <div class="field-row"><label data-i18n="f.service">Service charge</label><input type="text" id="f-service" placeholder="10%"></div>
+        <div class="field-row"><label data-i18n="f.couvert">Couvert</label><input type="text" id="f-couvert" placeholder="8.00"></div>
       </div></details></div>
 
-      <div class="form-group"><details><summary>Social</summary><div class="group-body">
+      <div class="form-group"><details><summary data-i18n="grp.social">Social</summary><div class="group-body">
         <div id="f-socials"></div>
-        <button class="add-btn" id="add-social">+ Add link</button>
+        <button class="add-btn" id="add-social" data-i18n="btn.addLink">+ Add link</button>
       </div></details></div>
 
-      <div class="form-group"><details open><summary>Menu sections</summary><div class="group-body">
+      <div class="form-group"><details open><summary data-i18n="grp.sections">Menu sections</summary><div class="group-body">
         <div id="f-sections"></div>
-        <button class="add-btn" id="add-section">+ Add section</button>
+        <button class="add-btn" id="add-section" data-i18n="btn.addSection">+ Add section</button>
       </div></details></div>
 
-      <div class="form-group"><details><summary>Footer text</summary><div class="group-body">
+      <div class="form-group"><details><summary data-i18n="grp.footer">Footer text</summary><div class="group-body">
         <div class="field-row">
-          <textarea id="f-footer" placeholder="Closing notes, reservations, disclaimers — markdown supported."></textarea>
+          <textarea id="f-footer" data-i18n-ph="ph.footer" placeholder="Closing notes, reservations, disclaimers — markdown supported."></textarea>
         </div>
       </div></details></div>
     </div>
@@ -371,16 +383,16 @@
     <div class="mode-panel" id="source-mode"><textarea id="src" spellcheck="false"></textarea></div>
 
     <div class="diagnostics" id="diagnostics">
-      <div class="metric">raw <strong id="m-raw">—</strong></div>
-      <div class="metric">deflated <strong id="m-defl">—</strong></div>
-      <div class="metric">URL <strong id="m-url">—</strong></div>
-      <div class="metric">QR <strong id="m-qr">—</strong></div>
+      <div class="metric"><span data-i18n="diag.raw">raw</span> <strong id="m-raw">—</strong></div>
+      <div class="metric"><span data-i18n="diag.defl">deflated</span> <strong id="m-defl">—</strong></div>
+      <div class="metric"><span data-i18n="diag.url">URL</span> <strong id="m-url">—</strong></div>
+      <div class="metric"><span data-i18n="diag.qr">QR</span> <strong id="m-qr">—</strong></div>
     </div>
     <div class="warnings empty" id="warnings"></div>
   </section>
 
   <section class="pane preview-pane">
-    <div class="pane-header label-only">Preview</div>
+    <div class="pane-header label-only" data-i18n="preview">Preview</div>
     <div class="qr-section">
       <canvas id="qr-canvas" width="200" height="200"></canvas>
       <div class="qr-actions">
@@ -392,9 +404,9 @@
             <option value="H">H (highest)</option>
           </select>
         </div>
-        <button id="copy-url">copy URL</button>
-        <button id="download-qr">download QR (PNG)</button>
-        <button id="download-menu">download .menu source</button>
+        <button id="copy-url" data-i18n="qr.copyUrl">copy URL</button>
+        <button id="download-qr" data-i18n="qr.downloadQr">download QR (PNG)</button>
+        <button id="download-menu" data-i18n="qr.downloadMenu">download .menu source</button>
         <div class="url-display" id="url-display">—</div>
       </div>
     </div>
@@ -405,12 +417,12 @@
 <!-- Import modal -->
 <div class="modal-backdrop" id="import-modal">
   <div class="modal">
-    <h2>Import a menu from URL</h2>
-    <p>Paste a <code>gentropic.org/cradle#…</code> URL (or any menu1-encoded URL) to decode it into the editor.</p>
+    <h2 data-i18n="modal.title">Import a menu from URL</h2>
+    <p data-i18n-html="modal.desc">Paste a <code>gentropic.org/cradle#…</code> URL (or any menu1-encoded URL) to decode it into the editor.</p>
     <textarea id="import-url" placeholder="https://gentropic.org/cradle#BA4W96X9ELW..."></textarea>
     <div class="modal-actions">
-      <button id="import-cancel">Cancel</button>
-      <button class="primary" id="import-confirm">Import</button>
+      <button id="import-cancel" data-i18n="modal.cancel">Cancel</button>
+      <button class="primary" id="import-confirm" data-i18n="modal.import">Import</button>
     </div>
   </div>
 </div>
@@ -428,7 +440,9 @@
 const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vinhos tintos\n## Espumantes\n## Entradas\n## Principais\n## Massas\n## Sobremesas\n## Sushi\n## Sashimi\n## Hot rolls\n## Combinados\n## Pratos quentes\n## Bebidas\n## Cafés\nmanjericão, molho de tomate, parmesão reggiano, azeite extra virgem, salmão grelhado, filé mignon, picanha, frango à parmegiana, risoto de cogumelos, sorvete de creme, frutas vermelhas, leite de coco, calda de caramelo, calda de chocolate, molho madeira, molho de pimenta, carpaccio, bruschetta, tiramisù, cheesecake, petit gateau, pudim, spaghetti, linguine, ravioli, lasanha, nhoque, fettuccine, queijo, presunto, alho, cebola, tomate, batata, arroz, salmão, atum, camarão, filé, frango, carne, peixe, polvo, lula, yakisoba, niguiri, sashimi, uramaki, hot roll, harumaki, gyoza, tempura, philadelphia, california, espresso, cappuccino, café com leite, mocha, chocolate quente, tapioca, pão de queijo, brigadeiro, beijinho, porção, unidades, garrafa, taça, copo, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -602,6 +616,114 @@ const SOCIAL_PREFIXES = [
   ["ig", "Instagram"], ["fb", "Facebook"], ["x", "X"],
   ["tk", "TikTok"], ["ws", "WhatsApp"], ["web", "Website"],
 ];
+
+// ============================================================
+// UI localization (the BUILDER's own chrome) — distinct from the menu's
+// output language (@menu locale). Detected from the browser, toggle-able,
+// remembered in localStorage.
+// ============================================================
+const UILANG_KEY = "cradle_menu_uilang";
+const UI = {
+  "en": {
+    "app.title": "menu editor",
+    "hdr.import": "Import URL", "hdr.sample": "Load sample", "hdr.decoder": "decoder ↗",
+    "uilang.title": "Interface language",
+    "save.saved": "saved", "save.saving": "saving…",
+    "tab.form": "Form", "tab.source": "Source",
+    "grp.header": "Header", "grp.style": "Style", "grp.status": "Fees & validity",
+    "grp.social": "Social", "grp.sections": "Menu sections", "grp.footer": "Footer text",
+    "f.menulang": "Menu language", "f.title": "Restaurant name", "f.subtitle": "Subtitle",
+    "f.template": "Template", "f.accent": "Accent color",
+    "f.validUntil": "Valid until", "f.validShow": "Show date on menu",
+    "f.service": "Service charge", "f.couvert": "Couvert",
+    "btn.addLink": "+ Add link", "btn.addSection": "+ Add section", "btn.addItem": "+ Add item",
+    "ph.subtitle": "Italian kitchen · city", "ph.accent": "#c4453a or color name",
+    "ph.footer": "Closing notes, reservations, disclaimers — markdown supported.",
+    "ph.itemName": "Item name", "ph.itemDesc": "Description (optional)",
+    "ph.sectionName": "Section name", "ph.handle": "handle",
+    "diag.raw": "raw", "diag.defl": "deflated", "diag.url": "URL", "diag.qr": "QR",
+    "preview": "Preview",
+    "qr.copyUrl": "copy URL", "qr.downloadQr": "download QR (PNG)", "qr.downloadMenu": "download .menu source",
+    "modal.title": "Import a menu from URL",
+    "modal.desc": "Paste a <code>gentropic.org/cradle#…</code> URL (or any menu1-encoded URL) to decode it into the editor.",
+    "modal.cancel": "Cancel", "modal.import": "Import",
+    "picker.empty": "No saved menus yet.", "picker.new": "+ New blank menu",
+    "picker.import": "↑ Import from URL…", "picker.delete": "delete", "picker.untitled": "Untitled",
+    "ctl.moveUp": "move up", "ctl.moveDown": "move down", "ctl.removeItem": "remove item",
+    "ctl.removeSection": "remove section", "ctl.moveSectionUp": "move section up",
+    "ctl.moveSectionDown": "move section down", "ctl.remove": "remove",
+    "toast.urlCopied": "URL copied", "toast.copyFailed": "copy failed",
+    "toast.imported": "imported", "toast.importFailed": "import failed: ",
+    "confirm.delete": (name) => `Delete "${name}"?`,
+    "default.newSection": "New section",
+    "blank.title": "New menu", "blank.section": "Section", "blank.itemDesc": "description",
+  },
+  "pt-BR": {
+    "app.title": "editor de cardápio",
+    "hdr.import": "Importar URL", "hdr.sample": "Carregar exemplo", "hdr.decoder": "decodificador ↗",
+    "uilang.title": "Idioma da interface",
+    "save.saved": "salvo", "save.saving": "salvando…",
+    "tab.form": "Formulário", "tab.source": "Código",
+    "grp.header": "Cabeçalho", "grp.style": "Estilo", "grp.status": "Taxas e validade",
+    "grp.social": "Redes sociais", "grp.sections": "Seções do cardápio", "grp.footer": "Rodapé",
+    "f.menulang": "Idioma do cardápio", "f.title": "Nome do restaurante", "f.subtitle": "Subtítulo",
+    "f.template": "Modelo", "f.accent": "Cor de destaque",
+    "f.validUntil": "Válido até", "f.validShow": "Mostrar data no cardápio",
+    "f.service": "Taxa de serviço", "f.couvert": "Couvert",
+    "btn.addLink": "+ Adicionar link", "btn.addSection": "+ Adicionar seção", "btn.addItem": "+ Adicionar item",
+    "ph.subtitle": "Cozinha italiana · cidade", "ph.accent": "#c4453a ou nome da cor",
+    "ph.footer": "Observações, reservas, avisos — aceita markdown.",
+    "ph.itemName": "Nome do item", "ph.itemDesc": "Descrição (opcional)",
+    "ph.sectionName": "Nome da seção", "ph.handle": "usuário",
+    "diag.raw": "bruto", "diag.defl": "comprimido", "diag.url": "URL", "diag.qr": "QR",
+    "preview": "Prévia",
+    "qr.copyUrl": "copiar URL", "qr.downloadQr": "baixar QR (PNG)", "qr.downloadMenu": "baixar código .menu",
+    "modal.title": "Importar cardápio de uma URL",
+    "modal.desc": "Cole uma URL <code>gentropic.org/cradle#…</code> (ou qualquer URL codificada em menu1) para decodificá-la no editor.",
+    "modal.cancel": "Cancelar", "modal.import": "Importar",
+    "picker.empty": "Nenhum cardápio salvo ainda.", "picker.new": "+ Novo cardápio em branco",
+    "picker.import": "↑ Importar de URL…", "picker.delete": "excluir", "picker.untitled": "Sem título",
+    "ctl.moveUp": "mover para cima", "ctl.moveDown": "mover para baixo", "ctl.removeItem": "remover item",
+    "ctl.removeSection": "remover seção", "ctl.moveSectionUp": "mover seção para cima",
+    "ctl.moveSectionDown": "mover seção para baixo", "ctl.remove": "remover",
+    "toast.urlCopied": "URL copiada", "toast.copyFailed": "falha ao copiar",
+    "toast.imported": "importado", "toast.importFailed": "falha na importação: ",
+    "confirm.delete": (name) => `Excluir "${name}"?`,
+    "default.newSection": "Nova seção",
+    "blank.title": "Novo cardápio", "blank.section": "Seção", "blank.itemDesc": "descrição",
+  },
+};
+function detectUiLang() {
+  const saved = localStorage.getItem(UILANG_KEY);
+  if (saved === "en" || saved === "pt-BR") return saved;
+  return (navigator.language || navigator.userLanguage || "").toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+}
+let uiLang = detectUiLang();
+function t(key, ...args) {
+  let v = (UI[uiLang] || UI.en)[key];
+  if (v === undefined) v = UI.en[key];
+  if (v === undefined) return key;
+  return typeof v === "function" ? v(...args) : v;
+}
+// localize the static chrome: textContent (data-i18n), placeholders (data-i18n-ph),
+// titles (data-i18n-title), innerHTML (data-i18n-html, for strings with <code>)
+function applyI18n() {
+  document.documentElement.lang = uiLang;
+  document.title = t("app.title");
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll(".uilang-btn").forEach((b) => b.classList.toggle("active", b.dataset.lang === uiLang));
+}
+function setUiLang(lang) {
+  if (lang !== "en" && lang !== "pt-BR") return;
+  uiLang = lang;
+  try { localStorage.setItem(UILANG_KEY, lang); } catch (e) {}
+  applyI18n();
+  flushSourceToForm();   // rebuild dynamic rows (placeholders/titles) in the new language
+  refreshPicker();
+}
 
 // ============================================================
 // base45 encode + decode
@@ -1014,7 +1136,7 @@ function menuTitle(source) {
     const t = ln.trim();
     if (t.startsWith("# ") && !t.startsWith("## ")) return t.slice(2);
   }
-  return "Untitled";
+  return t("picker.untitled");
 }
 
 // ============================================================
@@ -1028,9 +1150,9 @@ function buildSocialRow(prefix, handle) {
     if (p === prefix) opt.selected = true; sel.appendChild(opt);
   }
   const inp = document.createElement("input");
-  inp.type = "text"; inp.value = handle || ""; inp.placeholder = "handle";
+  inp.type = "text"; inp.value = handle || ""; inp.placeholder = t("ph.handle");
   const rm = document.createElement("button");
-  rm.className = "icon-btn"; rm.textContent = "✕"; rm.title = "remove";
+  rm.className = "icon-btn"; rm.textContent = "✕"; rm.title = t("ctl.remove");
   rm.addEventListener("click", () => { div.remove(); flushFormToSource(); });
   sel.addEventListener("change", flushFormToSource);
   inp.addEventListener("input", flushFormToSource);
@@ -1043,10 +1165,10 @@ function buildItemRow(it, locale) {
   const fields = document.createElement("div"); fields.className = "item-fields";
   const nameInput = document.createElement("input");
   nameInput.type = "text"; nameInput.className = "item-name";
-  nameInput.value = it.name || ""; nameInput.placeholder = "Item name";
+  nameInput.value = it.name || ""; nameInput.placeholder = t("ph.itemName");
   const descInput = document.createElement("input");
   descInput.type = "text"; descInput.className = "item-desc";
-  descInput.value = it.desc || ""; descInput.placeholder = "Description (optional)";
+  descInput.value = it.desc || ""; descInput.placeholder = t("ph.itemDesc");
   const chips = document.createElement("div"); chips.className = "tag-chips";
   for (const [code, label] of Object.entries(tagDefs)) {
     const chip = document.createElement("button");
@@ -1062,19 +1184,19 @@ function buildItemRow(it, locale) {
   priceInput.value = it.price || ""; priceInput.placeholder = "0";
   const controls = document.createElement("div"); controls.className = "item-controls";
   const upBtn = document.createElement("button");
-  upBtn.className = "icon-btn up-down"; upBtn.textContent = "▲"; upBtn.title = "move up";
+  upBtn.className = "icon-btn up-down"; upBtn.textContent = "▲"; upBtn.title = t("ctl.moveUp");
   upBtn.addEventListener("click", () => {
     const prev = div.previousElementSibling;
     if (prev) { div.parentNode.insertBefore(div, prev); flushFormToSource(); }
   });
   const dnBtn = document.createElement("button");
-  dnBtn.className = "icon-btn up-down"; dnBtn.textContent = "▼"; dnBtn.title = "move down";
+  dnBtn.className = "icon-btn up-down"; dnBtn.textContent = "▼"; dnBtn.title = t("ctl.moveDown");
   dnBtn.addEventListener("click", () => {
     const next = div.nextElementSibling;
     if (next) { div.parentNode.insertBefore(next, div); flushFormToSource(); }
   });
   const rmBtn = document.createElement("button");
-  rmBtn.className = "icon-btn"; rmBtn.textContent = "✕"; rmBtn.title = "remove item";
+  rmBtn.className = "icon-btn"; rmBtn.textContent = "✕"; rmBtn.title = t("ctl.removeItem");
   rmBtn.addEventListener("click", () => { div.remove(); flushFormToSource(); });
   const reorderBox = document.createElement("div");
   reorderBox.style.display = "flex"; reorderBox.style.flexDirection = "column"; reorderBox.style.gap = "1px";
@@ -1089,31 +1211,31 @@ function buildSectionBlock(sec, locale) {
   const head = document.createElement("div"); head.className = "section-block-header";
   const nameInp = document.createElement("input");
   nameInp.type = "text"; nameInp.className = "section-name";
-  nameInp.value = sec.name || ""; nameInp.placeholder = "Section name";
+  nameInp.value = sec.name || ""; nameInp.placeholder = t("ph.sectionName");
   nameInp.addEventListener("input", flushFormToSource);
   const reorder = document.createElement("div"); reorder.className = "reorder";
   const upBtn = document.createElement("button");
-  upBtn.className = "icon-btn up-down"; upBtn.textContent = "▲"; upBtn.title = "move section up";
+  upBtn.className = "icon-btn up-down"; upBtn.textContent = "▲"; upBtn.title = t("ctl.moveSectionUp");
   upBtn.addEventListener("click", () => {
     const prev = block.previousElementSibling;
     if (prev) { block.parentNode.insertBefore(block, prev); flushFormToSource(); }
   });
   const dnBtn = document.createElement("button");
-  dnBtn.className = "icon-btn up-down"; dnBtn.textContent = "▼"; dnBtn.title = "move section down";
+  dnBtn.className = "icon-btn up-down"; dnBtn.textContent = "▼"; dnBtn.title = t("ctl.moveSectionDown");
   dnBtn.addEventListener("click", () => {
     const next = block.nextElementSibling;
     if (next) { block.parentNode.insertBefore(next, block); flushFormToSource(); }
   });
   reorder.appendChild(upBtn); reorder.appendChild(dnBtn);
   const rmBtn = document.createElement("button");
-  rmBtn.className = "icon-btn"; rmBtn.textContent = "✕"; rmBtn.title = "remove section";
+  rmBtn.className = "icon-btn"; rmBtn.textContent = "✕"; rmBtn.title = t("ctl.removeSection");
   rmBtn.addEventListener("click", () => { block.remove(); flushFormToSource(); });
   head.appendChild(nameInp); head.appendChild(reorder); head.appendChild(rmBtn);
   const body = document.createElement("div"); body.className = "section-block-body";
   const itemsContainer = document.createElement("div"); itemsContainer.className = "items-container";
   for (const it of sec.items) itemsContainer.appendChild(buildItemRow(it, locale));
   const addItem = document.createElement("button");
-  addItem.className = "add-btn"; addItem.textContent = "+ Add item";
+  addItem.className = "add-btn"; addItem.textContent = t("btn.addItem");
   addItem.addEventListener("click", () => {
     itemsContainer.appendChild(buildItemRow({}, getCurrentLocale())); flushFormToSource();
   });
@@ -1183,13 +1305,13 @@ function getCurrentLocale() { return document.getElementById("f-locale").value; 
 let saveTimer = null;
 function scheduleAutosave() {
   clearTimeout(saveTimer);
-  document.getElementById("save-status").textContent = "saving…";
+  document.getElementById("save-status").textContent = t("save.saving");
   document.getElementById("save-status").classList.add("unsaved");
   saveTimer = setTimeout(() => {
     let id = getCurrentMenuId();
     if (!id) { id = nextMenuId(); setCurrentMenuId(id); }
     setMenu(id, document.getElementById("src").value);
-    document.getElementById("save-status").textContent = "saved";
+    document.getElementById("save-status").textContent = t("save.saved");
     document.getElementById("save-status").classList.remove("unsaved");
     refreshPicker();
   }, 400);
@@ -1278,7 +1400,7 @@ function openPicker() {
   if (menus.length === 0) {
     const empty = document.createElement("div");
     empty.style.padding = "0.75rem"; empty.style.fontSize = "0.85rem"; empty.style.color = "var(--fg-faint)";
-    empty.textContent = "No saved menus yet.";
+    empty.textContent = t("picker.empty");
     dd.appendChild(empty);
   } else {
     for (const m of menus) {
@@ -1290,10 +1412,10 @@ function openPicker() {
       text.appendChild(name);
       item.appendChild(text);
       const del = document.createElement("button");
-      del.className = "pi-del"; del.textContent = "✕"; del.title = "delete";
+      del.className = "pi-del"; del.textContent = "✕"; del.title = t("picker.delete");
       del.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (confirm(`Delete "${menuTitle(m.source)}"?`)) {
+        if (confirm(t("confirm.delete", menuTitle(m.source)))) {
           deleteMenu(m.id);
           if (m.id === currentId) {
             const remaining = listMenus();
@@ -1310,11 +1432,11 @@ function openPicker() {
   }
   const div = document.createElement("div"); div.className = "picker-divider"; dd.appendChild(div);
   const newBtn = document.createElement("button");
-  newBtn.className = "picker-action"; newBtn.textContent = "+ New blank menu";
+  newBtn.className = "picker-action"; newBtn.textContent = t("picker.new");
   newBtn.addEventListener("click", () => { newMenu(); closePicker(); });
   dd.appendChild(newBtn);
   const importBtn = document.createElement("button");
-  importBtn.className = "picker-action"; importBtn.textContent = "↑ Import from URL…";
+  importBtn.className = "picker-action"; importBtn.textContent = t("picker.import");
   importBtn.addEventListener("click", () => { closePicker(); openImportModal(); });
   dd.appendChild(importBtn);
   dd.classList.add("open");
@@ -1336,7 +1458,8 @@ function loadMenuById(id) {
   flushSourceToForm(); update();
 }
 function newMenu() {
-  const blank = `!menu1+pt-BR\n@template: minimal\n\n# New menu\n\n## Section\nItem|0|description\n`;
+  const loc = uiLang === "en" ? "en-US" : "pt-BR";  // a fresh menu defaults to the UI language
+  const blank = `!menu1+${loc}\n@template: minimal\n\n# ${t("blank.title")}\n\n## ${t("blank.section")}\nItem|0|${t("blank.itemDesc")}\n`;
   const id = nextMenuId(); setMenu(id, blank); setCurrentMenuId(id);
   document.getElementById("src").value = blank;
   flushSourceToForm(); update();
@@ -1437,10 +1560,14 @@ document.getElementById("add-social").addEventListener("click", () => {
   document.getElementById("f-socials").appendChild(buildSocialRow("ig", ""));
 });
 document.getElementById("add-section").addEventListener("click", () => {
-  document.getElementById("f-sections").appendChild(buildSectionBlock({ name: "New section", items: [] }, getCurrentLocale()));
+  document.getElementById("f-sections").appendChild(buildSectionBlock({ name: t("default.newSection"), items: [] }, getCurrentLocale()));
   flushFormToSource();
 });
 document.getElementById("ecc").addEventListener("change", update);
+
+document.querySelectorAll(".uilang-btn").forEach((b) => {
+  b.addEventListener("click", () => setUiLang(b.dataset.lang));
+});
 
 document.getElementById("picker-btn").addEventListener("click", (e) => {
   e.stopPropagation();
@@ -1459,8 +1586,8 @@ document.getElementById("open-import").addEventListener("click", openImportModal
 document.getElementById("import-cancel").addEventListener("click", closeImportModal);
 document.getElementById("import-confirm").addEventListener("click", () => {
   const text = document.getElementById("import-url").value;
-  try { importFromText(text); closeImportModal(); showToast("imported"); }
-  catch (err) { showToast("import failed: " + err.message); }
+  try { importFromText(text); closeImportModal(); showToast(t("toast.imported")); }
+  catch (err) { showToast(t("toast.importFailed") + err.message); }
 });
 document.getElementById("import-modal").addEventListener("click", (e) => {
   if (e.target === document.getElementById("import-modal")) closeImportModal();
@@ -1472,8 +1599,8 @@ document.addEventListener("keydown", (e) => {
 document.getElementById("copy-url").addEventListener("click", async () => {
   const url = document.getElementById("url-display").textContent;
   if (!url || url === "—") return;
-  try { await navigator.clipboard.writeText(url); showToast("URL copied"); }
-  catch (e) { showToast("copy failed"); }
+  try { await navigator.clipboard.writeText(url); showToast(t("toast.urlCopied")); }
+  catch (e) { showToast(t("toast.copyFailed")); }
 });
 document.getElementById("download-qr").addEventListener("click", () => {
   document.getElementById("qr-canvas").toBlob(blob => downloadBlob(blob, "menu-qr.png"), "image/png");
@@ -1499,6 +1626,7 @@ function downloadBlob(blob, filename) {
 // Init: ?shared_url= / ?from= → import; #hash → load; else → restore
 // ============================================================
 (function init() {
+  applyI18n();   // localize the static chrome to the detected/remembered UI language
   const params = new URLSearchParams(window.location.search);
   const fromParam = params.get("from") || params.get("shared_url") || params.get("shared_text");
   if (fromParam) {
