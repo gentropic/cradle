@@ -90,14 +90,8 @@
 "use strict";
 
 // the arcr deflate dictionary — MUST be byte-identical to index.html's DICT_ARCR
-const DICT_ARCR =
-"\n@title \n@about \n@bg plain\n@bg stars\n@bg dots\n@bg grid\n@lives 3\n" +
-"obj you : emoji  at=bottom move=tap\nobj  : emoji  at=top move=fall tag=\n" +
-"obj  : text \" at=center\nevery 1 : spawn emoji  at=top move=fall tag=\n" +
-"on hit you #  : score +1 ; say \"\non tap  : say \" ; \nwhen score >= 10 : win \"\n" +
-"when time >= 30 : win \"when count # == 0 : \nlife -1 ; say \"become it emoji \n" +
-"destroy 1 #move=still move=seek move=flee move=chase at=scatter speed=\n" +
-"lose \"end \"refuse \"add  1\n";
+const DICT_ARCR = "\n@title \n@about \n@bg plain\n@bg stars\n@bg dots\n@bg grid\n@lives 3\nobj you : emoji  at=bottom move=tap\nobj  : emoji  at=top move=fall tag=\nobj  : text \" at=center\nevery 1 : spawn emoji  at=top move=fall tag=\non hit you #  : score +1 ; say \"\non tap  : say \" ; \nwhen score >= 10 : win \"\nwhen time >= 30 : win \"when count # == 0 : \nlife -1 ; say \"become it emoji \ndestroy 1 #move=still move=seek move=flee move=chase at=scatter speed=\nlose \"end \"refuse \"add  1\n";
+
 
 // the 50-game library (injected from arcr.html at build time)
 const LIBRARY = [

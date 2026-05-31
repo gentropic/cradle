@@ -262,61 +262,17 @@ function resolveCapsule(capsule, dicts) {
 // Embedded dictionaries
 // ============================================================
 
-const DICT_MENU_PTBR =
-  "|garrafa\n" +
-  "|6 unidades\n|8 unidades\n" +
-  "## Vinhos brancos\n## Vinhos tintos\n## Espumantes\n" +
-  "## Entradas\n## Principais\n## Massas\n## Sobremesas\n## Sushi\n## Sashimi\n" +
-  "## Hot rolls\n## Combinados\n## Pratos quentes\n## Bebidas\n## Cafés\n" +
-  "manjericão, " +
-  "molho de tomate, parmesão reggiano, azeite extra virgem, " +
-  "salmão grelhado, filé mignon, picanha, frango à parmegiana, " +
-  "risoto de cogumelos, sorvete de creme, " +
-  "frutas vermelhas, leite de coco, " +
-  "calda de caramelo, calda de chocolate, " +
-  "molho madeira, molho de pimenta, " +
-  "carpaccio, bruschetta, tiramisù, cheesecake, petit gateau, pudim, " +
-  "spaghetti, linguine, ravioli, lasanha, nhoque, fettuccine, " +
-  "queijo, presunto, alho, cebola, tomate, batata, arroz, " +
-  "salmão, atum, camarão, filé, frango, carne, peixe, polvo, lula, " +
-  "yakisoba, niguiri, sashimi, uramaki, hot roll, harumaki, gyoza, tempura, " +
-  "philadelphia, california, " +
-  "espresso, cappuccino, café com leite, mocha, chocolate quente, " +
-  "tapioca, pão de queijo, brigadeiro, beijinho, " +
-  "porção, unidades, garrafa, taça, copo, " +
-  "@template: minimal\n@template: bistro\n@template: serif\n@template: dark\n" +
-  "@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+const DICT_MENU_PTBR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vinhos tintos\n## Espumantes\n## Entradas\n## Principais\n## Massas\n## Sobremesas\n## Sushi\n## Sashimi\n## Hot rolls\n## Combinados\n## Pratos quentes\n## Bebidas\n## Cafés\nmanjericão, molho de tomate, parmesão reggiano, azeite extra virgem, salmão grelhado, filé mignon, picanha, frango à parmegiana, risoto de cogumelos, sorvete de creme, frutas vermelhas, leite de coco, calda de caramelo, calda de chocolate, molho madeira, molho de pimenta, carpaccio, bruschetta, tiramisù, cheesecake, petit gateau, pudim, spaghetti, linguine, ravioli, lasanha, nhoque, fettuccine, queijo, presunto, alho, cebola, tomate, batata, arroz, salmão, atum, camarão, filé, frango, carne, peixe, polvo, lula, yakisoba, niguiri, sashimi, uramaki, hot roll, harumaki, gyoza, tempura, philadelphia, california, espresso, cappuccino, café com leite, mocha, chocolate quente, tapioca, pão de queijo, brigadeiro, beijinho, porção, unidades, garrafa, taça, copo, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
 
-const DICT_MENU_ENUS =
-  "|bottle\n" +
-  "|6 pack\n|case of 12\n" +
-  "## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n" +
-  "## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n" +
-  "## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n" +
-  "## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n" +
-  "## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\n" +
-  "extra virgin olive oil, " +
-  "fresh mozzarella, parmesan reggiano, aged cheddar, " +
-  "grilled salmon, grilled chicken, ribeye steak, filet mignon, " +
-  "mushroom risotto, vanilla ice cream, " +
-  "mixed berries, coconut milk, " +
-  "caramel sauce, chocolate sauce, " +
-  "red wine reduction, lemon butter sauce, " +
-  "carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, " +
-  "spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, " +
-  "cheese, ham, garlic, onion, tomato, potato, rice, " +
-  "salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, " +
-  "yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, " +
-  "philadelphia, california, dragon roll, spicy tuna, " +
-  "espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, " +
-  "cheeseburger, hamburger, club sandwich, caesar salad, greek salad, " +
-  "french fries, sweet potato fries, onion rings, mashed potatoes, " +
-  "served with, comes with, side of, choice of, " +
-  "@template: minimal\n@template: bistro\n@template: serif\n@template: dark\n" +
-  "@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
 
-const DICT_ARCR =
-"\n@title \n@about \n@bg plain\n@bg stars\n@bg dots\n@bg grid\n@lives 3\nobj you : emoji  at=bottom move=tap\nobj  : emoji  at=top move=fall tag=\nobj  : text \" at=center\nevery 1 : spawn emoji  at=top move=fall tag=\non hit you #  : score +1 ; say \"\non tap  : say \" ; \nwhen score >= 10 : win \"\nwhen time >= 30 : win \"when count # == 0 : \nlife -1 ; say \"become it emoji \ndestroy 1 #move=still move=seek move=flee move=chase at=scatter speed=\nlose \"end \"refuse \"add  1\n";
+
+const DICT_MENU_ENUS = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
+
+
+const DICT_ARCR = "\n@title \n@about \n@bg plain\n@bg stars\n@bg dots\n@bg grid\n@lives 3\nobj you : emoji  at=bottom move=tap\nobj  : emoji  at=top move=fall tag=\nobj  : text \" at=center\nevery 1 : spawn emoji  at=top move=fall tag=\non hit you #  : score +1 ; say \"\non tap  : say \" ; \nwhen score >= 10 : win \"\nwhen time >= 30 : win \"when count # == 0 : \nlife -1 ; say \"become it emoji \ndestroy 1 #move=still move=seek move=flee move=chase at=scatter speed=\nlose \"end \"refuse \"add  1\n";
+
+
 
 const DICTS = {
   "menu-ptbr": DICT_MENU_PTBR,
@@ -702,10 +658,11 @@ function doorbellRenderer(header, body, ctx) {
   }
 }
 
+// @build:arcr-renderer:start  (generated from arcr.html — do not hand-edit)
 // ============================================================
 // Renderer: arcr  (SPEC-arcr — micro-game DSL; engine owns juice)
 // The program is the capsule BODY: untrusted DATA, never eval'd.
-// Engine lifted from arcr.html and adapted to mount in ctx.mount.
+// GENERATED from arcr.html by build/build.js — edit arcr.html, then npm run build.
 // ============================================================
 const arcrRenderer = (function(){
 "use strict";
@@ -1125,6 +1082,7 @@ function loop(t){ const dt=Math.min(0.05,(t-last)/1000||0); last=t; update(dt); 
   };
 
 })();
+// @build:arcr-renderer:end
 
 // ============================================================
 // Renderer registry
