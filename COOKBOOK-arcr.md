@@ -1,9 +1,10 @@
 # The arcr Cookbook
 
 A friendly, example-first guide to writing **arcr** micro-games — the little
-games that ride inside a cradle capsule. This is the *practical* companion to the
-normative `SPEC-arcr.md`: read this to learn the thing, reach for the spec when you
-need the exact rule.
+games that ride inside a cradle capsule. (The engine that runs them is **gewgaw**, the
+reference engine for the `arcr` "Cradle Arcade" family; this cookbook teaches gewgaw.)
+This is the *practical* companion to the normative `SPEC-arcr.md`: read this to learn the
+thing, reach for the spec when you need the exact rule.
 
 It's also, deliberately, the **prompt material for machine authoring** — everything
 here is the kind of thing you'd hand a language model that's filling a gacha machine
@@ -249,6 +250,32 @@ at 14 : become bar text "########" ; end "it was the loading screen all along."
 
 ---
 
+## Scenes (two-act games)
+
+Split a program into stages with `scene <n>` lines; jump between them with `goto <n>`.
+Only the current scene's objects and rules are live. On a transition the old stage is
+torn down and the new one set up; **scene timers reset** (`every`/`at`/`when time` are
+relative to scene entry) while `score`, `lives`, and variables **carry across**.
+
+```
+@title THE DOOR
+@about thresholds
+scene 1
+obj you : emoji 🚶 at=bottom move=tap
+obj door : emoji 🚪 at=top
+on hit you door : goto 2
+when time >= 12 : lose "you never found the door."
+scene 2
+obj you : emoji 🧍 at=center move=tap
+on tap : say "you are inside now." ; add knocks 1
+when knocks >= 3 : end "the room behind the door was just a room."
+```
+
+Scenes are how you get *before/after*, a reveal, a second act, or a frame that flips —
+the cheapest way to add narrative depth without leaving the flat-rules world.
+
+---
+
 ## Making it fun (or at least amusing)
 
 You're not making "a good game" — you're making **a good 60 seconds plus a story to
@@ -298,7 +325,6 @@ reads each game's `on hit` rules to learn good vs. bad tags and plays accordingl
 arcr v0 favours **expressive range over mechanical depth** — a handful of keywords that
 span a wide *conceptual* space, not a physics engine. Reserved / not yet here:
 
-- **Scenes** (one stage per game today) — two-act games, "the room behind the door".
 - `and`/`or` in conditions (chain `when`s instead).
 - Author-defined functions/macros (rules are flat ECA).
 - Assets beyond emoji/text/shape (procedural sprites are sketched but off by default).

@@ -76,3 +76,21 @@ test("an arcr capsule round-trips through the bootloader and mounts", () => {
   assert.strictEqual(new TextDecoder().decode(body), program.slice(program.indexOf("\n") + 1));
   assert.doesNotThrow(() => sb.__R.arcr(header, body, { mount: mkEl(), bootloaderUrl: "x", capsule: cap }));
 });
+
+test("scenes: `goto` tears down a scene and sets up the next (scene-relative time)", () => {
+  const G = "@title TWO ACTS\nscene 1\nobj you : emoji 🚶 at=bottom move=tap\nobj door : emoji 🚪 at=top\n" +
+    "on hit you door : goto 2\nwhen time >= 9 : lose \"never found it.\"\n" +
+    "scene 2\nobj me : emoji 🧍 at=center move=tap\non tap : add knocks 1\nwhen knocks >= 3 : win \"inside.\"";
+  assert.strictEqual(A.parseArcr(G).warnings.length, 0, "scene program parses clean");
+  A.loadSource(G, 1); A.play();
+  const alive = (name) => A.objs().some((o) => o.alive && o.name === name);
+  assert.ok(alive("door"), "scene 1 has its door");
+  for (let i = 0; i < 400 && !["win", "lose", "end", "refuse"].includes(A.state); i++) {
+    const door = A.objs().find((o) => o.alive && o.name === "door");
+    if (door) A.steer(door.x / A.W(), door.y / A.H()); else A.tap(); // walk to the door, then knock
+    A.update(0.05);
+  }
+  assert.strictEqual(A.state, "win", "reached scene 2 and won, got " + A.state);
+  assert.ok(!alive("door"), "scene 1's door is gone after the transition");
+  assert.ok(alive("me"), "scene 2's object was set up");
+});

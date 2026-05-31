@@ -113,7 +113,7 @@ function unq(s){ return s && s[0]==='"' ? s.slice(1,-1) : s; }
 
 function parseArcr(src){
   const directives={}, objects={}, rules=[], warnings=[];
-  let order=0;
+  let order=0, sceneNo=1;
   for (const raw of src.split("\n")){
     const line = raw.trim();
     if (!line || line[0]==="#") continue;
@@ -124,6 +124,7 @@ function parseArcr(src){
       continue;
     }
     const t = tokenize(line);
+    if (t[0]==="scene"){ sceneNo = parseInt(t[1]) || 1; continue; }
     if (t[0]==="obj"){
       const ci = t.indexOf(":");
       if (ci<0 || !t[1]){ warnings.push("obj needs `name : kind` → "+line); continue; }
@@ -134,7 +135,7 @@ function parseArcr(src){
       const props = {};
       for (let i=ci+2; i<t.length; i++){ if (t[i].includes("=")){ const j=t[i].indexOf("="); props[t[i].slice(0,j).toLowerCase()] = unq(t[i].slice(j+1)); } }
       objects[name] = { name, kind, arg, tag:(props.tag||null), move:(props.move||"still").toLowerCase(),
-        at:(props.at||"center").toLowerCase(), speed:+(props.speed||1)||1, size:(props.size||"normal").toLowerCase(), order:order++ };
+        at:(props.at||"center").toLowerCase(), speed:+(props.speed||1)||1, size:(props.size||"normal").toLowerCase(), order:order++, scene:sceneNo };
       continue;
     }
     if (t[0]==="on" || t[0]==="every" || t[0]==="at" || t[0]==="when"){
@@ -142,7 +143,7 @@ function parseArcr(src){
       if (ci<0){ warnings.push("rule needs `event : action` → "+line); continue; }
       const ev = t.slice(0,ci);
       const actions = t.slice(ci+1).join(" ").split(";").map(a=>tokenize(a.trim())).filter(a=>a.length);
-      rules.push({ ev, actions, fired:false, next: ev[0]==="every" ? (+ev[1]||1) : null });
+      rules.push({ ev, actions, fired:false, next: ev[0]==="every" ? (+ev[1]||1) : null, scene:sceneNo });
       continue;
     }
     warnings.push("unrecognized → "+line);
@@ -245,7 +246,7 @@ function drawBackground(){ const p=PAL,bg=PROG.directives.bg||"plain",t=frame/60
 // ============================================================
 let PROG=null, PAL=null, AUD={wave:"square",root:50}, SEED=1;
 let state="card";                       // card | play | win | lose | end | refuse
-let OBJ=[], S=null, parts=[], shake=0, msgs=[], ending=null, tapQ=0, lastBg="plain";
+let OBJ=[], S=null, parts=[], shake=0, msgs=[], ending=null, tapQ=0, lastBg="plain", scene=1, totalTime=0, pendingScene=null;
 const target = { x:0.5, y:0.85 };
 
 function zonePix(z){ switch(z){ case "top":return [W*0.5,H*0.14]; case "bottom":return [W*0.5,H*0.85];
@@ -262,13 +263,9 @@ function spawnObj(spec){ // {kind,arg,tag,move,speed,at,size}
   else { const z=zonePix(spec.at||"top"); o.x = (spec.at&&spec.at!=="top") ? z[0] : (radOf(o)+Math.random()*(W-2*radOf(o))); o.y=z[1]; }
   OBJ.push(o); return o; }
 
-function setupGame(prog,seed){
-  PROG=prog; SEED=seed; PAL=buildPalette(prog,seed); buildBgField(prog,seed);
-  const r=mulberry32(seed^0x55); AUD={ wave:["square","sawtooth","triangle"][Math.floor(r()*3)], root:48+Math.floor(r()*12) };
-  OBJ=[]; parts=[]; msgs=[]; shake=0; ending=null; tapQ=0; frame=0;
-  S={ score:0, lives:("lives" in prog.directives)?(+prog.directives.lives||0):3, time:0, taps:0, vars:{} };
-  // place declared objects; auto-spread objects that share a zone
-  const decl=Object.values(prog.objects).sort((a,b)=>a.order-b.order);
+// instantiate one scene's declared objects (auto-spread per zone) and (re)arm its rules
+function placeScene(prog, sceneNo){
+  const decl=Object.values(prog.objects).filter(d=>(d.scene||1)===sceneNo).sort((a,b)=>a.order-b.order);
   const byZone={}; for(const d of decl){ (byZone[d.at]=byZone[d.at]||[]).push(d); }
   for(const z in byZone){ const arr=byZone[z]; arr.forEach((d,i)=>{
     let x,y; const n=arr.length;
@@ -276,7 +273,24 @@ function setupGame(prog,seed){
     else { const zp=zonePix(z); const span=Math.min(W*0.7, n*W*0.16); x = n>1 ? (W/2 - span/2 + span*(i+0.5)/n) : zp[0]; y=zp[1]; }
     OBJ.push({ ...d, x, y, scale:1, alive:true, sx:1, sy:1 });
   }); }
+  for(const r of prog.rules){ if((r.scene||1)===sceneNo){ r.fired=false; r.next = r.ev[0]==="every" ? (+r.ev[1]||1) : null; } }
+}
+
+// transition to scene n: tear down the current stage, set up the next, scene-relative time
+function gotoScene(n){
+  scene=n; OBJ=[]; parts=[]; msgs=[]; shake=0; tapQ=0; S.time=0; pendingScene=null;
+  placeScene(PROG, n);
+}
+
+function setupGame(prog,seed){
+  PROG=prog; SEED=seed; PAL=buildPalette(prog,seed); buildBgField(prog,seed);
+  const r=mulberry32(seed^0x55); AUD={ wave:["square","sawtooth","triangle"][Math.floor(r()*3)], root:48+Math.floor(r()*12) };
+  OBJ=[]; parts=[]; msgs=[]; shake=0; ending=null; tapQ=0; frame=0; totalTime=0; pendingScene=null;
+  S={ score:0, lives:("lives" in prog.directives)?(+prog.directives.lives||0):3, time:0, taps:0, vars:{} };
   for(const r2 of prog.rules){ r2.fired=false; r2.next = r2.ev[0]==="every" ? (+r2.ev[1]||1) : null; }
+  const scenes=[...new Set([...Object.values(prog.objects).map(o=>o.scene||1), ...prog.rules.map(r2=>r2.scene||1)])].sort((a,b)=>a-b);
+  scene = scenes[0] || 1;
+  placeScene(prog, scene);
 }
 
 function num(expr){ if(expr[0]==="count"){ const ref=expr[1]||""; return OBJ.filter(o=>o.alive&&refMatch(o,ref)).length; }
@@ -311,6 +325,7 @@ function doAction(a, srcObj){
   if(v==="tune"){ const prop=a[2], d=+a[3]||0; const targets = a[1]==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,a[1]));
     for(const o of targets){ if(prop==="speed") o.speed=Math.max(0.15,Math.min(3,(o.speed||1)+d));
       else if(prop==="scale") o.scale=Math.max(0.3,Math.min(3,(o.scale||1)+d)); } return; }
+  if(v==="goto"){ pendingScene = parseInt(a[1]) || 1; return; }
   if(v==="win"||v==="lose"||v==="end"||v==="refuse"){ if(!ending){ ending={type:v,msg:unq(a.slice(1).join(" "))}; } return; }
 }
 function fire(rule, srcObj){ for(const a of rule.actions) doAction(a, srcObj); }
@@ -318,7 +333,7 @@ function fire(rule, srcObj){ for(const a of rule.actions) doAction(a, srcObj); }
 function update(dt){
   frame++;
   if(state!=="play") return;
-  S.time += dt;
+  S.time += dt; totalTime += dt;
   const tx=target.x*W, ty=target.y*H;
 
   // movement
@@ -336,8 +351,9 @@ function update(dt){
     else { o.sx+=(1-o.sx)*8*dt; o.sy+=(1-o.sy)*8*dt; }
   }
 
-  // timers
+  // timers (scene-relative)
   for(const r of PROG.rules){
+    if((r.scene||1)!==scene) continue;
     if(r.ev[0]==="every"){ while(S.time>=r.next){ r.next+=(+r.ev[1]||1); fire(r); } }
     else if(r.ev[0]==="at"&&!r.fired&&S.time>=(+r.ev[1]||0)){ r.fired=true; fire(r); }
   }
@@ -345,7 +361,7 @@ function update(dt){
 
   // collisions (on hit A B) — fire once per pair; consume the non-player member
   // UNLESS the rule transformed `it` (become/move/tune it), in which case it survives
-  for(const r of PROG.rules){ if(r.ev[0]!=="on"||r.ev[1]!=="hit") continue; const A=r.ev[2],B=r.ev[3];
+  for(const r of PROG.rules){ if(r.ev[0]!=="on"||r.ev[1]!=="hit"||(r.scene||1)!==scene) continue; const A=r.ev[2],B=r.ev[3];
     const keepIt = r.actions.some(a=>(a[0]==="become"||a[0]==="move"||a[0]==="tune")&&a[1]==="it");
     for(const o1 of OBJ){ if(!o1.alive||!refMatch(o1,A)) continue;
       for(const o2 of OBJ){ if(!o2.alive||o2===o1||!refMatch(o2,B)) continue;
@@ -361,7 +377,7 @@ function update(dt){
 
   // taps
   while(tapQ>0){ tapQ--; S.taps++;
-    for(const r of PROG.rules){ if(r.ev[0]!=="on"||r.ev[1]!=="tap") continue;
+    for(const r of PROG.rules){ if(r.ev[0]!=="on"||r.ev[1]!=="tap"||(r.scene||1)!==scene) continue;
       if(r.ev[2]){ // on tap <ref> — must land on a matching object
         const hit=OBJ.find(o=>o.alive&&refMatch(o,r.ev[2])&&Math.hypot(o.x-tx,o.y-ty)<radOf(o)*1.4);
         if(hit) fire(r,hit);
@@ -371,13 +387,14 @@ function update(dt){
   if(ending) return endGame();
 
   // when (rising edge)
-  for(const r of PROG.rules){ if(r.ev[0]==="when"&&!r.fired&&evalCond(r.ev.slice(1))){ r.fired=true; fire(r); } }
+  for(const r of PROG.rules){ if(r.ev[0]==="when"&&(r.scene||1)===scene&&!r.fired&&evalCond(r.ev.slice(1))){ r.fired=true; fire(r); } }
   if(ending) return endGame();
+  if(pendingScene!=null){ gotoScene(pendingScene); return; }
 
   // default lose at 0 lives (if a life system is in use)
   if(PROG.flags.lives && S.lives<=0){ ending={type:"lose",msg:""}; return endGame(); }
-  // safety net: a game with no reachable ending is force-ended (SPEC-arcr §11)
-  if(S.time>=SAFETY){ ending={type:"end",msg:""}; return endGame(); }
+  // safety net: a game with no reachable ending is force-ended (SPEC-arcr §11) — total time, not scene time
+  if(totalTime>=SAFETY){ ending={type:"end",msg:""}; return endGame(); }
 
   // cull dead / offscreen, decay juice
   OBJ=OBJ.filter(o=>o.alive && o.y>-H*0.2 && o.y<H*1.2 && o.x>-W*0.2 && o.x<W*1.2);
