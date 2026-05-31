@@ -199,6 +199,9 @@ ship — the pixels are computed.
 - `move=seek` homes toward the player (the temptation that chases you).
 - `move=fall`/`rise`/`drift` give items motion without the author placing them; objects
   spawned mid-game (via `spawn`) usually carry these.
+- `move=shot` is **ballistic** — the object travels a fixed heading set when it was fired,
+  ignoring zone clamping, and is culled when it leaves the field. Authors don't set it by
+  hand; the `shoot` action (§9) produces it.
 - Objects sharing a zone are **auto-laid-out** by the engine (spread in a row); `at=scatter`
   places them at random instead. The author never positions pixels.
 
@@ -248,6 +251,7 @@ The right side of a rule; one or more, `;`-separated, executed in order.
 |--------------------------------|---------------------------------------------------------------|
 | `say "text"`                   | show a line of narration (engine fades it in/out)             |
 | `spawn <kind> <arg> [props]`   | create an object now (usually with `move=fall tag=…`)         |
+| `shoot [from <ref>] <kind> [arg] [dir] [props]` | fire a ballistic projectile (see below)      |
 | `destroy [n] <ref>`            | remove `n` (default: all) objects matching `<ref>`           |
 | `move <name> <zone>` \| `move <name> random` | reposition an object                          |
 | `become <ref> <kind> <arg>`    | change matching objects' kind/glyph in place (transformation) |
@@ -263,6 +267,29 @@ The right side of a rule; one or more, `;`-separated, executed in order.
 | `lose "text"`                  | end — defeat screen with `text`                               |
 | `end "text"`                   | end — neutral, no win/lose (the game is simply over)         |
 | `refuse "text"`                | end — the game declines to continue (a flavored neutral end) |
+
+**`shoot`** fires a projectile that flies a straight heading and is culled when it leaves
+the field. Its `<kind> [arg]` is written exactly like `obj`/`spawn` (`shoot emoji ⚡`,
+`shoot shape star`, `shoot sprite`); with no kind it defaults to a palette circle. Clauses:
+
+- **origin** — `from <ref>` fires one projectile from *each* live object matching `<ref>`
+  (e.g. `every 1 : shoot from #turret emoji 💢 down` — every turret fires). With no `from`,
+  it fires from the rule's source object if there is one (an `on hit`/`on tap <ref>` target),
+  otherwise from the player.
+- **heading** — `up` `down` `left` `right`, or `at <ref>` to aim at the nearest matching
+  object. Default: `up` from the player; a non-player origin defaults to aiming at the player.
+
+Projectiles collide through ordinary `on hit` rules (`on hit #bolt #foe : score +1`),
+inheriting the consume-on-hit behaviour. A simple shooter:
+
+```
+@title DEFENDER
+obj you : emoji 🔫 at=bottom move=tap
+every 0.8 : spawn emoji 👾 at=top move=fall tag=foe
+on tap : shoot emoji ⚡ up tag=bolt
+on hit #bolt #foe : score +1 ; sound pop
+when score >= 12 : win "the sky is clear."
+```
 
 Transformation example (a complete dada game):
 
@@ -430,7 +457,9 @@ when lives <= 0 : lose "the bills won."
 
 ## 14. Non-goals / reserved for later
 
-- **No physics** (gravity curves, momentum, rigid bodies). `move` behaviors are it.
+- **No rich physics** (gravity curves, momentum, rigid bodies, bounce). Motion is the fixed
+  `move` behaviours plus straight-line `shoot` projectiles — no acceleration or collision
+  response beyond `on hit`.
 - **No author-defined functions or loops.** Rules are flat ECA. (`def`/`macro` reserved.)
 - **No operator precedence in conditions.** `and`/`or` evaluate strictly left-to-right
   (§8); there are no parentheses. Author the order you mean.
@@ -441,13 +470,15 @@ when lives <= 0 : lose "the bills won."
 
 ## 15. Changelog
 
-- **v0.3** (2026-05-30) — four engine additions: **compound conditions** (`and`/`or`
+- **v0.3** (2026-05-30) — five engine additions: **compound conditions** (`and`/`or`
   joining comparisons in a `when`, left-to-right, no precedence — §8); the **`sound <id>`**
   action (named cues `ding`/`blip`/`pop`/`thud`/`buzz`/`chord` — §9); **keyboard play**
-  (arrows/WASD steer, Space/Enter tap + start/replay — engine UX, §10, not grammar); and the
-  **`sprite`** object kind (procedural pixel creatures, optional seed — §6), which also made
-  the `spawn` positional arg optional (`spawn sprite at=top` no longer eats `at=top`). The
-  engine (`arcr.html` → generated bootloader renderer) and the test suite cover all four.
+  (arrows/WASD steer, Space/Enter tap + start/replay — engine UX, §10, not grammar); the
+  **`sprite`** object kind (procedural pixel creatures, optional seed — §6); and the
+  **`shoot`** action with ballistic `move=shot` projectiles (`from`/`at`/cardinal headings —
+  §9), unlocking shooters/defense/bullet-hell. The `sprite` work also made the `spawn`/`shoot`
+  positional arg optional (`spawn sprite at=top` no longer eats `at=top`). The engine
+  (`arcr.html` → generated bootloader renderer) and the test suite cover all five.
 - **v0.2** (2026-05-30) — added **scenes**: `scene <n>` lines partition a program into
   stages and the `goto <n>` action transitions between them (current stage torn down, next
   set up; timers are scene-relative; `score`/`lives`/`taps`/variables carry over; the

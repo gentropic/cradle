@@ -125,6 +125,7 @@ no precedence, no parentheses**: `when score >= 5 and lives > 0 : win "…"`.
 |---|---|
 | `say "text"` | a line of narration |
 | `spawn kind arg props` | create an object now |
+| `shoot [from <ref>] kind [arg] [dir] props` | fire a projectile — `dir` = `up/down/left/right` or `at <ref>`; `from <ref>` = every match fires |
 | `destroy [n] <ref>` | remove n (default all) matching |
 | `move <name> <zone>` / `move <name> random` | reposition |
 | `become <ref> kind arg` | transform in place |
@@ -191,6 +192,23 @@ on hit you #rock : life -1 ; say "hull breach."
 when time >= 28 : win "you flew through. the sky is quiet now."
 ```
 *Why it works:* score is *time survived*; the win is just outlasting the storm.
+
+### Shooter (`shoot`)
+
+```
+@title DEFENDER
+@about defense
+@bg stars
+obj you : emoji 🔫 at=bottom move=tap
+every 0.8 : spawn emoji 👾 at=top move=fall tag=foe
+on tap : shoot emoji ⚡ up tag=bolt
+on hit #bolt #foe : score +1 ; sound pop
+when score >= 6 : win "the sky is clear."
+```
+*Why it works:* steer to line up the shot, tap to fire — the bolt rises from wherever you
+are and meets the descending foe. Bullets collide through an ordinary `on hit`, so a shooter
+is just *catch, at a distance*. For bullet-hell, flip it: `every 1 : shoot from #ufo emoji 💢
+down` makes every UFO fire at once.
 
 ### Tap-to-clear (whack)
 

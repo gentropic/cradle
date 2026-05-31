@@ -135,3 +135,34 @@ test("`sprite` objects: parse clean, render headlessly, and play to an ending", 
   const idx = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "index.html"), "utf8");
   assert.match(idx, /o\.kind==="sprite"/, "sprite render branch present in the bootloader");
 });
+
+test("`shoot` projectiles: fire, travel a heading, and clear targets via on hit", () => {
+  // a bolt fired `up` actually travels upward (y decreases)
+  A.loadSource("@title AIM\nobj you : emoji 🔫 at=bottom move=tap\non tap : shoot emoji ⚡ up tag=bolt\nwhen taps >= 99 : end \"x\"", 7);
+  A.play(); A.tap(); A.update(0.05);
+  let bolt = A.objs().find((o) => o.alive && o.move === "shot");
+  assert.ok(bolt, "a tap spawned a projectile");
+  const y0 = bolt.y;
+  for (let i = 0; i < 8; i++) A.update(0.05);
+  bolt = A.objs().find((o) => o.alive && o.move === "shot");
+  assert.ok(bolt && bolt.y < y0 - 10, "the `up` bolt travelled upward (y " + y0.toFixed(0) + " -> " + (bolt ? bolt.y.toFixed(0) : "gone") + ")");
+
+  // a full up-shooter: aim under the lowest foe, fire, clear them to a win
+  const src = "@title DEFENDER\nobj you : emoji 🔫 at=bottom move=tap\n" +
+    "every 0.8 : spawn emoji 👾 at=top move=fall tag=foe\n" +
+    "on tap : shoot emoji ⚡ up tag=bolt\non hit #bolt #foe : score +1\n" +
+    "when score >= 4 : win \"cleared.\"";
+  A.loadSource(src, 7); A.play();
+  for (let i = 0; i < 1000 && !["win","lose","end","refuse"].includes(A.state); i++) {
+    const foes = A.objs().filter((o) => o.alive && o.tag === "foe");
+    if (foes.length) { const low = foes.reduce((p, q) => (p.y > q.y ? p : q)); A.steer(low.x / A.W(), 0.85); }
+    if (i % 2 === 0) A.tap();
+    A.update(0.05);
+  }
+  assert.strictEqual(A.state, "win", "bolts cleared the foes, got " + A.state);
+
+  // generated bootloader carries the action and the ballistic motion
+  const idx = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "index.html"), "utf8");
+  assert.match(idx, /v==="shoot"/, "shoot action present in the bootloader");
+  assert.match(idx, /o\.move==="shot"/, "ballistic motion present in the bootloader");
+});
