@@ -426,13 +426,17 @@
   font-size: 0.98rem; font-weight: 600; white-space: nowrap; color: var(--menu-fg);
   font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
-/* multi-price columns: fixed-width right-aligned cells so item prices line up under the
-   section's column headers (taça / garrafa, S / M / L, …) */
-.menu .item-price.col { min-width: 4.2rem; padding-left: 0.8rem; text-align: right; }
+/* multi-price columns: every price cell is the SAME fixed width (flex-basis, not
+   min-width — min-width lets a wide value like R$ 140,00 expand and shove the inner
+   column out of line), right-aligned, so item prices line up exactly under the section's
+   column headers (taça / garrafa, S / M / L, …). --menu-col-w is tunable per template. */
+.menu { --menu-col-w: 5.4rem; }
+.menu .item-price.col, .menu .col-h {
+  flex: 0 0 var(--menu-col-w); width: var(--menu-col-w); padding-left: 0.7rem; text-align: right;
+}
 .menu .cols { display: flex; align-items: baseline; margin: 0.05rem 0 0.35rem; }
 .menu .col-fill { flex: 1 1 auto; }
 .menu .col-h {
-  min-width: 4.2rem; padding-left: 0.8rem; text-align: right; flex-shrink: 0;
   font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--menu-fg-faint);
 }
