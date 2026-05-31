@@ -126,3 +126,61 @@
 .menu.tmpl-warm h1 { font-weight: 700; }
 .menu.tmpl-warm h2 { color: var(--menu-accent); border-bottom: none; }
 .menu.tmpl-warm .item { border-bottom: none; padding: 0.5rem 0; }
+
+/* noir — fine dining, near-black, gold accent, centered serif, generous */
+.menu.tmpl-noir {
+  --menu-bg: #0d0d10; --menu-fg: #ece8df; --menu-fg-muted: #9b9384; --menu-fg-faint: #56514a;
+  --menu-rule: rgba(200, 180, 140, 0.18); --menu-tag-bg: rgba(200, 180, 140, 0.12);
+  --menu-head: var(--menu-serif); --menu-name: var(--menu-serif); --menu-accent: #c8a96a;
+  padding-top: 2.5rem;
+}
+.menu.tmpl-noir h1 { font-size: 2rem; text-align: center; letter-spacing: 0.02em; }
+.menu.tmpl-noir h1 + p { text-align: center; }
+.menu.tmpl-noir h2 { text-align: center; border-bottom: none; color: var(--menu-accent);
+  letter-spacing: 0.26em; font-weight: 600; }
+.menu.tmpl-noir .item-name { font-weight: 500; }
+.menu.tmpl-noir .stale { background: #2a230f; color: #f0d9a0; border-color: #6b5519; }
+
+/* newsprint — broadsheet, off-white paper, heavy serif, ruled headings */
+.menu.tmpl-newsprint {
+  --menu-bg: #f3f0e7; --menu-fg: #1a1814; --menu-fg-muted: #5c554a; --menu-fg-faint: #9a9283;
+  --menu-rule: rgba(0, 0, 0, 0.28); --menu-tag-bg: rgba(0, 0, 0, 0.08);
+  --menu-head: var(--menu-serif); --menu-name: var(--menu-serif); --menu-accent: #1a1814;
+  font-family: var(--menu-serif);
+}
+.menu.tmpl-newsprint h1 { font-size: 2.3rem; font-weight: 700; text-align: center;
+  border-bottom: 3px double var(--menu-rule); padding-bottom: 0.35rem; }
+.menu.tmpl-newsprint h1 + p { text-align: center; }
+.menu.tmpl-newsprint h2 { font-family: var(--menu-serif); font-weight: 700; text-align: center;
+  letter-spacing: 0.05em; border-top: 1px solid var(--menu-rule); border-bottom: 1px solid var(--menu-rule);
+  padding: 0.3rem 0; }
+.menu.tmpl-newsprint .item-price { font-family: var(--menu-serif); }
+
+/* card — modern app / trendy café, soft grey page, white item cards */
+.menu.tmpl-card {
+  --menu-bg: #eef0f3; --menu-fg: #1d2530; --menu-fg-muted: #6a7280; --menu-fg-faint: #aab2bd;
+  --menu-rule: rgba(0, 0, 0, 0.07); --menu-tag-bg: rgba(0, 0, 0, 0.05); --menu-accent: #3b6ea5;
+}
+.menu.tmpl-card h2 { border-bottom: none; color: var(--menu-accent); }
+.menu.tmpl-card .item { background: #fff; border-bottom: none; border-radius: 10px;
+  padding: 0.7rem 0.85rem; margin: 0 0 0.45rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+.menu.tmpl-card .item-price { color: var(--menu-accent); }
+
+/* ============================== print ============================== */
+/* a clean, ink-friendly menu on paper: white background, dark text, no QR-source
+   line, sections/items kept whole across page breaks. Applies to the bootloader
+   render directly; the editor adds its own @media print to hide the chrome. */
+@media print {
+  /* !important so these beat the more-specific .menu.tmpl-<x> palette (e.g. dark/noir
+     set a light --menu-fg that would be invisible on the forced white background) */
+  .menu {
+    max-width: none; margin: 0; padding: 1cm; background: #fff !important;
+    --menu-fg: #1a1a1a !important; --menu-fg-muted: #555 !important; --menu-fg-faint: #999 !important;
+    --menu-rule: rgba(0, 0, 0, 0.2) !important; --menu-tag-bg: rgba(0, 0, 0, 0.06) !important;
+  }
+  .menu .attribution { display: none; }
+  .menu a { color: inherit; text-decoration: none; }
+  .menu .item, .menu .item-body { background: none !important; box-shadow: none !important; }
+  .menu .item, .menu h2 { break-inside: avoid; }
+  .menu h2 { break-after: avoid; }
+}

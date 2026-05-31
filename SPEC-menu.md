@@ -66,7 +66,7 @@ Directives MUST appear before any heading or content. Decoders MUST ignore direc
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `@template` | enum | `minimal` | Visual template: `minimal`, `bistro`, `serif`, `dark`, `warm` |
+| `@template` | enum | `minimal` | Visual template: `minimal`, `bistro`, `serif`, `dark`, `warm`, `noir`, `newsprint`, `card` |
 | `@accent` | CSS color | none | Accent for headings and active elements |
 | `@valid_until` | ISO 8601 date | none | Expiry guard: decoder shows a staleness banner once today > this date (always). While current, shows a "valid through &lt;date&gt;" footer line **only if** `@valid_show` is on |
 | `@valid_show` | bool (`true`) | off | Opt in to the "valid through &lt;date&gt;" footer line while the menu is current (requires `@valid_until`) |
@@ -195,12 +195,13 @@ There is no `q1` deployment to preserve compatibility against; the migration is 
 
 Templates are *renderer* presentation, not wire format: the body only carries the
 `@template` token. A renderer MAY offer any set of looks under additive template names
-(§6); unknown names fall back to the base look. The reference renderer ships five —
-`minimal` (clean modern sans), `bistro` (classic cream paper, centered serif),
-`serif` (editorial), `dark` (moody), `warm` (cozy) — each setting its own tasteful
-default accent that `@accent` overrides when present. The template CSS is single-sourced
+(§6); unknown names fall back to the base look. The reference renderer ships eight —
+`minimal` (clean modern sans), `bistro` (classic cream paper, centered serif), `serif`
+(editorial), `dark` (moody), `warm` (cozy), `noir` (fine-dining black + gold), `newsprint`
+(broadsheet), `card` (modern app, white item cards) — each setting its own tasteful default
+accent that `@accent` overrides when present. The template CSS is single-sourced
 (`ext/menu/templates.css`, `.menu`-scoped) so the editor preview and the deployed render
-are pixel-identical.
+are pixel-identical, and carries an `@media print` block for an ink-friendly paper menu.
 
 ## Appendices
 
