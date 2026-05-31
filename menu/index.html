@@ -316,10 +316,14 @@
   body.mode-print .qr-section, body.mode-print .menu-preview { display: none; }
   body.mode-print .print-preview { display: block; }
   #print-preview-inner { zoom: 0.46; width: max-content; margin: 0 auto; }
-  /* shared by the body output + the pane preview clone */
-  #print-area > .menu, #print-preview-inner > .menu {
-    background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); width: 190mm; max-width: 190mm; margin: 0 auto;
-  }
+  /* 1-up print output (body) */
+  #print-area > .menu { background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); width: 190mm; max-width: 190mm; margin: 0 auto; }
+  /* 1-up preview: the menu at full page width with page-break guides drawn on top */
+  .preview-1up { position: relative; background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); margin: 0 auto; }
+  .preview-1up > .menu { box-shadow: none; }
+  .page-break { position: absolute; left: 0; right: 0; border-top: 1.6px dashed #c0392b; pointer-events: none; }
+  .page-break span { position: absolute; right: 3mm; top: 1.2mm; font: 700 3.4mm var(--font-sans); color: #fff;
+    background: #c0392b; padding: 0.3mm 2mm; border-radius: 2mm; }
   .menu-sheet { background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); box-sizing: border-box;
     display: grid; overflow: hidden; padding: 8mm; gap: 6mm; }
   .menu-sheet.cut { gap: 9mm; }
@@ -327,6 +331,11 @@
   .menu-cell > .menu { max-width: none; width: 480px; flex: none;
     transform-origin: top center; transform: scale(var(--cell-scale, 1)); }
   .menu-sheet.cut .menu-cell { outline: 0.2mm dashed #999; outline-offset: 2.5mm; }
+  .menu-cell.cell-over { outline: 1.5px solid #c0392b !important; outline-offset: 0 !important; }
+  .menu-cell.cell-over::after { content: "\2702"; position: absolute; right: 1.5mm; bottom: 1.5mm; font-size: 5mm;
+    color: #c0392b; background: rgba(255,255,255,0.88); border-radius: 2mm; padding: 0 1mm; z-index: 2; }
+  .print-warn { font-size: 0.78rem; color: #c0392b; background: #fdecea; border: 1px solid #f5c6cb;
+    border-radius: 5px; padding: 0.5rem 0.7rem; margin: 0.7rem 0 0; line-height: 1.4; }
 
   @media print {
     body > *:not(#print-area) { display: none !important; }
@@ -625,6 +634,7 @@
         <div class="field-row"><label data-i18n="print.cutMarks" for="print-cut">cut marks</label>
           <input type="checkbox" id="print-cut"></div>
         <button class="add-btn" id="print-go" style="margin-top:0.7rem" data-i18n="print.go">Print…</button>
+        <p class="print-warn" id="print-warn" data-i18n="print.overflow" style="display:none"></p>
         <p class="print-hint" data-i18n="print.hint" style="font-size:0.74rem;color:var(--fg-faint);margin:0.7rem 0 0;line-height:1.45"></p>
       </div></div>
     </div>
@@ -700,7 +710,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -899,6 +911,7 @@ const UI = {
     "tab.form": "Form", "tab.source": "Source", "tab.print": "Print",
     "print.perSheet": "Per sheet", "print.paper": "Paper", "print.cutMarks": "cut marks",
     "print.go": "Print…", "print.hint": "Copies and double-sided are set in your browser's print dialog. 2/4-per-sheet print the menu repeated, to cut apart.",
+    "print.overflow": "✂ The menu is taller than the cell — parts will be cut off. Use fewer per sheet, or shorten the menu.",
     "grp.header": "Header", "grp.style": "Style", "grp.status": "Fees & validity",
     "grp.social": "Social", "grp.sections": "Menu sections", "grp.footer": "Footer text",
     "f.menulang": "Menu language", "f.title": "Restaurant name", "f.subtitle": "Subtitle",
@@ -935,6 +948,7 @@ const UI = {
     "tab.form": "Formulário", "tab.source": "Código", "tab.print": "Imprimir",
     "print.perSheet": "Por folha", "print.paper": "Papel", "print.cutMarks": "marcas de corte",
     "print.go": "Imprimir…", "print.hint": "Cópias e frente-e-verso são definidos na caixa de impressão do navegador. 2/4 por folha imprimem o cardápio repetido, para recortar.",
+    "print.overflow": "✂ O cardápio é mais alto que a célula — partes serão cortadas. Use menos por folha, ou encurte o cardápio.",
     "grp.header": "Cabeçalho", "grp.style": "Estilo", "grp.status": "Taxas e validade",
     "grp.social": "Redes sociais", "grp.sections": "Seções do cardápio", "grp.footer": "Rodapé",
     "f.menulang": "Idioma do cardápio", "f.title": "Nome do restaurante", "f.subtitle": "Subtítulo",
@@ -1418,10 +1432,22 @@ function menuTitle(source) {
 // ============================================================
 // Form rendering (incremental, focus-stable)
 // ============================================================
-// print composition — lay the rendered menu onto real-mm sheets for paper output
+// measure a menu's rendered height (px) at a given width, off-screen
+function measureMenuHeightPx(tmpl, accVar, html, widthCss) {
+  const tmp = document.createElement("div");
+  tmp.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden";
+  tmp.innerHTML = `<div class="menu tmpl-${tmpl}" style="${accVar}width:${widthCss}">${html}</div>`;
+  document.body.appendChild(tmp);
+  const h = tmp.firstChild.getBoundingClientRect().height;
+  tmp.remove();
+  return h;
+}
+// print composition — lay the rendered menu onto real-mm sheets; the preview shows
+// page boundaries (1-up paginates) or an overflow warning (2/4-up cell clips)
 function buildPrintArea() {
   const out = document.getElementById("print-area");          // body-level (print output)
   const prev = document.getElementById("print-preview-inner"); // pane (screen preview, zoomed)
+  const warn = document.getElementById("print-warn");
   const src = document.getElementById("menu-frame");
   if (!src || (!out && !prev)) return;
   const upBtn = document.querySelector("#print-up .seg-btn.active");
@@ -1432,20 +1458,33 @@ function buildPrintArea() {
   const accent = document.getElementById("f-accent-text").value.trim();
   const html = src.innerHTML;
   const accVar = accent ? "--menu-accent:" + accent + ";" : "";
-  let content;
+  const [pw, ph] = paper === "Letter" ? [215.9, 279.4] : [210, 297];
+  const PXMM = 96 / 25.4;
+
   if (up === 1) {                                             // one menu, flows + paginates
-    content = `<div class="menu tmpl-${tmpl}" style="${accVar}">${html}</div>`;
-  } else {
-    const [pw, ph] = paper === "Letter" ? [215.9, 279.4] : [210, 297];
-    const cols = 2, rows = up / 2;
-    const cellMm = (pw - 16 - 6) / cols;                      // 8mm padding/side, 6mm gap
-    const scale = Math.min(0.95, (cellMm * 96 / 25.4) * 0.9 / 480).toFixed(3);
-    const cell = `<div class="menu-cell"><div class="menu tmpl-${tmpl}" style="--cell-scale:${scale};${accVar}">${html}</div></div>`;
-    content = `<div class="menu-sheet${cut ? " cut" : ""}" style="width:${pw}mm;height:${ph}mm;` +
-      `grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${cell.repeat(up)}</div>`;
+    if (out) out.innerHTML = `<div class="menu tmpl-${tmpl}" style="${accVar}">${html}</div>`;
+    if (prev) {
+      const pages = Math.max(1, Math.ceil(measureMenuHeightPx(tmpl, accVar, html, pw + "mm") / (ph * PXMM) - 0.01));
+      let lines = "";
+      for (let i = 1; i < pages; i++) lines += `<div class="page-break" style="top:${(i * ph).toFixed(2)}mm"><span>${i + 1}</span></div>`;
+      prev.innerHTML = `<div class="preview-1up" data-pages="${pages}" style="width:${pw}mm">` +
+        `<div class="menu tmpl-${tmpl}" style="${accVar}width:${pw}mm">${html}</div>${lines}</div>`;
+    }
+    if (warn) warn.style.display = "none";
+    return;
   }
-  if (out) out.innerHTML = content;
-  if (prev) prev.innerHTML = content;
+  const cols = 2, rows = up / 2;
+  const cellMmW = (pw - 16 - 6) / cols;                       // 8mm padding/side, 6mm gap
+  const scale = Math.min(0.95, (cellMmW * PXMM) * 0.9 / 480);
+  const cellMmH = (ph - 16 - (rows - 1) * (cut ? 9 : 6)) / rows;
+  const over = measureMenuHeightPx(tmpl, accVar, html, "480px") * scale > cellMmH * PXMM + 4;
+  const cell = (mark) => `<div class="menu-cell${mark ? " cell-over" : ""}">` +
+    `<div class="menu tmpl-${tmpl}" style="--cell-scale:${scale.toFixed(3)};${accVar}">${html}</div></div>`;
+  const sheet = (mark) => `<div class="menu-sheet${cut ? " cut" : ""}" style="width:${pw}mm;height:${ph}mm;` +
+    `grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${cell(mark).repeat(up)}</div>`;
+  if (out) out.innerHTML = sheet(false);
+  if (prev) prev.innerHTML = sheet(over);
+  if (warn) warn.style.display = over ? "block" : "none";
 }
 function updatePageStyle() {
   const paper = document.getElementById("print-paper").value;
