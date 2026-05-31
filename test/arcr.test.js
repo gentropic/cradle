@@ -116,3 +116,22 @@ test("the bootloader renderer keeps keyboard nav (Space/Enter = tap)", () => {
   assert.match(idx, /e\.key===" "\s*\|\|\s*e\.key==="Enter"/, "Space/Enter handling present in the bootloader");
   assert.match(idx, /if\(state==="play"\) tapQ\+\+/, "Space/Enter maps to a tap during play");
 });
+
+test("`sprite` objects: parse clean, render headlessly, and play to an ending", () => {
+  // a sprite seed is optional — `spawn sprite at=top` must not eat `at=top` as the seed
+  const src = "@title PIXELS\nobj you : sprite at=bottom move=tap\n" +
+    "every 0.7 : spawn sprite at=top move=fall tag=pal\n" +
+    "every 1.2 : spawn sprite 9 at=top move=fall tag=bad speed=1.3\n" +
+    "on hit you #pal : score +1\non hit you #bad : life -1\n" +
+    "when score >= 4 : win \"collected.\"\nwhen lives <= 0 : lose \"glitched.\"";
+  assert.strictEqual(A.parseArcr(src).warnings.length, 0, "sprite program parses clean");
+  // the render path: load, start, draw a few frames — makeSprite/drawImage must not throw under the stub DOM
+  A.loadSource(src, 3); A.play();
+  assert.doesNotThrow(() => { for (let i = 0; i < 5; i++) { A.update(0.1); A.draw(); } }, "drawing sprites is safe");
+  // and it reaches a real ending
+  const r = botPlay(A, src);
+  assert.ok(["win", "lose", "end", "refuse"].includes(r.state), "sprite game ended, got " + r.state);
+  // the generated bootloader renderer carries the sprite branch
+  const idx = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "index.html"), "utf8");
+  assert.match(idx, /o\.kind==="sprite"/, "sprite render branch present in the bootloader");
+});

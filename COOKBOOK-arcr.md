@@ -90,7 +90,7 @@ shakes, and screens are automatic.
 
 **Objects** — `obj name : kind arg prop=val …`
 
-- **kind**: `emoji 🦷` · `text "WIN"` · `shape diamond` (`circle diamond star hexagon triangle ring spike saw x`)
+- **kind**: `emoji 🦷` · `text "WIN"` · `shape diamond` (`circle diamond star hexagon triangle ring spike saw x`) · `sprite` (a procedural pixel creature; optional seed `sprite 42`)
 - **at** (a *zone*): `center top bottom left right scatter` (`scatter` = random)
 - **move**: `still tap chase flee seek fall rise drift`
   - `tap` / `chase` = follows the pointer → **this is the player** (call it `you`)
@@ -159,6 +159,25 @@ on hit you #star : score +1
 when score >= 12 : win "a basket of light. enough."
 ```
 *Why it works:* one verb (steer), one readable goal, a calm difficulty curve.
+
+### Procedural critters (`sprite`)
+
+```
+@title COLLECTOR
+@about wonder
+@bg dots
+@lives 3
+obj you : sprite at=bottom move=tap
+every 0.8 : spawn sprite at=top move=fall tag=crit
+every 1.7 : spawn sprite 1 at=top move=fall tag=glitch speed=1.3
+on hit you #crit : score +1 ; sound blip
+on hit you #glitch : life -1 ; sound buzz
+when score >= 8 : win "a pocket zoo of pixels."
+when lives <= 0 : lose "scrambled."
+```
+*Why it works:* no two creatures are drawn alike, yet each is stable within the run — the
+seedless `crit` swarm varies endlessly while the pinned `glitch 1` is always the same beast.
+Pure computed pixels, zero assets, plus a `sound` cue on each outcome.
 
 ### Survival / dodge
 

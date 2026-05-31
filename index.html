@@ -860,6 +860,24 @@ function drawShape(shape,r,color){ ctx.fillStyle=color; ctx.strokeStyle=color; c
     default: ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
   } ctx.shadowBlur=0; }
 
+// procedural pixel-creature: a 7x7 mirror-symmetric "invader", seeded → consistent
+// per object/game, varied across games. Body colour from the palette, contrasting eyes.
+const _spriteCache={};
+function makeSprite(key, seed, body, eye){
+  if(_spriteCache[key]) return _spriteCache[key];
+  const rnd=mulberry32(seed>>>0), cols=7, rows=7, cell=8, half=4;
+  const cvs=document.createElement("canvas"); cvs.width=cols*cell; cvs.height=rows*cell;
+  const cx=cvs.getContext("2d");
+  for(let y=0;y<rows;y++) for(let x=0;x<half;x++){ const edge=(y===0||y===rows-1);
+    if(rnd()<(edge?0.3:0.62)){ cx.fillStyle=body; cx.fillRect(x*cell,y*cell,cell,cell); cx.fillRect((cols-1-x)*cell,y*cell,cell,cell); } }
+  const eyeRow=2+Math.floor(rnd()*2); cx.fillStyle=eye;
+  cx.fillRect(1*cell,eyeRow*cell,cell,cell); cx.fillRect((cols-2)*cell,eyeRow*cell,cell,cell);
+  _spriteCache[key]=cvs; return cvs; }
+function spriteFor(o){
+  const sd = /^\d+$/.test(o.arg||"") ? ((+o.arg)>>>0) : (hashStr((o.name||"")+"@"+SEED)>>>0);
+  const body=isPlayer(o)?PAL.player:PAL.accent, eye=PAL.fg;
+  return makeSprite(sd+"|"+body+"|"+eye, sd, body, eye); }
+
 // audio
 let AC=null;
 function audioOn(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(AC&&AC.state==="suspended") AC.resume(); }
@@ -990,8 +1008,9 @@ function doAction(a, srcObj){
   if(v==="life"){ S.lives+=+a[1]||0; if((+a[1]||0)<0){ shake=Math.min(24,shake+16); sfxBad(); if(srcObj)burst(srcObj.x,srcObj.y,"#f55",14,240);} return; }
   if(v==="set"){ S.vars[a[1]]=+a[2]||0; return; }
   if(v==="add"){ S.vars[a[1]]=(S.vars[a[1]]||0)+(+a[2]||0); return; }
-  if(v==="spawn"){ const props={}; for(let i=3;i<a.length;i++){ if(a[i].includes("=")){const j=a[i].indexOf("=");props[a[i].slice(0,j)]=unq(a[i].slice(j+1));} }
-    spawnObj({kind:a[1],arg:unq(a[2]||""),tag:props.tag,move:props.move,speed:props.speed,at:props.at,size:props.size}); return; }
+  if(v==="spawn"){ const props={}; let arg=""; // first non-`key=value` token is the (optional) positional arg
+    for(let i=2;i<a.length;i++){ if(a[i].includes("=")){const j=a[i].indexOf("=");props[a[i].slice(0,j)]=unq(a[i].slice(j+1));} else if(!arg) arg=unq(a[i]); }
+    spawnObj({kind:a[1],arg,tag:props.tag,move:props.move,speed:props.speed,at:props.at,size:props.size}); return; }
   if(v==="destroy"){ let n=Infinity,ref=a[1]; if(/^\d+$/.test(a[1])){n=+a[1];ref=a[2];}
     const targets = ref==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,ref));
     let c=0; for(const o of targets){ if(c>=n) break; o.alive=false; burst(o.x,o.y,PAL.fg,6,140); c++; } return; }
@@ -1099,6 +1118,7 @@ function drawObj(o){ const r=radOf(o); ctx.save(); ctx.translate(o.x,o.y); ctx.s
   if(o.kind==="emoji"){ drawEmoji(o.arg, 0,0, r*2.1); }
   else if(o.kind==="text"){ ctx.fillStyle=isPlayer(o)?PAL.player:PAL.fg; ctx.shadowColor="rgba(0,0,0,0.4)"; ctx.shadowBlur=6;
     ctx.font=`800 ${Math.round(r*0.95)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(o.arg,0,0); }
+  else if(o.kind==="sprite"){ const sp=spriteFor(o); ctx.imageSmoothingEnabled=false; ctx.drawImage(sp,-r,-r,r*2,r*2); ctx.imageSmoothingEnabled=true; }
   else { drawShape(o.arg||"circle", r, isPlayer(o)?PAL.player:PAL.fg); }
   ctx.restore(); }
 

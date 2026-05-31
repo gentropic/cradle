@@ -166,13 +166,21 @@ obj <name> : <kind> [arg] [prop=val …]
 
 **Kinds** (what it looks like — the engine renders it):
 
-| kind    | arg                  | renders as                                  |
-|---------|----------------------|---------------------------------------------|
-| `emoji` | a glyph, e.g. `💸`   | the emoji (engine sizes/centers it)         |
-| `text`  | `"a string"`         | the string as a chunky label                |
-| `shape` | a shape id (§ below) | a filled shape in the palette               |
+| kind     | arg                   | renders as                                       |
+|----------|-----------------------|--------------------------------------------------|
+| `emoji`  | a glyph, e.g. `💸`    | the emoji (engine sizes/centers it)              |
+| `text`   | `"a string"`          | the string as a chunky label                     |
+| `shape`  | a shape id (§ below)  | a filled shape in the palette                    |
+| `sprite` | *(optional)* a seed   | a procedurally-generated pixel creature          |
 
 `shape` ids: `circle diamond star hexagon triangle ring spike saw x`.
+
+A `sprite` is a small mirror-symmetric pixel "invader" the engine generates from a
+seed: same seed → same creature, every device. With **no arg** the seed is derived from
+the object's name and the game seed (so each named sprite is stable within a game and
+varies across games); with an explicit integer arg (`sprite 42`) the creature is pinned.
+The player's sprite takes the player palette colour, others the accent colour. No assets
+ship — the pixels are computed.
 
 **Props** (how it behaves — all optional):
 
@@ -426,18 +434,20 @@ when lives <= 0 : lose "the bills won."
 - **No author-defined functions or loops.** Rules are flat ECA. (`def`/`macro` reserved.)
 - **No operator precedence in conditions.** `and`/`or` evaluate strictly left-to-right
   (§8); there are no parentheses. Author the order you mean.
-- **No assets** beyond emoji/text/shape. (`sprite <seed>` reserved — it would reuse the
-  prototype's procedural pixel-creature generator.)
+- **No imported assets.** Visuals are emoji, text, palette shapes, or computed `sprite`
+  pixels — nothing is fetched or bundled.
 - **No persistence**, analytics, or navigation, per cradle §10 — except a bootloader-level
   "collection/dex" feature, which lives outside the renderer.
 
 ## 15. Changelog
 
-- **v0.3** (2026-05-30) — three engine primitives: **compound conditions** (`and`/`or`
+- **v0.3** (2026-05-30) — four engine additions: **compound conditions** (`and`/`or`
   joining comparisons in a `when`, left-to-right, no precedence — §8); the **`sound <id>`**
-  action (named cues `ding`/`blip`/`pop`/`thud`/`buzz`/`chord` — §9); and **keyboard play**
-  (arrows/WASD steer, Space/Enter tap + start/replay — engine UX, §10, not grammar). The
-  engine (`arcr.html` → generated bootloader renderer) and the test suite cover all three.
+  action (named cues `ding`/`blip`/`pop`/`thud`/`buzz`/`chord` — §9); **keyboard play**
+  (arrows/WASD steer, Space/Enter tap + start/replay — engine UX, §10, not grammar); and the
+  **`sprite`** object kind (procedural pixel creatures, optional seed — §6), which also made
+  the `spawn` positional arg optional (`spawn sprite at=top` no longer eats `at=top`). The
+  engine (`arcr.html` → generated bootloader renderer) and the test suite cover all four.
 - **v0.2** (2026-05-30) — added **scenes**: `scene <n>` lines partition a program into
   stages and the `goto <n>` action transitions between them (current stage torn down, next
   set up; timers are scene-relative; `score`/`lives`/`taps`/variables carry over; the
