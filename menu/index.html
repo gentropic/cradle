@@ -328,15 +328,11 @@
   .page-foot { position: absolute; bottom: 7mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between;
     font: 2.9mm var(--font-sans); color: #bbb; padding-top: 1.5mm; border-top: 0.3mm solid #eee; }
   .menu-sheet { background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); box-sizing: border-box;
-    display: grid; overflow: hidden; padding: 8mm; gap: 6mm; }
-  .menu-sheet.cut { gap: 9mm; }
-  .menu-cell { position: relative; overflow: hidden; display: flex; justify-content: center; align-items: flex-start; }
-  .menu-cell > .menu { max-width: none; width: 480px; flex: none;
-    transform-origin: top center; transform: scale(var(--cell-scale, 1)); }
-  .menu-sheet.cut .menu-cell { outline: 0.2mm dashed #999; outline-offset: 2.5mm; }
-  .menu-cell.cell-over { outline: 1.5px solid #c0392b !important; outline-offset: 0 !important; }
-  .menu-cell.cell-over::after { content: "\2702"; position: absolute; right: 1.5mm; bottom: 1.5mm; font-size: 5mm;
-    color: #c0392b; background: rgba(255,255,255,0.88); border-radius: 2mm; padding: 0 1mm; z-index: 2; }
+    display: grid; overflow: hidden; }   /* padding + gap set inline per layout */
+  .menu-cell { position: relative; overflow: hidden; box-sizing: border-box; padding: 5mm; }
+  .menu-cell > .menu { width: 100%; max-width: none; }
+  .menu-sheet.cut .menu-cell { outline: 0.2mm dashed #999; }
+  .cell-num { position: absolute; bottom: 1.5mm; right: 2.5mm; font: 2.4mm var(--font-sans); color: #bbb; }
   .print-warn { font-size: 0.78rem; color: #c0392b; background: #fdecea; border: 1px solid #f5c6cb;
     border-radius: 5px; padding: 0.5rem 0.7rem; margin: 0.7rem 0 0; line-height: 1.4; }
 
@@ -716,7 +712,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -1440,52 +1438,48 @@ function menuTitle(source) {
 // ============================================================
 // Form rendering (incremental, focus-stable)
 // ============================================================
-// measure a menu's rendered height (px) at a given width, off-screen
-function measureMenuHeightPx(tmpl, accVar, html, widthCss) {
-  const tmp = document.createElement("div");
-  tmp.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden";
-  tmp.innerHTML = `<div class="menu tmpl-${tmpl}" style="${accVar}width:${widthCss}">${html}</div>`;
-  document.body.appendChild(tmp);
-  const h = tmp.firstChild.getBoundingClientRect().height;
-  tmp.remove();
-  return h;
-}
-// pack the menu's top-level blocks into real A4 pages: items never split, a
-// section heading is never orphaned from its first item, and multi-page menus
-// get a continuation header + a page-number footer. Returns the pages' HTML.
-function paginate1up(tmpl, accVar, html, pw, ph, title) {
-  const PXMM = 96 / 25.4, padMm = 14, footMm = 9, headMm = 9;
-  const usableBase = ph - 2 * padMm - footMm, contentWmm = pw - 2 * padMm;
+// ---- a tiny menu typesetter -------------------------------------------------
+// Lay the menu's top-level blocks into pages of a given content box. Heights are
+// measured from FLOW POSITION (consecutive offset deltas), so margins are counted
+// — getBoundingClientRect alone omits them and overpacks. Rules: an item never
+// splits; a section heading (h2) is never orphaned from its first following block.
+const PRINT_PXMM = 96 / 25.4;
+const PRINT_LAYOUTS = {              // sheet/cell geometry in mm + furniture reserves
+  1: { cols: 1, rows: 1, sheetPad: 14, gap: 0,  cellPad: 0, foot: 9, head: 9 },
+  2: { cols: 2, rows: 1, sheetPad: 8,  gap: 8,  cellPad: 5, foot: 5, head: 0 },
+  4: { cols: 2, rows: 2, sheetPad: 8,  gap: 8,  cellPad: 5, foot: 5, head: 0 },
+};
+function typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, headHpx) {
   const tmp = document.createElement("div");
   tmp.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden";
   tmp.innerHTML = `<div class="menu tmpl-${tmpl}" style="${accVar}width:${contentWmm}mm;padding:0">${html}</div>`;
   document.body.appendChild(tmp);
-  const blocks = Array.from(tmp.firstChild.children).map((b) => ({
-    html: b.outerHTML, h: b.getBoundingClientRect().height, isH2: b.tagName === "H2",
+  const menuEl = tmp.firstChild, kids = Array.from(menuEl.children);
+  const r = menuEl.getBoundingClientRect(), mTop = r.top, mH = r.height;
+  const top = kids.map((k) => k.getBoundingClientRect().top - mTop);
+  const blocks = kids.map((k, i) => ({
+    html: k.outerHTML, h: (i + 1 < kids.length ? top[i + 1] : mH) - top[i], isH2: k.tagName === "H2",
   }));
   tmp.remove();
-  const usablePx = (idx) => (idx === 0 ? usableBase : usableBase - headMm) * PXMM;
-  const pages = []; let cur = [], curH = 0;
+  let tooTall = false;
+  const pages = []; let cur = [], acc = 0;
   for (let i = 0; i < blocks.length; i++) {
+    const usable = usableHpx - (pages.length > 0 ? headHpx : 0);
+    if (blocks[i].h > usable) tooTall = true;
     let need = blocks[i].h;
-    if (blocks[i].isH2 && i + 1 < blocks.length) need += blocks[i + 1].h;  // keep heading + first item
-    if (curH + need > usablePx(pages.length) && cur.length) { pages.push(cur); cur = []; curH = 0; }
-    cur.push(blocks[i]); curH += blocks[i].h;
+    if (blocks[i].isH2 && i + 1 < blocks.length) need += blocks[i + 1].h;   // keep heading + first block
+    if (acc + need > usable && cur.length) { pages.push(cur); cur = []; acc = 0; }
+    cur.push(blocks[i].html); acc += blocks[i].h;
   }
   if (cur.length) pages.push(cur);
-  const N = pages.length, multi = N > 1, esc = (s) => escapeHtml(String(s));
-  return pages.map((pg, pi) => {
-    const head = (multi && pi > 0) ? `<div class="page-head">${esc(title)} · ${esc(t("print.continued"))}</div>` : "";
-    const foot = multi ? `<div class="page-foot"><span>${esc(title)}</span><span>${pi + 1} / ${N}</span></div>` : "";
-    return `<div class="print-page${head ? " has-head" : ""}" style="width:${pw}mm;height:${ph}mm">${head}` +
-      `<div class="menu tmpl-${tmpl}" style="${accVar}width:100%;padding:0">${pg.map((b) => b.html).join("")}</div>${foot}</div>`;
-  }).join("");
+  return { pages, tooTall };
 }
-// print composition — lay the rendered menu onto real-mm sheets; the preview shows
-// page boundaries (1-up paginates) or an overflow warning (2/4-up cell clips)
+// Compose the menu onto real-mm sheets. 1-up → one paginated A4 page per sheet
+// (continuation header + page footer). N-up → each page repeated across N cells;
+// a long menu spans multiple sheets, so cutting + stacking yields N full menus.
 function buildPrintArea() {
-  const out = document.getElementById("print-area");          // body-level (print output)
-  const prev = document.getElementById("print-preview-inner"); // pane (screen preview, zoomed)
+  const out = document.getElementById("print-area");
+  const prev = document.getElementById("print-preview-inner");
   const warn = document.getElementById("print-warn");
   const src = document.getElementById("menu-frame");
   if (!src || (!out && !prev)) return;
@@ -1495,30 +1489,37 @@ function buildPrintArea() {
   const paper = document.getElementById("print-paper").value;
   const tmpl = document.getElementById("f-template").value;
   const accent = document.getElementById("f-accent-text").value.trim();
-  const html = src.innerHTML;
-  const accVar = accent ? "--menu-accent:" + accent + ";" : "";
+  const html = src.innerHTML, accVar = accent ? "--menu-accent:" + accent + ";" : "";
+  const title = menuTitle(document.getElementById("src").value);
   const [pw, ph] = paper === "Letter" ? [215.9, 279.4] : [210, 297];
-  const PXMM = 96 / 25.4;
+  const L = PRINT_LAYOUTS[up], esc = (s) => escapeHtml(String(s));
+  const cellOuterW = (pw - 2 * L.sheetPad - (L.cols - 1) * L.gap) / L.cols;
+  const cellOuterH = (ph - 2 * L.sheetPad - (L.rows - 1) * L.gap) / L.rows;
+  const contentWmm = cellOuterW - 2 * L.cellPad;
+  const usableHpx = (cellOuterH - 2 * L.cellPad - L.foot) * PRINT_PXMM;
+  const { pages, tooTall } = typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, L.head * PRINT_PXMM);
+  const P = pages.length;
+  const menuOf = (pg) => `<div class="menu tmpl-${tmpl}" style="${accVar}width:100%;padding:0">${pg.join("")}</div>`;
 
-  if (up === 1) {                                            // real paginated A4 pages (output + preview share them)
-    const pagesHTML = paginate1up(tmpl, accVar, html, pw, ph, menuTitle(document.getElementById("src").value));
-    if (out) out.innerHTML = pagesHTML;
-    if (prev) prev.innerHTML = pagesHTML;
-    if (warn) warn.style.display = "none";
-    return;
+  let content;
+  if (up === 1) {                                            // one paginated page per sheet
+    content = pages.map((pg, p) => {
+      const head = (p > 0) ? `<div class="page-head">${esc(title)} · ${esc(t("print.continued"))}</div>` : "";
+      const foot = (P > 1) ? `<div class="page-foot"><span>${esc(title)}</span><span>${p + 1} / ${P}</span></div>` : "";
+      return `<div class="print-page${head ? " has-head" : ""}" style="width:${pw}mm;height:${ph}mm">${head}${menuOf(pg)}${foot}</div>`;
+    }).join("");
+  } else {                                                   // each page repeated across N cells, one sheet per page
+    content = pages.map((pg, p) => {
+      const num = (P > 1) ? `<div class="cell-num">${p + 1}/${P}</div>` : "";
+      const oneCell = `<div class="menu-cell">${menuOf(pg)}${num}</div>`;
+      return `<div class="menu-sheet${cut ? " cut" : ""}" style="width:${pw}mm;height:${ph}mm;` +
+        `grid-template-columns:repeat(${L.cols},1fr);grid-template-rows:repeat(${L.rows},1fr);` +
+        `padding:${L.sheetPad}mm;gap:${L.gap}mm">${oneCell.repeat(L.cols * L.rows)}</div>`;
+    }).join("");
   }
-  const cols = 2, rows = up / 2;
-  const cellMmW = (pw - 16 - 6) / cols;                       // 8mm padding/side, 6mm gap
-  const scale = Math.min(0.95, (cellMmW * PXMM) * 0.9 / 480);
-  const cellMmH = (ph - 16 - (rows - 1) * (cut ? 9 : 6)) / rows;
-  const over = measureMenuHeightPx(tmpl, accVar, html, "480px") * scale > cellMmH * PXMM + 4;
-  const cell = (mark) => `<div class="menu-cell${mark ? " cell-over" : ""}">` +
-    `<div class="menu tmpl-${tmpl}" style="--cell-scale:${scale.toFixed(3)};${accVar}">${html}</div></div>`;
-  const sheet = (mark) => `<div class="menu-sheet${cut ? " cut" : ""}" style="width:${pw}mm;height:${ph}mm;` +
-    `grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${cell(mark).repeat(up)}</div>`;
-  if (out) out.innerHTML = sheet(false);
-  if (prev) prev.innerHTML = sheet(over);
-  if (warn) warn.style.display = over ? "block" : "none";
+  if (out) out.innerHTML = content;
+  if (prev) prev.innerHTML = content;
+  if (warn) warn.style.display = tooTall ? "block" : "none";
 }
 function updatePageStyle() {
   const paper = document.getElementById("print-paper").value;
