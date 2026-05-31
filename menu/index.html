@@ -325,6 +325,7 @@
   .print-page.has-head > .menu { margin-top: 9mm; }
   .page-head { position: absolute; top: 7mm; left: 14mm; right: 14mm; font: 600 2.9mm var(--font-sans);
     color: #aaa; letter-spacing: 0.08em; text-transform: uppercase; padding-bottom: 1.5mm; border-bottom: 0.3mm solid #e2e2e2; }
+  .page-head .cont-mark { text-transform: none; font-weight: 400; opacity: 0.85; }
   .page-foot { position: absolute; bottom: 7mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between;
     font: 2.9mm var(--font-sans); color: #bbb; padding-top: 1.5mm; border-top: 0.3mm solid #eee; }
   .menu-sheet { background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.18); box-sizing: border-box;
@@ -713,7 +714,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -1457,22 +1460,39 @@ function typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, headHpx) {
   const menuEl = tmp.firstChild, kids = Array.from(menuEl.children);
   const r = menuEl.getBoundingClientRect(), mTop = r.top, mH = r.height;
   const top = kids.map((k) => k.getBoundingClientRect().top - mTop);
-  const blocks = kids.map((k, i) => ({
-    html: k.outerHTML, h: (i + 1 < kids.length ? top[i + 1] : mH) - top[i], isH2: k.tagName === "H2",
-  }));
+  let curSection = null;
+  const blocks = kids.map((k, i) => {
+    const isH2 = k.tagName === "H2";
+    if (isH2) curSection = k.textContent.trim();
+    return {
+      html: k.outerHTML, h: (i + 1 < kids.length ? top[i + 1] : mH) - top[i],
+      isH2, isItem: !!(k.classList && k.classList.contains("item")), section: curSection,
+    };
+  });
   tmp.remove();
+  // Running head: a continuation page that OPENS mid-section on an item shows that
+  // section ("PRINCIPAIS · continuação") so the orphaned item is placed. A page that
+  // opens on its own h2 — or on trailing matter (hr/footer) — shows none; the heading
+  // is already right there. heads[p] = section string to show, or null to suppress.
+  const contHead = (first) => (first && !first.isH2 && first.isItem && first.section) ? first.section : null;
   let tooTall = false;
-  const pages = []; let cur = [], acc = 0;
+  const pages = [], heads = [];
+  let cur = [], acc = 0, first = blocks[0] || null;
   for (let i = 0; i < blocks.length; i++) {
-    const usable = usableHpx - (pages.length > 0 ? headHpx : 0);
-    if (blocks[i].h > usable) tooTall = true;
-    let need = blocks[i].h;
-    if (blocks[i].isH2 && i + 1 < blocks.length) need += blocks[i + 1].h;   // keep heading + first block
-    if (acc + need > usable && cur.length) { pages.push(cur); cur = []; acc = 0; }
-    cur.push(blocks[i].html); acc += blocks[i].h;
+    const b = blocks[i];
+    const showHead = pages.length > 0 && !!contHead(first);   // reserve head space only when one will show
+    const usable = usableHpx - (showHead ? headHpx : 0);
+    if (b.h > usable) tooTall = true;
+    let need = b.h;
+    if (b.isH2 && i + 1 < blocks.length) need += blocks[i + 1].h;   // keep heading + first block
+    if (acc + need > usable && cur.length) {
+      heads.push(pages.length === 0 ? null : contHead(first)); pages.push(cur);
+      cur = []; acc = 0; first = b;   // the overflowing block opens the new page
+    }
+    cur.push(b.html); acc += b.h;
   }
-  if (cur.length) pages.push(cur);
-  return { pages, tooTall };
+  if (cur.length) { heads.push(pages.length === 0 ? null : contHead(first)); pages.push(cur); }
+  return { pages, heads, tooTall };
 }
 // Compose the menu onto real-mm sheets. 1-up → one paginated A4 page per sheet
 // (continuation header + page footer). N-up → each page repeated across N cells;
@@ -1497,14 +1517,16 @@ function buildPrintArea() {
   const cellOuterH = (ph - 2 * L.sheetPad - (L.rows - 1) * L.gap) / L.rows;
   const contentWmm = cellOuterW - 2 * L.cellPad;
   const usableHpx = (cellOuterH - 2 * L.cellPad - L.foot) * PRINT_PXMM;
-  const { pages, tooTall } = typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, L.head * PRINT_PXMM);
+  const { pages, heads, tooTall } = typesetMenu(tmpl, accVar, html, contentWmm, usableHpx, L.head * PRINT_PXMM);
   const P = pages.length;
   const menuOf = (pg) => `<div class="menu tmpl-${tmpl}" style="${accVar}width:100%;padding:0">${pg.join("")}</div>`;
 
   let content;
   if (up === 1) {                                            // one paginated page per sheet
     content = pages.map((pg, p) => {
-      const head = (p > 0) ? `<div class="page-head">${esc(title)} · ${esc(t("print.continued"))}</div>` : "";
+      const head = heads[p]
+        ? `<div class="page-head"><span class="cont-sec">${esc(heads[p])}</span> <span class="cont-mark">· ${esc(t("print.continued"))}</span></div>`
+        : "";
       const foot = (P > 1) ? `<div class="page-foot"><span>${esc(title)}</span><span>${p + 1} / ${P}</span></div>` : "";
       return `<div class="print-page${head ? " has-head" : ""}" style="width:${pw}mm;height:${ph}mm">${head}${menuOf(pg)}${foot}</div>`;
     }).join("");
