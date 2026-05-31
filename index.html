@@ -300,6 +300,15 @@ function renderInline(text) {
 // Renderer: menu
 // ============================================================
 
+// @build:menu-renderer:start  (generated from ext/menu/renderer.js — do not hand-edit)
+// Shared menu render logic — the single source for both the bootloader's
+// menuRenderer and the editor's live preview. Inlined into index.html and
+// menu-editor.html by build/build.js (between @build:menu-renderer markers).
+// Uses escapeHtml + renderInline from the host (both files define them).
+// renderMenuHTML returns { html, template, accent, lang }; each consumer applies
+// template/accent/lang in its own way (bootloader: <body> + --accent; editor:
+// the preview frame + --menu-accent) and mounts `html`.
+// Edit here, then `npm run build`.
 const MENU_LOCALES = {
   "pt-BR": {
     currency: "R$ ",
@@ -380,17 +389,12 @@ const SOCIAL = {
   web: { icon: SOCIAL_ICON('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'), url: h => `https://${h}`, label: h => h },
 };
 
-function menuRenderer(header, body, ctx) {
-  const locale = header.params;
+// body text (after the magic line) + locale + an attribution line -> rendered
+// menu HTML and the presentation hints the consumer applies.
+function renderMenuHTML(body, locale, attribution) {
   const strings = MENU_LOCALES[locale] || MENU_LOCALES["pt-BR"];
-  const text = new TextDecoder("utf-8").decode(body);
-  const parsed = parseMenuBody(text);
+  const parsed = parseMenuBody(body);
   const dirs = parsed.directives;
-
-  document.documentElement.lang = locale;
-  document.body.className = "tmpl-" + (dirs.template || "minimal");
-  if (dirs.accent) document.documentElement.style.setProperty("--accent", dirs.accent);
-
   const parts = [];
 
   if (dirs.valid_until) {
@@ -441,8 +445,20 @@ function menuRenderer(header, body, ctx) {
     footer += '</footer>';
     parts.push(footer);
   }
-  parts.push(`<div class="attribution">decoded · ${escapeHtml(ctx.bootloaderUrl)}</div>`);
-  ctx.mount.innerHTML = parts.join("");
+
+  if (attribution) parts.push(`<div class="attribution">${escapeHtml(attribution)}</div>`);
+
+  return { html: parts.join(""), template: dirs.template || "minimal", accent: dirs.accent || null, lang: locale };
+}
+// @build:menu-renderer:end
+
+function menuRenderer(header, body, ctx) {
+  const text = new TextDecoder("utf-8").decode(body);
+  const r = renderMenuHTML(text, header.params, "decoded · " + ctx.bootloaderUrl);
+  document.documentElement.lang = r.lang;
+  document.body.className = "tmpl-" + r.template;
+  if (r.accent) document.documentElement.style.setProperty("--accent", r.accent);
+  ctx.mount.innerHTML = r.html;
 }
 
 // ============================================================

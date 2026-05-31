@@ -62,3 +62,40 @@ test("editor and bootloader agree on the magic prefix (!menu, not !q)", () => {
   assert.ok(/`!menu1\+\$\{[^}]+\}/.test(editor) || /!menu1\+/.test(editor), "editor must emit !menu1+");
   assert.ok(!/match\(\/\^!q\\?\(/.test(editor), "editor must not validate against the stale !q prefix");
 });
+
+// extract the inlined menu-renderer module + the host's escapeHtml/renderInline and
+// return its renderMenuHTML, so editor vs bootloader render output can be compared
+const fs = require("node:fs");
+const path = require("node:path");
+function menuEnv(file) {
+  const html = read(file);
+  const i0 = html.indexOf("@build:menu-renderer:start"), i1 = html.indexOf("@build:menu-renderer:end");
+  const block = html.slice(html.indexOf("\n", i0) + 1, html.lastIndexOf("\n", i1));
+  const esc = html.match(/function escapeHtml\([\s\S]*?\n\}/)[0];
+  const inl = html.match(/function renderInline\([\s\S]*?\n\}/)[0];
+  const ctx = { Math, JSON, Date, Intl, parseFloat, parseInt, isNaN, String };
+  vm.createContext(ctx);
+  vm.runInContext(esc + "\n" + inl + "\n" + block + "\n;this.renderMenuHTML=renderMenuHTML;", ctx);
+  return ctx.renderMenuHTML;
+}
+
+test("editor and bootloader render menus identically (single-sourced renderMenuHTML)", () => {
+  const body = MENU.slice(MENU.indexOf("\n") + 1);
+  const boot = menuEnv("index.html")(body, "pt-BR", "x");
+  const edit = menuEnv("menu-editor.html")(body, "pt-BR", "x");
+  assert.strictEqual(JSON.stringify(edit), JSON.stringify(boot), "editor render diverged from the bootloader");
+});
+
+test("bootloader menu render matches the snapshot fixture", () => {
+  const fx = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "menu.snapshot.json"), "utf8"));
+  const cap = buildDictCapsule(fx.menu, "menu-ptbr", sb.__dicts["menu-ptbr"]);
+  const { header, body } = sb.__magic(sb.__resolve(cap, sb.__dicts));
+  const mount = { innerHTML: "" };
+  sb.document.body.className = ""; sb.document.documentElement.lang = "";
+  const accent = {}; sb.document.documentElement.style.setProperty = (k, v) => { accent[k] = v; };
+  sb.__R.menu(header, body, { mount, bootloaderUrl: "https://gentropic.org/cradle", capsule: cap });
+  assert.strictEqual(mount.innerHTML, fx.html, "menu render HTML drifted from the snapshot — re-check or regenerate the fixture");
+  assert.strictEqual(sb.document.body.className, fx.cls);
+  assert.strictEqual(sb.document.documentElement.lang, fx.lang);
+  assert.deepStrictEqual(accent, fx.accent);
+});

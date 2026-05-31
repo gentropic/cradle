@@ -48,6 +48,15 @@ function injectArcrRenderer(indexHtml, arcrHtml) {
   return indexHtml.slice(0, startLineEnd) + generateArcrRenderer(arcrHtml) + "\n" + indexHtml.slice(endLineStart);
 }
 
+// inline a shared JS source file verbatim between a pair of markers
+function inlineBetween(html, startMark, endMark, content, label) {
+  const i0 = html.indexOf(startMark), i1 = html.indexOf(endMark);
+  if (i0 < 0 || i1 < 0) throw new Error(label + " markers not found");
+  const startLineEnd = html.indexOf("\n", i0) + 1;
+  const endLineStart = html.lastIndexOf("\n", i1) + 1;
+  return html.slice(0, startLineEnd) + content.replace(/\s+$/, "") + "\n" + html.slice(endLineStart);
+}
+
 function build() {
   const out = {}; // file -> contents (lazily loaded, mutated, written if changed)
   const get = (f) => (out[f] !== undefined ? out[f] : (out[f] = read(f)));
@@ -56,6 +65,12 @@ function build() {
     out[file] = injectConst(get(file), varName, dicts[dictId]);
   }
   out["index.html"] = injectArcrRenderer(get("index.html"), get("arcr.html"));
+
+  // shared menu renderer -> bootloader + editor (single source)
+  const menuRendererSrc = read("ext/menu/renderer.js");
+  for (const f of ["index.html", "menu-editor.html"]) {
+    out[f] = inlineBetween(get(f), "@build:menu-renderer:start", "@build:menu-renderer:end", menuRendererSrc, "menu-renderer");
+  }
 
   const stale = Object.keys(out).filter((f) => out[f] !== read(f));
   if (CHECK) {
