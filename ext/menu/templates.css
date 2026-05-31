@@ -171,16 +171,19 @@
    line, sections/items kept whole across page breaks. Applies to the bootloader
    render directly; the editor adds its own @media print to hide the chrome. */
 @media print {
-  /* !important so these beat the more-specific .menu.tmpl-<x> palette (e.g. dark/noir
-     set a light --menu-fg that would be invisible on the forced white background) */
-  .menu {
-    max-width: none; margin: 0; padding: 1cm; background: #fff !important;
+  .menu { max-width: none; margin: 0; padding: 1cm; }   /* fill the page, drop card chrome */
+  /* ink-friendly paper: white bg + dark ink (the accent stays colored). A `.keep-color`
+     menu opts OUT → its full template palette prints (colour printing / branded export).
+     !important so these beat the more-specific .menu.tmpl-<x> palette (e.g. dark/noir set
+     a light --menu-fg that would be invisible on the forced white background). */
+  .menu:not(.keep-color) {
+    background: #fff !important;
     --menu-fg: #1a1a1a !important; --menu-fg-muted: #555 !important; --menu-fg-faint: #999 !important;
     --menu-rule: rgba(0, 0, 0, 0.2) !important; --menu-tag-bg: rgba(0, 0, 0, 0.06) !important;
   }
-  .menu .attribution { display: none; }
-  .menu a { color: inherit; text-decoration: none; }
-  .menu .item, .menu .item-body { background: none !important; box-shadow: none !important; }
+  .menu:not(.keep-color) a { color: inherit; text-decoration: none; }
+  .menu:not(.keep-color) .item, .menu:not(.keep-color) .item-body { background: none !important; box-shadow: none !important; }
+  .menu .attribution { display: none; }   /* the QR-source line — never on paper */
   .menu .item, .menu h2 { break-inside: avoid; }
   .menu h2 { break-after: avoid; }
 }
