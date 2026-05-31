@@ -314,6 +314,7 @@ const MENU_LOCALES = {
     currency: "R$ ",
     decimal: ",",
     stale: (date) => `Este cardápio expirou em ${formatDate(date, "pt-BR")}. Confirme os preços com o garçom.`,
+    validThrough: (date) => `Cardápio válido até ${formatDate(date, "pt-BR")}.`,
     service: (pct) => `Serviço (${pct}) não incluso.`,
     couvert: (val) => `Couvert ${formatMoney(val, "pt-BR")}.`,
     tags: { v: "vegano", vg: "vegetariano", g: "sem glúten", l: "sem lactose", p: "picante" },
@@ -322,6 +323,7 @@ const MENU_LOCALES = {
     currency: "$",
     decimal: ".",
     stale: (date) => `This menu expired on ${formatDate(date, "en-US")}. Please confirm prices with your server.`,
+    validThrough: (date) => `Menu valid through ${formatDate(date, "en-US")}.`,
     service: (pct) => `Service charge: ${pct}.`,
     couvert: (val) => `Cover: ${formatMoney(val, "en-US")}.`,
     tags: { v: "vegan", vg: "vegetarian", gf: "gluten-free", df: "dairy-free", sp: "spicy" },
@@ -397,10 +399,15 @@ function renderMenuHTML(body, locale, attribution) {
   const dirs = parsed.directives;
   const parts = [];
 
+  // valid_until: a quiet "valid through X" footer line while current, escalating to a
+  // warning banner once expired.
+  let validUntilExpired = false, validUntilOk = false;
   if (dirs.valid_until) {
     const expiry = new Date(dirs.valid_until + "T23:59:59");
-    if (!isNaN(expiry) && expiry < new Date()) {
-      parts.push(`<div class="stale">${escapeHtml(strings.stale(dirs.valid_until))}</div>`);
+    if (!isNaN(expiry)) {
+      validUntilOk = true;
+      validUntilExpired = expiry < new Date();
+      if (validUntilExpired) parts.push(`<div class="stale">${escapeHtml(strings.stale(dirs.valid_until))}</div>`);
     }
   }
 
@@ -428,6 +435,7 @@ function renderMenuHTML(body, locale, attribution) {
   const footerLines = [];
   if (dirs.service) footerLines.push(strings.service(dirs.service));
   if (dirs.couvert) footerLines.push(strings.couvert(dirs.couvert));
+  if (validUntilOk && !validUntilExpired) footerLines.push(strings.validThrough(dirs.valid_until));
   if (dirs.social || footerLines.length) {
     let footer = '<footer>';
     for (const l of footerLines) footer += `<div class="footer-line">${escapeHtml(l)}</div>`;

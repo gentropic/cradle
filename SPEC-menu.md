@@ -68,7 +68,7 @@ Directives MUST appear before any heading or content. Decoders MUST ignore direc
 |-----|------|---------|---------|
 | `@template` | enum | `minimal` | Visual template: `minimal`, `bistro`, `serif`, `dark` |
 | `@accent` | CSS color | none | Accent for headings and active elements |
-| `@valid_until` | ISO 8601 date | none | Decoder shows staleness banner if today > this date |
+| `@valid_until` | ISO 8601 date | none | Decoder shows a discreet "valid through &lt;date&gt;" footer line while current; a staleness banner once today > this date |
 | `@service` | percentage | none | Service charge note rendered in footer |
 | `@couvert` | decimal | none | Couvert charge rendered in footer |
 | `@social` | comma-list | none | `prefix=handle` pairs (see §3.1.1) |
@@ -122,6 +122,7 @@ Each locale defines its own tag vocabulary, intentionally idiomatic rather than 
 
 Currency: `R$ ` prefix. Decimal separator: `,`.
 Stale banner: "Este cardápio expirou em &lt;date&gt;. Confirme os preços com o garçom."
+Valid-through line: "Cardápio válido até &lt;date&gt;."
 Service line: "Serviço (X%) não incluso."
 Couvert line: "Couvert R$ Y."
 
@@ -137,6 +138,7 @@ Couvert line: "Couvert R$ Y."
 
 Currency: `$` prefix. Decimal separator: `.`.
 Stale banner: "This menu expired on &lt;date&gt;. Please confirm prices with your server."
+Valid-through line: "Menu valid through &lt;date&gt;."
 Service line: "Service charge: X%."
 Couvert line: "Cover: $Y."
 
@@ -152,7 +154,7 @@ The renderer MUST:
 
 1. Verify `version` is `1`. Reject other versions with a "newer menu format" error in the locale's prescribed phrasing.
 2. UTF-8-decode the body and parse per §3.
-3. Display the staleness banner if `@valid_until` is set and the current date is past it. The banner MUST be visually prominent and MUST appear above the menu content.
+3. Handle `@valid_until` (if set and a parseable date): while the menu is still current, show a discreet "valid through &lt;date&gt;" line in the footer area; once the current date is past it, instead show the staleness banner — which MUST be visually prominent and MUST appear above the menu content. (The two are mutually exclusive: a current menu shows the footer line, an expired one shows the banner.)
 4. Display `@service` and `@couvert` in the footer area, in the locale's prescribed phrasing.
 5. Treat unknown directive keys, unknown pipe-row tags, and unknown `@social` prefixes as silently ignored (forward compatibility).
 6. Render a discreet attribution line indicating the menu came from a QR/capsule and naming the bootloader (e.g., "decoded · gentropic.org/cradle").

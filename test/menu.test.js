@@ -99,3 +99,24 @@ test("bootloader menu render matches the snapshot fixture", () => {
   assert.strictEqual(sb.document.documentElement.lang, fx.lang);
   assert.deepStrictEqual(accent, fx.accent);
 });
+
+test("valid_until: quiet 'valid through' line while current, warning banner once expired", () => {
+  const render = (menu) => {
+    const dictId = menu.includes("pt-BR") ? "menu-ptbr" : "menu-enus";
+    const cap = buildDictCapsule(menu, dictId, sb.__dicts[dictId]);
+    const { header, body } = sb.__magic(sb.__resolve(cap, sb.__dicts));
+    const mount = { innerHTML: "" }; sb.document.documentElement.style.setProperty = () => {};
+    sb.__R.menu(header, body, { mount, bootloaderUrl: "x", capsule: cap });
+    return mount.innerHTML;
+  };
+  const futurePt = render("!menu1+pt-BR\n@valid_until: 2099-12-31\n# X\nItem | 5");
+  assert.match(futurePt, /Cardápio válido até .*2099/, "current pt-BR menu shows the valid-through line");
+  assert.ok(!futurePt.includes('class="stale"'), "current menu must not show the expired banner");
+
+  const futureEn = render("!menu1+en-US\n@valid_until: 2099-12-31\n# X\nItem | 5");
+  assert.match(futureEn, /Menu valid through .*2099/, "current en-US menu shows the valid-through line");
+
+  const expired = render("!menu1+pt-BR\n@valid_until: 2020-01-01\n# X\nItem | 5");
+  assert.ok(expired.includes('class="stale"'), "expired menu shows the warning banner");
+  assert.ok(!/válido até/.test(expired), "expired menu must not also show the valid-through line");
+});
