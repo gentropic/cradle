@@ -29,7 +29,7 @@ test("menuRenderer mounts without throwing", () => {
 
 // ---- pull the editor's validator (+ its deps) and run it in isolation ----
 function loadEditorValidate() {
-  const html = read("menu-editor.html");
+  const html = read("menu/index.html");
   const grab = (re) => { const m = html.match(re); if (!m) throw new Error("not found: " + re); return m[0]; };
   const code =
     grab(/const DICT_PT_BR\s*=[\s\S]*?;[\r\n]/) +
@@ -57,7 +57,7 @@ test("editor validate() rejects the legacy !q1+ prefix and missing magic", () =>
 });
 
 test("editor and bootloader agree on the magic prefix (!menu, not !q)", () => {
-  const editor = read("menu-editor.html");
+  const editor = read("menu/index.html");
   // the editor's emitter and validator must both speak !menu
   assert.ok(/`!menu1\+\$\{[^}]+\}/.test(editor) || /!menu1\+/.test(editor), "editor must emit !menu1+");
   assert.ok(!/match\(\/\^!q\\?\(/.test(editor), "editor must not validate against the stale !q prefix");
@@ -82,7 +82,7 @@ function menuEnv(file) {
 test("editor and bootloader render menus identically (single-sourced renderMenuHTML)", () => {
   const body = MENU.slice(MENU.indexOf("\n") + 1);
   const boot = menuEnv("index.html")(body, "pt-BR", "x");
-  const edit = menuEnv("menu-editor.html")(body, "pt-BR", "x");
+  const edit = menuEnv("menu/index.html")(body, "pt-BR", "x");
   assert.strictEqual(JSON.stringify(edit), JSON.stringify(boot), "editor render diverged from the bootloader");
 });
 

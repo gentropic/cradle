@@ -72,8 +72,8 @@ The name is the receiving dock a capsule settles into — it accepts the capsule
 Working reference code, deployed (when published) at `gentropic.org/cradle`:
 
 - `index.html` — the canonical bootloader. Single self-contained HTML file with pako (dictionary deflate) inlined — no third-party fetch, so the offline guarantee holds even on first load. Resolves a capsule from the URL fragment, reads the magic line, and dispatches to an embedded **menu** or **doorbell** renderer. Registers the service worker for offline PWA install.
-- `menu-editor.html` — authoring tool for menus. Generates the `q:d.menu-<locale>_<base45>` capsule and renders a QR.
-- `doorbell-config.html` — authoring tool for doorbells. Generates the X25519 keypair (private stored locally only), the topic, the configuration, and a printable QR sticker.
+- `menu/index.html` — authoring tool for menus. Generates the `q:d.menu-<locale>_<base45>` capsule and renders a QR.
+- `doorbell/index.html` — authoring tool for doorbells. Generates the X25519 keypair (private stored locally only), the topic, the configuration, and a printable QR sticker.
 - `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-maskable.svg` — PWA assets enabling offline operation and home-screen install.
 - `verify_vectors.py` — generates the capsule / menu test vectors used in the specs.
 - `verify_doorbell.py` — reference Python implementation of the doorbell encryption envelope; produces test vectors and interops with the browser implementation.

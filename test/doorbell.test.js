@@ -31,7 +31,7 @@ test("doorbellRenderer rejects a config missing @pubkey", () => {
 });
 
 test("doorbell editor emits !doorbell1+ and has no stale !q", () => {
-  const ed = read("doorbell-config.html");
+  const ed = read("doorbell/index.html");
   assert.ok(/!doorbell1\+/.test(ed), "editor must emit !doorbell1+");
   assert.ok(!/\^!q\\?\(/.test(ed), "editor must not reference the stale !q prefix");
 });

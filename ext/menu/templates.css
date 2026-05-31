@@ -1,6 +1,6 @@
 /* Menu template visuals — the SINGLE SOURCE for how a rendered menu looks.
    Scoped to a `.menu` root so the bootloader render and the editor preview are
-   pixel-identical. Inlined into index.html + menu-editor.html by build/build.js
+   pixel-identical. Inlined into index.html + menu/index.html by build/build.js
    (between @build:menu-templates markers). Edit here, then `npm run build`.
 
    Each template sets its own palette + fonts via --menu-* custom properties; an

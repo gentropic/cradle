@@ -378,7 +378,7 @@ Capsule changes (e.g., new schemes, new codecs) propagate to cradle automaticall
 - **Server-side rendering.** Cradle is a client-only bootloader.
 - **Multi-payload pages.** One capsule per page load. Composition of multiple payloads is a future concern, if it ever proves necessary.
 - **Cross-bootloader portability tooling.** Payloads encoded for one cradle instance work on any other (and on forks) by construction; no migration tools are needed beyond updating the URL prefix.
-- **Authoring tools.** Each format's editor lives separately (`menu-editor.html`, etc.). Cradle renders; it does not author.
+- **Authoring tools.** Each format's editor lives separately (`menu/index.html`, etc.). Cradle renders; it does not author.
 - **Encrypted-payload envelope.** Deferred until capsule's encryption layer ships.
 
 — end of spec —

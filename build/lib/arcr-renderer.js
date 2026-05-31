@@ -1,13 +1,13 @@
-// Generate index.html's `arcrRenderer` from the canonical engine in arcr.html.
-// The engine (PRNG, parser, render/juice, interpreter) is sliced from arcr.html,
+// Generate index.html's `arcrRenderer` from the canonical engine in arcr/index.html.
+// The engine (PRNG, parser, render/juice, interpreter) is sliced from arcr/index.html,
 // its page-fixed DOM hooks are repointed at elements built inside ctx.mount, and
 // it's wrapped with a mount-building shell + the cradle renderer entry signature.
-// Edit arcr.html; run `npm run build`; index.html's renderer follows.
+// Edit arcr/index.html; run `npm run build`; index.html's renderer follows.
 "use strict";
 
-// the DOM shell that replaces arcr.html's fixed page elements
+// the DOM shell that replaces arcr/index.html's fixed page elements
 const PREAMBLE = `
-  // DOM built into the cradle mount (replaces arcr.html's fixed page elements)
+  // DOM built into the cradle mount (replaces arcr/index.html's fixed page elements)
   let cv, ctx, wrapEl, cardEl, bootEl, cardbodyEl, titleEl, aboutEl, hintEl, resultEl, headEl, msgEl, againBtn;
   const keys = {};
   let __started = false;
@@ -80,12 +80,12 @@ const ENTRY = `
 
 function generateArcrRenderer(arcrHtml) {
   const ascript = [...arcrHtml.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).pop();
-  if (!ascript) throw new Error("no <script> in arcr.html");
+  if (!ascript) throw new Error("no <script> in arcr/index.html");
   const src = ascript.replace(/\r\n/g, "\n"); // normalize so the patches below match
   const tok = '"use strict";';
   const start = src.indexOf(tok) + tok.length;
   const end = src.indexOf("function showCard");
-  if (start < tok.length || end < 0) throw new Error("could not locate the arcr engine bounds in arcr.html");
+  if (start < tok.length || end < 0) throw new Error("could not locate the arcr engine bounds in arcr/index.html");
 
   let engine = src.slice(start, end);
   engine = engine.replace('const cv = document.getElementById("c");\nconst ctx = cv.getContext("2d");', "/* cv, ctx created in buildDOM */");
@@ -101,7 +101,7 @@ function generateArcrRenderer(arcrHtml) {
   return `// ============================================================
 // Renderer: arcr  (SPEC-arcr — micro-game DSL; engine owns juice)
 // The program is the capsule BODY: untrusted DATA, never eval'd.
-// GENERATED from arcr.html by build/build.js — edit arcr.html, then npm run build.
+// GENERATED from arcr/index.html by build/build.js — edit arcr/index.html, then npm run build.
 // ============================================================
 const arcrRenderer = (function(){
 "use strict";

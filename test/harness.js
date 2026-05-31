@@ -76,9 +76,9 @@ function loadBootloader() {
   return sb;
 }
 
-// ---- load the standalone arcr engine (arcr.html) -------------------------
+// ---- load the standalone arcr engine (arcr/index.html) -------------------
 function loadArcr() {
-  const html = read("arcr.html");
+  const html = read("arcr/index.html");
   const sb = makeContext();
   vm.createContext(sb);
   vm.runInContext(inlineScripts(html).pop(), sb);

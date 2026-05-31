@@ -42,7 +42,7 @@
   /* @build:menu-templates:start */
 /* Menu template visuals — the SINGLE SOURCE for how a rendered menu looks.
    Scoped to a `.menu` root so the bootloader render and the editor preview are
-   pixel-identical. Inlined into index.html + menu-editor.html by build/build.js
+   pixel-identical. Inlined into index.html + menu/index.html by build/build.js
    (between @build:menu-templates markers). Edit here, then `npm run build`.
 
    Each template sets its own palette + fonts via --menu-* custom properties; an
@@ -395,7 +395,7 @@ function renderInline(text) {
 // @build:menu-renderer:start  (generated from ext/menu/renderer.js — do not hand-edit)
 // Shared menu render logic — the single source for both the bootloader's
 // menuRenderer and the editor's live preview. Inlined into index.html and
-// menu-editor.html by build/build.js (between @build:menu-renderer markers).
+// menu/index.html by build/build.js (between @build:menu-renderer markers).
 // Uses escapeHtml + renderInline from the host (both files define them).
 // renderMenuHTML returns { html, template, accent, lang }; each consumer applies
 // template/accent/lang in its own way (bootloader: <body> + --accent; editor:
@@ -789,12 +789,12 @@ function doorbellRenderer(header, body, ctx) {
 // ============================================================
 // Renderer: arcr  (SPEC-arcr — micro-game DSL; engine owns juice)
 // The program is the capsule BODY: untrusted DATA, never eval'd.
-// GENERATED from arcr.html by build/build.js — edit arcr.html, then npm run build.
+// GENERATED from arcr/index.html by build/build.js — edit arcr/index.html, then npm run build.
 // ============================================================
 const arcrRenderer = (function(){
 "use strict";
 
-  // DOM built into the cradle mount (replaces arcr.html's fixed page elements)
+  // DOM built into the cradle mount (replaces arcr/index.html's fixed page elements)
   let cv, ctx, wrapEl, cardEl, bootEl, cardbodyEl, titleEl, aboutEl, hintEl, resultEl, headEl, msgEl, againBtn;
   const keys = {};
   let __started = false;

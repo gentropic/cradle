@@ -32,21 +32,21 @@ const DICTS = [
   ["index.html",        "DICT_MENU_PTBR", "menu-ptbr"],
   ["index.html",        "DICT_MENU_ENUS", "menu-enus"],
   ["index.html",        "DICT_ARCR",      "arcr"],
-  ["menu-editor.html",  "DICT_PT_BR",     "menu-ptbr"],
-  ["menu-editor.html",  "DICT_EN_US",     "menu-enus"],
-  ["arcr-factory.html", "DICT_ARCR",      "arcr"],
+  ["menu/index.html",   "DICT_PT_BR",     "menu-ptbr"],
+  ["menu/index.html",   "DICT_EN_US",     "menu-enus"],
+  ["arcr/factory.html", "DICT_ARCR",      "arcr"],
 ];
 
-// the canonical 50-game library lives in arcr.html; pull it out as static
+// the canonical 50-game library lives in arcr/index.html; pull it out as static
 // {name, src} objects (the array literal has no external refs, so it evals clean)
 function arcrLibrary(arcrHtml) {
   const m = arcrHtml.match(/const LIBRARY = (\[[\s\S]*?\n\]);/);
-  if (!m) throw new Error("LIBRARY not found in arcr.html");
+  if (!m) throw new Error("LIBRARY not found in arcr/index.html");
   return Function('"use strict"; return ' + m[1])();
 }
 
 // replace the marked arcr-renderer region in index.html with one generated
-// from the canonical engine in arcr.html
+// from the canonical engine in arcr/index.html
 function injectArcrRenderer(indexHtml, arcrHtml) {
   const START = "// @build:arcr-renderer:start", END = "// @build:arcr-renderer:end";
   const i0 = indexHtml.indexOf(START), i1 = indexHtml.indexOf(END);
@@ -72,19 +72,19 @@ function build() {
   for (const [file, varName, dictId] of DICTS) {
     out[file] = injectConst(get(file), varName, dicts[dictId]);
   }
-  out["index.html"] = injectArcrRenderer(get("index.html"), get("arcr.html"));
-  // single-source the factory's 50-game library from arcr.html (was a manual dup)
-  out["arcr-factory.html"] = injectConst(get("arcr-factory.html"), "LIBRARY", arcrLibrary(get("arcr.html")));
+  out["index.html"] = injectArcrRenderer(get("index.html"), get("arcr/index.html"));
+  // single-source the factory's 50-game library from the arcr engine (was a manual dup)
+  out["arcr/factory.html"] = injectConst(get("arcr/factory.html"), "LIBRARY", arcrLibrary(get("arcr/index.html")));
 
   // shared menu renderer -> bootloader + editor (single source)
   const menuRendererSrc = read("ext/menu/renderer.js");
-  for (const f of ["index.html", "menu-editor.html"]) {
+  for (const f of ["index.html", "menu/index.html"]) {
     out[f] = inlineBetween(get(f), "@build:menu-renderer:start", "@build:menu-renderer:end", menuRendererSrc, "menu-renderer");
   }
 
   // shared menu template CSS -> bootloader + editor (single source, .menu-scoped)
   const menuTemplatesSrc = read("ext/menu/templates.css");
-  for (const f of ["index.html", "menu-editor.html"]) {
+  for (const f of ["index.html", "menu/index.html"]) {
     out[f] = inlineBetween(get(f), "@build:menu-templates:start", "@build:menu-templates:end", menuTemplatesSrc, "menu-templates");
   }
 

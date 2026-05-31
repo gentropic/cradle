@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>menu editor</title>
-<link rel="manifest" href="menu-editor.webmanifest">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#fafaf8">
 <style>
   :root {
@@ -283,7 +283,7 @@
   /* @build:menu-templates:start */
 /* Menu template visuals — the SINGLE SOURCE for how a rendered menu looks.
    Scoped to a `.menu` root so the bootloader render and the editor preview are
-   pixel-identical. Inlined into index.html + menu-editor.html by build/build.js
+   pixel-identical. Inlined into index.html + menu/index.html by build/build.js
    (between @build:menu-templates markers). Edit here, then `npm run build`.
 
    Each template sets its own palette + fonts via --menu-* custom properties; an
@@ -556,7 +556,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -569,7 +571,7 @@ const DICTS = { "pt-BR": DICT_PT_BR, "en-US": DICT_EN_US };
 // @build:menu-renderer:start  (generated from ext/menu/renderer.js — do not hand-edit)
 // Shared menu render logic — the single source for both the bootloader's
 // menuRenderer and the editor's live preview. Inlined into index.html and
-// menu-editor.html by build/build.js (between @build:menu-renderer markers).
+// menu/index.html by build/build.js (between @build:menu-renderer markers).
 // Uses escapeHtml + renderInline from the host (both files define them).
 // renderMenuHTML returns { html, template, accent, lang }; each consumer applies
 // template/accent/lang in its own way (bootloader: <body> + --accent; editor:
@@ -1849,7 +1851,7 @@ function downloadBlob(blob, filename) {
 // ============================================================
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("service-worker.js").catch(() => { /* fine if missing */ });
+    navigator.serviceWorker.register("sw.js").catch(() => { /* fine if missing */ });
   });
 }
 </script>

@@ -1,6 +1,6 @@
 // Shared menu render logic — the single source for both the bootloader's
 // menuRenderer and the editor's live preview. Inlined into index.html and
-// menu-editor.html by build/build.js (between @build:menu-renderer markers).
+// menu/index.html by build/build.js (between @build:menu-renderer markers).
 // Uses escapeHtml + renderInline from the host (both files define them).
 // renderMenuHTML returns { html, template, accent, lang }; each consumer applies
 // template/accent/lang in its own way (bootloader: <body> + --accent; editor:
