@@ -91,7 +91,7 @@ function build() {
   // shared contact (vCard hub) renderer + template CSS -> bootloader (+ editor once it lands)
   const contactRendererSrc = read("ext/contact/renderer.js");
   const contactTemplatesSrc = read("ext/contact/templates.css");
-  for (const f of ["index.html"]) {
+  for (const f of ["index.html", "contact/index.html"]) {
     out[f] = inlineBetween(get(f), "@build:contact-renderer:start", "@build:contact-renderer:end", contactRendererSrc, "contact-renderer");
     out[f] = inlineBetween(get(f), "@build:contact-templates:start", "@build:contact-templates:end", contactTemplatesSrc, "contact-templates");
   }

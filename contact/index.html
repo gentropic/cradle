@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>contact · cradle</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script>window.QR_LIB = window.QRCode && window.QRCode.CorrectLevel ? "qrcodejs" : null;</script>
+<style>
+  :root {
+    --bg: #fff; --fg: #1a1a1a; --fg-muted: #666; --fg-faint: #999;
+    --border: rgba(0,0,0,0.14); --panel: #f6f7f8; --accent: #3b6ea5;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: var(--font-sans); color: var(--fg); background: var(--bg); line-height: 1.5; }
+  header { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem;
+           border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+  header .spacer { flex: 1; }
+  .h-btn { font: inherit; font-size: 0.85rem; background: none; border: 1px solid var(--border);
+           border-radius: 6px; padding: 0.35rem 0.7rem; cursor: pointer; color: var(--fg); text-decoration: none; }
+  .h-btn:hover { border-color: var(--fg); }
+  .wrap { display: grid; grid-template-columns: 1fr; gap: 0; }
+  @media (min-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .form { padding: 1.1rem 1.25rem 3rem; max-width: 560px; }
+  .preview-pane { background: #d7d7db; padding: 1.5rem 1rem; }
+  @media (min-width: 860px) { .preview-pane { position: sticky; top: 49px; height: calc(100vh - 49px); overflow: auto; } }
+  .group { margin-bottom: 1.4rem; }
+  .group h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-faint);
+              font-weight: 700; margin: 0 0 0.6rem; }
+  .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
+  .row label { flex: 0 0 7rem; font-size: 0.85rem; color: var(--fg-muted); }
+  .row input, .row select, .row textarea { flex: 1; font: inherit; font-size: 0.9rem; padding: 0.4rem 0.55rem;
+              border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); min-width: 0; }
+  .row input:focus, .row select:focus, .row textarea:focus { outline: none; border-color: var(--accent); }
+  .row textarea { resize: vertical; min-height: 3.2rem; }
+  .row.col { flex-direction: column; align-items: stretch; }
+  .row.col label { flex: none; margin-bottom: 0.2rem; }
+  .hint { font-size: 0.74rem; color: var(--fg-faint); margin: 0.15rem 0 0 7.6rem; }
+  .swatch { display: inline-block; width: 1.6rem; height: 1.6rem; border-radius: 6px; border: 1px solid var(--border); }
+  .phone { width: 340px; max-width: 100%; margin: 0 auto 1.25rem; border-radius: 28px; background: #fff;
+           box-shadow: 0 6px 26px rgba(0,0,0,0.28); overflow: hidden; border: 8px solid #111; }
+  .phone-screen { max-height: 560px; overflow: auto; }
+  .share { max-width: 340px; margin: 0 auto; }
+  .qrbox { background: #fff; border-radius: 12px; padding: 1rem; display: flex; justify-content: center; }
+  .qrbox > div, .qrbox img, .qrbox canvas { width: 200px !important; height: 200px !important; }
+  .share .b { display: block; width: 100%; text-align: center; font: inherit; font-size: 0.9rem; margin-top: 0.6rem;
+              padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg);
+              cursor: pointer; text-decoration: none; }
+  .share .b:hover { border-color: var(--fg); }
+  .url { width: 100%; margin-top: 0.6rem; font: 0.72rem/1.35 ui-monospace, Menlo, Consolas, monospace; color: var(--fg-muted);
+         word-break: break-all; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem; max-height: 5rem; overflow: auto; }
+  .meta { font-size: 0.74rem; color: var(--fg-faint); text-align: center; margin-top: 0.6rem; }
+
+  /* ---------- contact card visuals — single source: ext/contact/templates.css ---------- */
+  /* @build:contact-templates:start */
+/* Contact (vCard hub) visuals — the SINGLE SOURCE for how a contact card looks.
+   Scoped to a `.contact` root so the bootloader render and the editor preview are
+   pixel-identical. Inlined into index.html + contact/index.html by build/build.js
+   (between @build:contact-templates markers). Edit here, then `npm run build`.
+
+   Each template sets its palette via --contact-* custom properties; an author's
+   @accent overrides --contact-accent inline (consumer-applied). No web fonts. */
+
+.contact {
+  --contact-accent: #3b6ea5;
+  --contact-bg: #ffffff;
+  --contact-fg: #1d2530;
+  --contact-fg-muted: #6a7280;
+  --contact-fg-faint: #aab2bd;
+  --contact-rule: rgba(0, 0, 0, 0.12);
+  --contact-btn-bg: #ffffff;
+  --contact-avatar-fg: #ffffff;
+  --contact-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  box-sizing: border-box;
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 2.75rem 1.5rem 3rem;
+  background: var(--contact-bg);
+  color: var(--contact-fg);
+  font-family: var(--contact-sans);
+  line-height: 1.5;
+  text-align: center;
+  -webkit-text-size-adjust: 100%;
+}
+.contact * { box-sizing: border-box; }
+.contact-avatar {
+  width: 92px; height: 92px; border-radius: 50%; margin: 0 auto 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--contact-accent); color: var(--contact-avatar-fg);
+  font-size: 2.2rem; font-weight: 600; line-height: 1; overflow: hidden;
+}
+.contact-name { font-size: 1.6rem; font-weight: 700; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
+.contact-tagline { color: var(--contact-fg-muted); margin: 0; font-size: 1rem; }
+.contact-bio { color: var(--contact-fg); margin: 0.9rem 0 0; font-size: 0.94rem; }
+.contact-bio:first-of-type { margin-top: 1rem; }
+.contact a { color: var(--contact-accent); }
+
+.contact-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 1.6rem 0 0; }
+@media (min-width: 360px) { .contact-actions { grid-template-columns: 1fr 1fr 1fr; } }
+.contact-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.32rem;
+  min-height: 76px; padding: 0.7rem 0.4rem; text-decoration: none;
+  border: 1px solid var(--contact-rule); border-radius: 12px;
+  background: var(--contact-btn-bg); color: var(--contact-fg);
+  font-size: 0.82rem; font-weight: 500;
+  transition: border-color 0.15s, transform 0.05s;
+}
+.contact-btn:hover, .contact-btn:focus-visible { border-color: var(--contact-accent); outline: none; }
+.contact-btn:active { transform: scale(0.98); }
+.contact-btn-emoji { font-size: 1.45rem; line-height: 1; }
+
+.contact-socials { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.6rem; margin: 1.3rem 0 0; }
+.contact-social {
+  display: inline-flex; width: 42px; height: 42px; align-items: center; justify-content: center;
+  border: 1px solid var(--contact-rule); border-radius: 50%;
+  color: var(--contact-fg-muted); text-decoration: none; transition: color 0.15s, border-color 0.15s;
+}
+.contact-social:hover { color: var(--contact-accent); border-color: var(--contact-accent); }
+.contact-social svg { width: 18px; height: 18px; }
+
+.contact-save {
+  display: block; width: 100%; margin: 1.6rem 0 0; padding: 0.9rem 1rem; border-radius: 11px;
+  background: var(--contact-accent); color: #fff; text-decoration: none;
+  font-size: 1rem; font-weight: 600; text-align: center;
+  transition: transform 0.05s, filter 0.15s;
+}
+.contact-save:hover { filter: brightness(1.06); }
+.contact-save:active { transform: scale(0.99); }
+
+.contact .attribution {
+  margin-top: 1.75rem; font-size: 0.68rem; color: var(--contact-fg-faint);
+  letter-spacing: 0.04em; text-align: center;
+}
+
+/* ============================== templates ============================== */
+
+/* minimal — clean light card with a blue accent (the base above). */
+
+/* dark — near-black, soft on the eyes, light accent */
+.contact.tmpl-dark {
+  --contact-bg: #15171c; --contact-fg: #e8eaed; --contact-fg-muted: #9aa0aa; --contact-fg-faint: #5a606b;
+  --contact-rule: rgba(255, 255, 255, 0.14); --contact-btn-bg: rgba(255, 255, 255, 0.03);
+  --contact-accent: #6ea8e0; --contact-avatar-fg: #15171c;
+}
+
+/* bold — warm accent, rounded-square avatar, accent name */
+.contact.tmpl-bold {
+  --contact-accent: #e0533b;
+}
+.contact.tmpl-bold .contact-avatar { border-radius: 20px; }
+.contact.tmpl-bold .contact-name { color: var(--contact-accent); }
+
+/* mono — typographic, monochrome, square avatar, no accent fill */
+.contact.tmpl-mono {
+  --contact-accent: #1a1a1a;
+  --contact-avatar-fg: #1a1a1a;
+}
+.contact.tmpl-mono .contact-avatar {
+  background: none; border: 2px solid var(--contact-fg); border-radius: 0;
+}
+.contact.tmpl-mono .contact-save { background: var(--contact-fg); }
+
+/* ============================== print ============================== */
+@media print {
+  .contact { max-width: none; }
+  .contact .attribution, .contact-save { display: none; }   /* not useful on paper */
+  .contact-btn { break-inside: avoid; }
+}
+  /* @build:contact-templates:end */
+</style>
+</head>
+<body>
+<header>
+  <h1>contact · <span style="color:var(--fg-muted);font-weight:400">cradle</span></h1>
+  <span class="spacer"></span>
+  <button class="h-btn" id="load-sample" type="button">Load sample</button>
+  <a class="h-btn" href="../" title="cradle">↩ cradle</a>
+</header>
+
+<div class="wrap">
+  <div class="form">
+    <div class="group">
+      <h2>Identity</h2>
+      <div class="row"><label for="f-locale">Language</label>
+        <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
+      <div class="row"><label for="f-name">Name</label><input id="f-name" type="text" placeholder="Jane Doe"></div>
+      <div class="row"><label for="f-tagline">Tagline</label><input id="f-tagline" type="text" placeholder="Designer · Studio Aurora"></div>
+      <div class="row col"><label for="f-bio">Bio</label><textarea id="f-bio" placeholder="A line or two. *italic*, **bold**, [links](https://…) ok."></textarea></div>
+    </div>
+
+    <div class="group">
+      <h2>Style</h2>
+      <div class="row"><label for="f-template">Template</label>
+        <select id="f-template"><option>minimal</option><option>dark</option><option>bold</option><option>mono</option></select></div>
+      <div class="row"><label for="f-accent">Accent</label>
+        <input id="f-accent" type="text" placeholder="#3b6ea5 (optional)"><span class="swatch" id="accent-sw"></span></div>
+      <div class="row"><label for="f-avatar">Avatar emoji</label><input id="f-avatar" type="text" placeholder="🎸 (optional — else initials)" maxlength="4"></div>
+    </div>
+
+    <div class="group">
+      <h2>Reach me</h2>
+      <div class="row"><label for="f-tel">Phone</label><input id="f-tel" type="tel" placeholder="+55 31 99999-8888"></div>
+      <div class="row"><label for="f-wa">WhatsApp</label><input id="f-wa" type="tel" placeholder="5531999998888"></div>
+      <div class="row"><label for="f-email">Email</label><input id="f-email" type="email" placeholder="jane@studio.com"></div>
+      <div class="row"><label for="f-site">Website</label><input id="f-site" type="text" placeholder="studio.com"></div>
+      <div class="row"><label for="f-map">Address</label><input id="f-map" type="text" placeholder="Rua X 100, Belo Horizonte"></div>
+    </div>
+
+    <div class="group">
+      <h2>vCard extras &amp; socials</h2>
+      <div class="row"><label for="f-org">Organization</label><input id="f-org" type="text" placeholder="Studio Aurora"></div>
+      <div class="row"><label for="f-role">Job title</label><input id="f-role" type="text" placeholder="Designer"></div>
+      <div class="row col"><label for="f-social">Socials</label><input id="f-social" type="text" placeholder="ig=jane.studio, in=jane-doe, gh=janedoe"></div>
+      <p class="hint" style="margin-left:0">prefixes: ig · x · in (LinkedIn) · gh (GitHub) · yt</p>
+    </div>
+  </div>
+
+  <div class="preview-pane">
+    <div class="phone"><div class="phone-screen"><div id="preview" class="contact tmpl-minimal"></div></div></div>
+    <div class="share">
+      <div class="qrbox" id="qr"></div>
+      <button class="b" id="copy-url" type="button">Copy share link</button>
+      <a class="b" id="dl-qr" download="contact-qr.png">Download QR (PNG)</a>
+      <div class="row" style="margin:0.6rem 0 0"><label for="f-base" style="flex:0 0 5rem;font-size:0.74rem">decoder</label>
+        <input id="f-base" type="text" style="font-size:0.74rem"></div>
+      <div class="url" id="url"></div>
+      <div class="meta" id="size"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function renderInline(s) {
+  let h = escapeHtml(s);
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  h = h.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  return h;
+}
+// @build:contact-renderer:start
+// Shared contact (vCard hub) render logic — the single source for both the
+// bootloader's contactRenderer and the editor's live preview. Inlined into
+// index.html and contact/index.html by build/build.js (between
+// @build:contact-renderer markers). Uses escapeHtml + renderInline from the host.
+// renderContactHTML returns { html, template, accent, lang }; the consumer applies
+// template/accent and mounts `html`. Edit here, then `npm run build`.
+//
+// The point of the format: a phone can't be made to join WiFi or silently add a
+// contact from the web, but it CAN be handed a vCard file (the OS opens its
+// add-contact sheet) and tel:/mailto:/wa.me/maps links (one-tap, universal). So a
+// contact capsule renders a branded hub: reach-me-now buttons + a "Save contact"
+// .vcf download, all offline, all in the URL fragment.
+const CONTACT_LOCALES = {
+  "pt-BR": { save: "Salvar contato", call: "Ligar", whatsapp: "WhatsApp", email: "E-mail", site: "Site", directions: "Como chegar" },
+  "en-US": { save: "Save contact", call: "Call", whatsapp: "WhatsApp", email: "Email", site: "Website", directions: "Directions" },
+};
+const CONTACT_SVG = (p) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const CONTACT_SOCIAL = {
+  ig: { url: (h) => `https://instagram.com/${h}`, icon: CONTACT_SVG('<rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>') },
+  x:  { url: (h) => `https://x.com/${h}`, icon: CONTACT_SVG('<path d="M4 4l16 16M20 4L4 20"/>') },
+  in: { url: (h) => `https://linkedin.com/in/${h}`, icon: CONTACT_SVG('<path d="M16 8a6 6 0 0 1 6 6v6h-4v-6a2 2 0 0 0-4 0v6h-4v-6a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="11"/><circle cx="4" cy="4" r="2"/>') },
+  gh: { url: (h) => `https://github.com/${h}`, icon: CONTACT_SVG('<path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>') },
+  yt: { url: (h) => `https://youtube.com/@${h}`, icon: CONTACT_SVG('<path d="M22.5 6.4a2.8 2.8 0 0 0-1.9-2C18.9 4 12 4 12 4s-6.9 0-8.6.4A2.8 2.8 0 0 0 1.5 6.4 29 29 0 0 0 1 12a29 29 0 0 0 .5 5.6 2.8 2.8 0 0 0 1.9 2C5.1 20 12 20 12 20s6.9 0 8.6-.4a2.8 2.8 0 0 0 1.9-2 29 29 0 0 0 .5-5.6 29 29 0 0 0-.5-5.6z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>') },
+};
+
+const contactDigits = (s) => String(s == null ? "" : s).replace(/[^\d+]/g, "");
+const contactUrl = (s) => (/^https?:\/\//i.test(s) ? s : "https://" + s);
+
+function parseContactBody(body) {
+  const directives = {};
+  const blocks = [];
+  let inDirective = true, gotSub = false;
+  for (const raw of body.split("\n")) {
+    const line = raw.trim();
+    if (!line) { inDirective = false; continue; }
+    if (inDirective && line.startsWith("@") && line.includes(":")) {
+      const i = line.indexOf(":");
+      directives[line.slice(1, i).trim()] = line.slice(i + 1).trim();
+      continue;
+    }
+    inDirective = false;
+    if (line.startsWith("# ")) { blocks.push({ type: "h1", text: line.slice(2) }); continue; }
+    const sm = line.match(/^\*(.+)\*$/);
+    if (sm && !gotSub) { blocks.push({ type: "sub", text: sm[1] }); gotSub = true; continue; }
+    blocks.push({ type: "p", text: line });
+  }
+  return { directives, blocks };
+}
+
+// vCard 3.0 — the file the OS's add-contact sheet understands (CRLF lines per RFC).
+function buildVCard(d, name, tagline) {
+  const ve = (s) => String(s == null ? "" : s).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+  const out = ["BEGIN:VCARD", "VERSION:3.0", "FN:" + ve(name), "N:" + ve(name) + ";;;;"];
+  if (d.org) out.push("ORG:" + ve(d.org));
+  if (d.role || tagline) out.push("TITLE:" + ve(d.role || tagline));
+  if (d.tel) out.push("TEL;TYPE=CELL:" + contactDigits(d.tel));
+  if (d.wa && contactDigits(d.wa) !== contactDigits(d.tel)) out.push("TEL;TYPE=CELL:" + contactDigits(d.wa));
+  if (d.email) out.push("EMAIL;TYPE=INTERNET:" + ve(d.email));
+  if (d.site) out.push("URL:" + ve(contactUrl(d.site)));
+  if (d.map) out.push("ADR;TYPE=WORK:;;" + ve(d.map) + ";;;;");
+  out.push("END:VCARD");
+  return out.join("\r\n");
+}
+
+function renderContactHTML(body, locale, attribution) {
+  const L = CONTACT_LOCALES[locale] || CONTACT_LOCALES["pt-BR"];
+  const { directives: d, blocks } = parseContactBody(body);
+  const name = (blocks.find((b) => b.type === "h1") || {}).text || "";
+  const tagline = (blocks.find((b) => b.type === "sub") || {}).text || "";
+  const bio = blocks.filter((b) => b.type === "p").map((b) => `<p class="contact-bio">${renderInline(b.text)}</p>`).join("");
+
+  // avatar: emoji override, else initials from the name
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const avatar = d.avatar ? escapeHtml(d.avatar) : escapeHtml(initials || "•");
+
+  const btn = (emoji, label, href) =>
+    `<a class="contact-btn" href="${escapeHtml(href)}"><span class="contact-btn-emoji">${emoji}</span><span>${escapeHtml(label)}</span></a>`;
+  const acts = [];
+  if (d.tel) acts.push(btn("📞", L.call, "tel:" + contactDigits(d.tel)));
+  if (d.wa) acts.push(btn("💬", L.whatsapp, "https://wa.me/" + contactDigits(d.wa).replace(/^\+/, "")));
+  if (d.email) acts.push(btn("✉️", L.email, "mailto:" + d.email));
+  if (d.site) acts.push(btn("🌐", L.site, contactUrl(d.site)));
+  if (d.map) acts.push(btn("📍", L.directions, "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(d.map)));
+  const actionsHtml = acts.length ? `<div class="contact-actions">${acts.join("")}</div>` : "";
+
+  let socialsHtml = "";
+  if (d.social) {
+    const items = [];
+    for (const pair of d.social.split(",")) {
+      const [pre, handle] = pair.split("=").map((s) => s.trim());
+      const def = CONTACT_SOCIAL[pre];
+      if (def && handle) items.push(`<a class="contact-social" href="${escapeHtml(def.url(handle))}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(pre)}">${def.icon}</a>`);
+    }
+    if (items.length) socialsHtml = `<div class="contact-socials">${items.join("")}</div>`;
+  }
+
+  const fname = (name || "contact").replace(/[^\w.-]+/g, "_") || "contact";
+  const vcf = buildVCard(d, name, tagline);
+  const saveHtml = `<a class="contact-save" download="${escapeHtml(fname)}.vcf" href="data:text/vcard;charset=utf-8,${encodeURIComponent(vcf)}">${escapeHtml(L.save)}</a>`;
+
+  const parts = [
+    `<div class="contact-card">`,
+    `<div class="contact-avatar">${avatar}</div>`,
+    name ? `<h1 class="contact-name">${renderInline(name)}</h1>` : "",
+    tagline ? `<p class="contact-tagline">${renderInline(tagline)}</p>` : "",
+    bio,
+    actionsHtml,
+    socialsHtml,
+    saveHtml,
+    `</div>`,
+    attribution ? `<div class="attribution">${escapeHtml(attribution)}</div>` : "",
+  ];
+  return { html: parts.join(""), template: d.template || "minimal", accent: d.accent || null, lang: locale };
+}
+// @build:contact-renderer:end
+
+const td = new TextEncoder();
+function fragmentEncode(s) { return s.replace(/%/g, "%25").replace(/ /g, "%20"); }
+function base45Encode(bytes) {
+  const A = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 2) {
+    if (i + 1 < bytes.length) {
+      const x = bytes[i] * 256 + bytes[i + 1];
+      out += A[x % 45] + A[Math.floor(x / 45) % 45] + A[Math.floor(x / 2025)];
+    } else {
+      out += A[bytes[i] % 45] + A[Math.floor(bytes[i] / 45)];
+    }
+  }
+  return out;
+}
+// contact has no dictionary — plain deflate (q:d<base45>) is small enough.
+function makeCapsule(program) { return "q:d" + base45Encode(pako.deflateRaw(td.encode(program), { level: 9 })); }
+
+const $ = (id) => document.getElementById(id);
+function val(id) { return $(id).value.trim(); }
+
+function buildSource() {
+  const locale = val("f-locale") || "pt-BR";
+  let s = "!contact1+" + locale + "\n";
+  const dir = (k, v) => { if (v) s += "@" + k + ": " + v + "\n"; };
+  const tmpl = val("f-template");
+  if (tmpl && tmpl !== "minimal") dir("template", tmpl);
+  dir("accent", val("f-accent"));
+  dir("avatar", val("f-avatar"));
+  dir("tel", val("f-tel"));
+  dir("wa", val("f-wa"));
+  dir("email", val("f-email"));
+  dir("site", val("f-site"));
+  dir("map", val("f-map"));
+  dir("org", val("f-org"));
+  dir("role", val("f-role"));
+  dir("social", val("f-social"));
+  s += "\n# " + (val("f-name") || "Your Name") + "\n";
+  if (val("f-tagline")) s += "*" + val("f-tagline") + "*\n";
+  const bio = $("f-bio").value.trim();
+  if (bio) s += "\n" + bio + "\n";
+  return s;
+}
+
+function buildQR(text, el) {
+  el.innerHTML = "";
+  if (window.QRCode && window.QRCode.CorrectLevel) {
+    new window.QRCode(el, { text, width: 200, height: 200, correctLevel: window.QRCode.CorrectLevel.M });
+  } else {
+    el.textContent = "(QR library unavailable)";
+  }
+}
+
+let lastURL = "";
+function update() {
+  const src = buildSource();
+  const body = src.slice(src.indexOf("\n") + 1);
+  const locale = (src.match(/^!contact1\+(\S+)/) || [, "pt-BR"])[1];
+  const r = renderContactHTML(body, locale, "");
+  const mount = $("preview");
+  mount.className = "contact tmpl-" + r.template;
+  mount.style.removeProperty("--contact-accent");
+  if (r.accent) mount.style.setProperty("--contact-accent", r.accent);
+  mount.innerHTML = r.html;
+  // accent swatch
+  $("accent-sw").style.background = r.accent || getComputedStyle(mount).getPropertyValue("--contact-accent");
+
+  const cap = makeCapsule(src);
+  const base = val("f-base") || new URL("../", location.href).href;
+  lastURL = base + "#" + fragmentEncode(cap);
+  $("url").textContent = lastURL;
+  buildQR(lastURL, $("qr"));
+  $("size").textContent = "source " + td.encode(src).length + " B · capsule " + cap.length + " chars";
+  // QR PNG download (qrcodejs renders an <img> or <canvas>)
+  setTimeout(() => {
+    const img = $("qr").querySelector("img, canvas");
+    if (img) $("dl-qr").href = img.tagName === "IMG" ? img.src : img.toDataURL("image/png");
+  }, 60);
+}
+
+const SAMPLE = {
+  "f-locale": "pt-BR", "f-name": "Jane Doe", "f-tagline": "Designer · Studio Aurora",
+  "f-bio": "Branding & print. Belo Horizonte desde 2014.",
+  "f-template": "bold", "f-accent": "#e0533b", "f-avatar": "🎨",
+  "f-tel": "+55 31 99999-8888", "f-wa": "5531999998888", "f-email": "jane@studio.com",
+  "f-site": "studio.com", "f-map": "Rua dos Aimorés 100, Belo Horizonte",
+  "f-org": "Studio Aurora", "f-role": "Designer", "f-social": "ig=jane.studio, in=jane-doe, gh=janedoe",
+};
+function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
+
+document.querySelectorAll("input, select, textarea").forEach((el) => {
+  el.addEventListener("input", update);
+  el.addEventListener("change", update);
+});
+$("load-sample").addEventListener("click", loadSample);
+$("copy-url").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = "Copied ✓";
+        setTimeout(() => $("copy-url").textContent = "Copy share link", 1200); } catch (e) {}
+});
+
+$("f-base").value = new URL("../", location.href).href;
+loadSample();
+</script>
+</body>
+</html>
