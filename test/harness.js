@@ -113,10 +113,16 @@ function buildDictCapsule(program, dictId, dictStr) {
   const deflated = zlib.deflateRawSync(Buffer.from(program, "utf8"), { level: 9, dictionary: Buffer.from(enc(dictStr)) });
   return "q:d." + dictId + "_" + base45Encode(new Uint8Array(deflated));
 }
-// q:d<base45>  (plain deflate, no dict)
+// q:d<base45>  (plain deflate, no dict). NB: ambiguous when the base45 starts with "."
+// (parseQ then reads it as a deflate-dict id) — prefer buildInlineCapsule for dict-less payloads.
 function buildPlainCapsule(program) {
   const deflated = zlib.deflateRawSync(Buffer.from(program, "utf8"), { level: 9 });
   return "q:d" + base45Encode(new Uint8Array(deflated));
+}
+// inline:deflate:<base64>  (plain deflate, no dict, unambiguous — base64 has no ".")
+function buildInlineCapsule(program) {
+  const deflated = zlib.deflateRawSync(Buffer.from(program, "utf8"), { level: 9 });
+  return "inline:deflate:" + Buffer.from(deflated).toString("base64");
 }
 
 // ---- rule-aware playtest bot for arcr games ------------------------------
@@ -147,5 +153,5 @@ function botPlay(A, src, seed = 7, maxSteps = 9000) {
 
 module.exports = {
   read, loadBootloader, loadArcr, extractConst, mkEl, makeContext,
-  base45Encode, escapeFrag, buildDictCapsule, buildPlainCapsule, botPlay, enc,
+  base45Encode, escapeFrag, buildDictCapsule, buildPlainCapsule, buildInlineCapsule, botPlay, enc,
 };

@@ -1,13 +1,13 @@
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert");
-const { loadBootloader, buildPlainCapsule } = require("./harness");
+const { loadBootloader, buildInlineCapsule } = require("./harness");
 
 const sb = loadBootloader();
 
 // render a contact capsule through the bootloader's magic dispatch + RENDERERS.contact
 function renderContact(menu) {
-  const cap = buildPlainCapsule(menu);
+  const cap = buildInlineCapsule(menu);
   const { header, body } = sb.__magic(sb.__resolve(cap, sb.__dicts));
   const accent = {};
   const mount = { innerHTML: "", className: "", style: { setProperty: (k, v) => { accent[k] = v; } } };
