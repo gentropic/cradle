@@ -173,6 +173,18 @@
   .tt-label { font-size: 0.62rem; font-weight: 600; text-align: center; padding: 0.25rem 0.1rem;
     background: #fff; color: var(--fg-muted); border-top: 1px solid var(--border); }
   .tmpl-thumb.sel .tt-label { color: var(--accent); }
+
+  /* curated accent presets */
+  .accent-swatches { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.45rem 0 0.1rem; padding-left: 118px; }
+  @media (max-width: 560px) { .accent-swatches { padding-left: 0; } }
+  .accent-sw { width: 21px; height: 21px; border-radius: 50%; padding: 0; cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.18); transition: transform 0.1s; }
+  .accent-sw:hover { transform: scale(1.15); }
+  .accent-sw.sel { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px currentColor; }
+  .accent-sw.clear { background:
+    repeating-conic-gradient(#fff 0 25%, #e2e2dd 0 50%) 50% / 9px 9px; position: relative; }
+  .accent-sw.clear::after { content: "\00d7"; position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center; font-size: 12px; color: #777; }
   .field-row > input[type="text"], .field-row > input[type="date"],
   .field-row > input[type="number"], .field-row > select, .field-row > textarea {
     font: inherit; font-size: 0.85rem; padding: 0.35rem 0.5rem;
@@ -278,7 +290,15 @@
                                  border: 1px solid var(--border-strong); background: white; border-radius: 3px; }
 
   /* preview container; the menu itself is styled by the single-sourced templates below */
-  .menu-preview { padding: 0; background: #fff; transition: background 0.15s; }
+  /* preview pane: the menu inside a phone frame (a diner scans it on a phone) */
+  .menu-preview { padding: 1.5rem 1rem 2.5rem; background: #d7d7db; display: flex;
+    justify-content: center; align-items: flex-start; }
+  .phone { width: 100%; max-width: 380px; background: #15151b; border-radius: 38px; padding: 9px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.24), 0 2px 6px rgba(0,0,0,0.16); }
+  .phone-screen { position: relative; border-radius: 30px; overflow: hidden; background: #fff;
+    min-height: 320px; transition: background 0.15s; }
+  .phone-screen::after { content: ""; position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
+    width: 32%; height: 4px; border-radius: 2px; background: rgba(130,130,130,0.55); z-index: 3; pointer-events: none; }
   /* menu template visuals — single source: ext/menu/templates.css */
   /* @build:menu-templates:start */
 /* Menu template visuals — the SINGLE SOURCE for how a rendered menu looks.
@@ -466,6 +486,7 @@
         <div class="field-row"><label data-i18n="f.accent" for="f-accent-text">Accent color</label>
           <input type="color" id="f-accent-picker" value="#444444">
           <input type="text" id="f-accent-text" data-i18n-ph="ph.accent" placeholder="#c4453a or color name" style="flex: 1;"></div>
+        <div class="accent-swatches" id="accent-swatches"></div>
       </div></details></div>
 
       <div class="form-group"><details><summary data-i18n="grp.status">Fees &amp; validity</summary><div class="group-body">
@@ -522,7 +543,7 @@
         <div class="url-display" id="url-display">—</div>
       </div>
     </div>
-    <div class="menu-preview"><div class="menu-frame menu tmpl-minimal" id="menu-frame"></div></div>
+    <div class="menu-preview"><div class="phone"><div class="phone-screen"><div class="menu-frame menu tmpl-minimal" id="menu-frame"></div></div></div></div>
   </section>
 </main>
 
@@ -557,7 +578,9 @@ const DICT_PT_BR = "|garrafa\n|6 unidades\n|8 unidades\n## Vinhos brancos\n## Vi
 
 
 
+
 const DICT_EN_US = "|bottle\n|6 pack\n|case of 12\n## White wines\n## Red wines\n## Sparkling\n## Rosé\n## Cocktails\n## Starters\n## Appetizers\n## Salads\n## Soups\n## Sandwiches\n## Mains\n## Entrées\n## Pasta\n## Pizza\n## Sides\n## Desserts\n## Sushi\n## Sashimi\n## Rolls\n## Combos\n## Hot dishes\n## Drinks\n## Coffee\n## Tea\n## Kids menu\n## Brunch\nextra virgin olive oil, fresh mozzarella, parmesan reggiano, aged cheddar, grilled salmon, grilled chicken, ribeye steak, filet mignon, mushroom risotto, vanilla ice cream, mixed berries, coconut milk, caramel sauce, chocolate sauce, red wine reduction, lemon butter sauce, carpaccio, bruschetta, tiramisu, cheesecake, chocolate lava cake, panna cotta, spaghetti, linguine, ravioli, lasagna, gnocchi, fettuccine, penne, cheese, ham, garlic, onion, tomato, potato, rice, salmon, tuna, shrimp, prawns, lobster, chicken, beef, pork, lamb, fish, octopus, squid, yakisoba, nigiri, sashimi, uramaki, hand roll, gyoza, tempura, philadelphia, california, dragon roll, spicy tuna, espresso, cappuccino, latte, americano, mocha, hot chocolate, flat white, cheeseburger, hamburger, club sandwich, caesar salad, greek salad, french fries, sweet potato fries, onion rings, mashed potatoes, served with, comes with, side of, choice of, @template: minimal\n@template: bistro\n@template: serif\n@template: dark\n@accent: \n@valid_until: \n@service: \n@couvert: \n@social: \n";
+
 
 
 
@@ -1267,6 +1290,37 @@ function menuTitle(source) {
 // ============================================================
 // Form rendering (incremental, focus-stable)
 // ============================================================
+// curated accent presets (tasteful restaurant colours) + a "template default" clear
+const ACCENT_PRESETS = ["#9c4724", "#7c2d3a", "#b8860b", "#2f5d3a", "#1f6f6f", "#1e3a5f", "#7a3b6e", "#3a3a3a"];
+function buildAccentSwatches() {
+  const wrap = document.getElementById("accent-swatches");
+  wrap.innerHTML = "";
+  const clear = document.createElement("button");
+  clear.type = "button"; clear.className = "accent-sw clear"; clear.dataset.color = "";
+  clear.title = "template default"; clear.setAttribute("aria-label", "template default accent");
+  clear.addEventListener("click", () => setAccent(""));
+  wrap.appendChild(clear);
+  for (const c of ACCENT_PRESETS) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "accent-sw"; b.style.background = c; b.style.color = c;
+    b.dataset.color = c; b.title = c;
+    b.addEventListener("click", () => setAccent(c));
+    wrap.appendChild(b);
+  }
+}
+function setAccent(c) {
+  document.getElementById("f-accent-text").value = c;
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) document.getElementById("f-accent-picker").value = c;
+  syncAccentSwatches();
+  flushFormToSource();
+}
+function syncAccentSwatches() {
+  const cur = (document.getElementById("f-accent-text").value || "").trim().toLowerCase();
+  document.querySelectorAll(".accent-sw").forEach((s) => {
+    s.classList.toggle("sel", (s.dataset.color || "").toLowerCase() === cur);
+  });
+}
+
 // visual template picker — live mini-renders (real template CSS) instead of a dropdown
 function buildTemplatePicker() {
   const wrap = document.getElementById("tmpl-picker");
@@ -1407,6 +1461,7 @@ function populateForm(state) {
   const colorPicker = document.getElementById("f-accent-picker");
   if (state.accent && /^#[0-9a-fA-F]{6}$/.test(state.accent)) colorPicker.value = state.accent;
   else colorPicker.value = "#444444";
+  syncAccentSwatches();
   document.getElementById("f-valid-until").value = state.valid_until || "";
   document.getElementById("f-valid-show").checked = !!state.valid_show;
   document.getElementById("f-service").value = state.service || "";
@@ -1709,8 +1764,9 @@ for (const id of ["f-title", "f-subtitle", "f-template", "f-accent-text",
   document.getElementById(id).addEventListener("change", flushFormToSource);
 }
 document.getElementById("f-accent-picker").addEventListener("input", (e) => {
-  document.getElementById("f-accent-text").value = e.target.value; flushFormToSource();
+  document.getElementById("f-accent-text").value = e.target.value; syncAccentSwatches(); flushFormToSource();
 });
+document.getElementById("f-accent-text").addEventListener("input", syncAccentSwatches);
 document.getElementById("add-social").addEventListener("click", () => {
   document.getElementById("f-socials").appendChild(buildSocialRow("ig", ""));
 });
@@ -1783,6 +1839,7 @@ function downloadBlob(blob, filename) {
 (function init() {
   applyI18n();   // localize the static chrome to the detected/remembered UI language
   buildTemplatePicker();
+  buildAccentSwatches();
   const params = new URLSearchParams(window.location.search);
   const fromParam = params.get("from") || params.get("shared_url") || params.get("shared_text");
   if (fromParam) {
