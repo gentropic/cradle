@@ -36,7 +36,12 @@ const PREAMBLE = `
     againBtn.addEventListener("click", function(e){ e.stopPropagation(); audioOn(); startGame(); });
     cv.addEventListener("pointermove", function(e){ if(state==="play") setTarget(e.clientX,e.clientY); });
     cv.addEventListener("pointerdown", function(e){ if(state==="play"){ setTarget(e.clientX,e.clientY); tapQ++; } });
-    window.addEventListener("keydown", function(e){ keys[e.key]=true; if(PROG){ for(const r of PROG.rules){ if(state==="play"&&r.ev[0]==="on"&&r.ev[1]==="key"&&r.ev[2]===e.key) fire(r); } } });
+    window.addEventListener("keydown", function(e){ keys[e.key]=true;
+      if(e.key===" "||e.key==="Enter"){ e.preventDefault();
+        if(state==="play") tapQ++;
+        else if(state==="card"&&cardbodyEl.style.display!=="none") startGame();
+        else if(state==="win"||state==="lose"||state==="end"||state==="refuse"){ audioOn(); startGame(); } }
+      if(PROG){ for(const r of PROG.rules){ if(state==="play"&&r.ev[0]==="on"&&r.ev[1]==="key"&&r.ev[2]===e.key) fire(r); } } });
     window.addEventListener("keyup", function(e){ keys[e.key]=false; });
     window.addEventListener("resize", resize);
     setInterval(function(){ if(state!=="play")return; const s=0.03;

@@ -4,7 +4,7 @@
 **Engine:** `gewgaw` — the reference micro-game engine for `arcr` (this spec). Future
 engines (3D, gamepad, …) would join the family under their own magic-line version/params.
 **Magic line:** `!arcr1+<params>`
-**Status:** Draft v0.2
+**Status:** Draft v0.3
 **Editor:** Arthur Endlein Correia
 **Last revised:** 2026-05-30
 
@@ -213,13 +213,14 @@ In `on hit you #heart`, `you` is the player object and `#heart` is any object ta
 
 ## 8. Conditions (`when …`)
 
-Uniform shape — a number, an operator, a number. No booleans, no `and`/`or` in v0
-(chain multiple `when` rules instead). Trivial to evaluate.
+A comparison is a number, an operator, a number. Comparisons may be joined by `and`/`or`,
+evaluated **left-to-right (no precedence)**. Trivial to evaluate.
 
 ```
-cond   = numexpr op number
-op     = ==  !=  >=  <=  >  <
-numexpr= score | lives | time | taps | <uservar> | count <ref>
+cond       = comparison *( ("and" | "or") comparison )
+comparison = numexpr op number
+op         = ==  !=  >=  <=  >  <
+numexpr    = score | lives | time | taps | <uservar> | count <ref>
 ```
 
 `count <ref>` = how many live objects match a name or `#tag` right now. Examples:
@@ -228,6 +229,7 @@ numexpr= score | lives | time | taps | <uservar> | count <ref>
 when score >= 10 : win "fed."
 when count #ahead == 0 : win "you are present."
 when time >= 30 : win "you outlasted it."
+when score >= 5 and lives > 0 and time >= 20 : win "you made it, barely."
 ```
 
 ## 9. Actions
@@ -247,6 +249,7 @@ The right side of a rule; one or more, `;`-separated, executed in order.
 | `set <var> <n>` \| `add <var> <n>` | declare/set or increment an integer variable             |
 | `goto <n>`                     | transition to scene `<n>` (see §9.1)                          |
 | `shake` \| `flash`             | explicit juice (normally automatic)                          |
+| `sound <id>`                   | play a named cue: `ding` `blip` `pop` `thud` `buzz` `chord`  |
 | `nothing`                      | do nothing, on purpose (dada)                                 |
 | `win "text"`                   | end — victory screen with `text`                              |
 | `lose "text"`                  | end — defeat screen with `text`                               |
@@ -314,6 +317,11 @@ A conforming `arcr` engine MUST:
   `@text`/`@title` strings are rendered as text, never as markup.
 - **Degrade, never crash**: skip unknown lines/verbs with a warning; a game with no
   reachable ending still runs (the engine's safety timeout, §11, ends it).
+
+A conforming engine SHOULD accept keyboard play where a keyboard exists: arrows / WASD
+steer the player, and **Space / Enter** act as a tap (and start the card / replay the
+result). This is engine input UX, not part of the program grammar — a capsule never
+asks for it. Pointer/touch remains the baseline.
 
 ## 11. Safety + sanity bounds (engine-enforced)
 
@@ -416,7 +424,8 @@ when lives <= 0 : lose "the bills won."
 
 - **No physics** (gravity curves, momentum, rigid bodies). `move` behaviors are it.
 - **No author-defined functions or loops.** Rules are flat ECA. (`def`/`macro` reserved.)
-- **No `and`/`or` in conditions.** Chain `when` rules. (reserved for v1.)
+- **No operator precedence in conditions.** `and`/`or` evaluate strictly left-to-right
+  (§8); there are no parentheses. Author the order you mean.
 - **No assets** beyond emoji/text/shape. (`sprite <seed>` reserved — it would reuse the
   prototype's procedural pixel-creature generator.)
 - **No persistence**, analytics, or navigation, per cradle §10 — except a bootloader-level
@@ -424,6 +433,11 @@ when lives <= 0 : lose "the bills won."
 
 ## 15. Changelog
 
+- **v0.3** (2026-05-30) — three engine primitives: **compound conditions** (`and`/`or`
+  joining comparisons in a `when`, left-to-right, no precedence — §8); the **`sound <id>`**
+  action (named cues `ding`/`blip`/`pop`/`thud`/`buzz`/`chord` — §9); and **keyboard play**
+  (arrows/WASD steer, Space/Enter tap + start/replay — engine UX, §10, not grammar). The
+  engine (`arcr.html` → generated bootloader renderer) and the test suite cover all three.
 - **v0.2** (2026-05-30) — added **scenes**: `scene <n>` lines partition a program into
   stages and the `goto <n>` action transitions between them (current stage torn down, next
   set up; timers are scene-relative; `score`/`lives`/`taps`/variables carry over; the

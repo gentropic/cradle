@@ -219,6 +219,16 @@ function sfxBad(){ noise({dur:0.22,vol:0.28}); tone({freq:160,to:60,type:"sawtoo
 function sfxUi(){ tone({freq:520,to:780,type:"square",dur:0.07,vol:0.12}); }
 function sfxWin(){ [0,4,7,12].forEach((iv,i)=>tone({freq:mtof(AUD.root+12+iv),type:"triangle",dur:0.18,vol:0.16,delay:i*0.09})); }
 function sfxDie(){ [0,-2,-4,-9].forEach((iv,i)=>tone({freq:mtof(58+iv),type:"sawtooth",dur:0.22,vol:0.16,delay:i*0.1})); noise({dur:0.3,vol:0.22}); }
+// named cues for the `sound <id>` action — relative to the game's AUD root, so they fit the palette
+function playCue(id){ switch(id){
+  case "ding":  tone({freq:mtof(AUD.root+19),to:mtof(AUD.root+24),type:"triangle",dur:0.14,vol:0.16}); break;
+  case "blip":  tone({freq:mtof(AUD.root+12),type:AUD.wave,dur:0.07,vol:0.14}); break;
+  case "pop":   tone({freq:mtof(AUD.root+24),to:mtof(AUD.root+12),type:"square",dur:0.08,vol:0.14}); break;
+  case "thud":  noise({dur:0.18,vol:0.22}); tone({freq:90,to:50,type:"sawtooth",dur:0.18,vol:0.16}); break;
+  case "buzz":  tone({freq:140,type:"sawtooth",dur:0.18,vol:0.14}); break;
+  case "chord": [0,4,7].forEach((iv,i)=>tone({freq:mtof(AUD.root+12+iv),type:"triangle",dur:0.22,vol:0.12,delay:i*0.02})); break;
+  default:      tone({freq:mtof(AUD.root+12),type:AUD.wave,dur:0.08,vol:0.12});
+} }
 
 // palette + background field
 function buildPalette(prog,seed){
@@ -295,8 +305,15 @@ function setupGame(prog,seed){
 
 function num(expr){ if(expr[0]==="count"){ const ref=expr[1]||""; return OBJ.filter(o=>o.alive&&refMatch(o,ref)).length; }
   const k=expr[0]; if(k in S) return S[k]; return S.vars[k]||0; }
-function evalCond(c){ if(c.length<3) return false; const L=num([c[0],c[1]]); const op=c[c.length-2], R=+c[c.length-1];
+function evalOne(c){ if(c.length<3) return false; const L=num([c[0],c[1]]); const op=c[c.length-2], R=+c[c.length-1];
   return op==="=="?L===R:op==="!="?L!==R:op===">="?L>=R:op==="<="?L<=R:op===">"?L>R:op==="<"?L<R:false; }
+// compound: comparisons joined by `and`/`or`, evaluated left-to-right (no precedence)
+function evalCond(c){
+  const parts=[[]], ops=[];
+  for(const tok of c){ if(tok==="and"||tok==="or"){ ops.push(tok); parts.push([]); } else parts[parts.length-1].push(tok); }
+  let res=evalOne(parts[0]);
+  for(let i=0;i<ops.length;i++){ const r=evalOne(parts[i+1]); res = ops[i]==="and" ? (res&&r) : (res||r); }
+  return res; }
 
 function burst(x,y,color,n,spd){ for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2,s=spd*(0.3+Math.random());
   parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-spd*0.3,life:1,color,r:2+Math.random()*3}); } }
@@ -325,6 +342,7 @@ function doAction(a, srcObj){
   if(v==="tune"){ const prop=a[2], d=+a[3]||0; const targets = a[1]==="it" ? (srcObj?[srcObj]:[]) : OBJ.filter(o=>o.alive&&refMatch(o,a[1]));
     for(const o of targets){ if(prop==="speed") o.speed=Math.max(0.15,Math.min(3,(o.speed||1)+d));
       else if(prop==="scale") o.scale=Math.max(0.3,Math.min(3,(o.scale||1)+d)); } return; }
+  if(v==="sound"){ playCue(a[1]||""); return; }
   if(v==="goto"){ pendingScene = parseInt(a[1]) || 1; return; }
   if(v==="win"||v==="lose"||v==="end"||v==="refuse"){ if(!ending){ ending={type:v,msg:unq(a.slice(1).join(" "))}; } return; }
 }
@@ -497,6 +515,10 @@ cv.addEventListener("pointermove",e=>{ if(state==="play") setTarget(e.clientX,e.
 cv.addEventListener("pointerdown",e=>{ if(state==="play"){ setTarget(e.clientX,e.clientY); tapQ++; } });
 const keys={};
 window.addEventListener("keydown",e=>{ keys[e.key]=true;
+  if(e.key===" "||e.key==="Enter"){ e.preventDefault();
+    if(state==="play") tapQ++;                                  // Space/Enter = tap
+    else if(state==="card"&&!document.getElementById("cardbody").classList.contains("hidden")) startGame();
+    else if(state==="win"||state==="lose"||state==="end"||state==="refuse"){ audioOn(); startGame(); } }
   for(const r of (PROG?PROG.rules:[])){ if(state==="play"&&r.ev[0]==="on"&&r.ev[1]==="key"&&r.ev[2]===e.key) fire(r); } });
 window.addEventListener("keyup",e=>{ keys[e.key]=false; });
 setInterval(()=>{ if(state!=="play")return; const s=0.03;

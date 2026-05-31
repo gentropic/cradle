@@ -116,7 +116,8 @@ shakes, and screens are automatic.
 
 **Conditions** (for `when`): `<expr> op <number>`, where `op` is `== != >= <= > <` and
 `<expr>` is `score`, `lives`, `time`, `taps`, a variable, or `count <ref>` (how many
-live objects match). No `and`/`or` — chain multiple `when` rules.
+live objects match). Join comparisons with `and`/`or` — they evaluate **left-to-right,
+no precedence, no parentheses**: `when score >= 5 and lives > 0 : win "…"`.
 
 **Actions** (the right; `;`-separated):
 
@@ -130,6 +131,7 @@ live objects match). No `and`/`or` — chain multiple `when` rules.
 | `score +n` / `-n` / `=n` · `life +n` / `-n` | adjust counters |
 | `set var n` · `add var n` | variables |
 | `shake` · `flash` · `nothing` | explicit juice / a deliberate no-op |
+| `sound <id>` | a named cue: `ding` `blip` `pop` `thud` `buzz` `chord` |
 | `win "…"` · `lose "…"` · `end "…"` · `refuse "…"` | endings |
 
 **The `on hit` consume rule:** a collision *consumes* the non-player object (it's
@@ -322,12 +324,15 @@ reads each game's `on hit` rules to learn good vs. bad tags and plays accordingl
 
 ## Where it stops (today)
 
-arcr v0 favours **expressive range over mechanical depth** — a handful of keywords that
+arcr favours **expressive range over mechanical depth** — a handful of keywords that
 span a wide *conceptual* space, not a physics engine. Reserved / not yet here:
 
-- `and`/`or` in conditions (chain `when`s instead).
+- Operator precedence / parentheses in conditions (`and`/`or` are strict left-to-right).
 - Author-defined functions/macros (rules are flat ECA).
 - Assets beyond emoji/text/shape (procedural sprites are sketched but off by default).
+
+(Players steer with pointer/touch; where there's a keyboard, arrows/WASD steer and
+**Space/Enter** tap, start, and replay — you get that for free, no rule needed.)
 
 When you hit a wall, that's signal: the missing primitive is usually obvious, and the
 engine is small enough to grow. See `SPEC-arcr.md` for the normative grammar and the

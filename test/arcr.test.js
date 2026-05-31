@@ -94,3 +94,25 @@ test("scenes: `goto` tears down a scene and sets up the next (scene-relative tim
   assert.ok(!alive("door"), "scene 1's door is gone after the transition");
   assert.ok(alive("me"), "scene 2's object was set up");
 });
+
+test("compound conditions (`and` / `or`) and the `sound` action", () => {
+  const run = (src, maxS = 200) => {
+    A.loadSource(src, 1); A.play();
+    for (let i = 0; i < maxS && !["win","lose","end","refuse"].includes(A.state); i++) { A.tap(); A.update(0.05); }
+    return { state: A.state, t: A.S.time };
+  };
+  // `and`: taps>=1 is true almost at once, but the win must wait for time>=3 (and a sound plays each tap)
+  const and = run("@title AND\nobj you : emoji 🙂 at=center move=tap\non tap : sound blip\nwhen taps >= 1 and time >= 3 : win \"both\"");
+  assert.strictEqual(and.state, "win");
+  assert.ok(and.t >= 2.9, "`and` held the time gate (won @" + and.t.toFixed(1) + "s, expected >= 3)");
+  // `or`: wins via taps, never via the unreachable time>=99
+  const or = run("@title OR\nobj you : emoji 🙂 at=center move=tap\nwhen taps >= 1 or time >= 99 : win \"either\"");
+  assert.strictEqual(or.state, "win");
+  assert.ok(or.t < 1, "`or` won via taps not time (won @" + or.t.toFixed(1) + "s)");
+});
+
+test("the bootloader renderer keeps keyboard nav (Space/Enter = tap)", () => {
+  const idx = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "index.html"), "utf8");
+  assert.match(idx, /e\.key===" "\s*\|\|\s*e\.key==="Enter"/, "Space/Enter handling present in the bootloader");
+  assert.match(idx, /if\(state==="play"\) tapQ\+\+/, "Space/Enter maps to a tap during play");
+});
