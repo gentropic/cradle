@@ -601,8 +601,8 @@ obj a : emoji 🧍 at=top tag=ahead
 obj b : emoji 🧍 at=top tag=ahead
 obj c : emoji 🧍 at=top tag=ahead
 obj d : emoji 🧍 at=top tag=ahead
-every 3 : destroy 1 #ahead ; say "someone moves on."
-on tap : shake ; say "you cannot hurry presence."
+chance 0.5 : destroy 1 #ahead ; sound thud ; say "someone moves on."
+on tap : shake ; sound blip ; say "you cannot hurry presence."
 when count #ahead == 0 : win "you are present. there was never anyone ahead."` },
 { name:"WANT", src:
 `@title WANT
@@ -610,115 +610,124 @@ when count #ahead == 0 : win "you are present. there was never anyone ahead."` }
 @bg stars
 @lives 3
 obj you : emoji 🫴 at=bottom move=tap
-every 1 : spawn emoji 💖 at=top move=fall tag=heart
-on hit you #heart : life -1 ; say "having it ruined it."
-when time >= 30 : win "you wanted nothing. you have everything."` },
+chance 1.2 : spawn emoji 💖 at=top move=fall tag=heart
+on hit you #heart : life -1 ; sound buzz ; say "having it ruined it."
+when time >= 30 : win "you wanted nothing. you kept {lives}. you have everything."
+when lives <= 0 : lose "you grasped at all of it. now you have none."` },
 { name:"WIN", src:
 `@title WIN
 @about futility
 obj b : text "WIN" at=center
-on tap b : move b random
-when taps >= 12 : end "the button was the whole game."` },
+on tap b : move b random ; sound blip
+when taps >= 12 : end "the button was the whole game. {taps} taps, no winner."` },
 { name:"SNACK RUN", src:
 `@title SNACK RUN
 @about hunger
 @bg dots
 obj you : emoji 😋 at=bottom move=tap
 every 0.8 : spawn emoji 🍿 at=top move=fall tag=want
-every 1.5 : spawn emoji 🧾 at=top move=fall tag=bad speed=1.3
-on hit you #want : score +1
-on hit you #bad : life -1
-when score >= 10 : win "fed, briefly."
+chance 0.6 : spawn emoji 🧾 at=top move=fall tag=bad speed=1.3
+on hit you #want : score +1 ; sound ding
+on hit you #bad : life -1 ; sound buzz
+when score >= 10 : win "fed, briefly. {score} down."
 when lives <= 0 : lose "the bills won."` },
 { name:"THE VOID", src:
 `@title THE VOID
 @about absence
 @bg plain
 obj you : emoji 🧍 at=center move=tap
-on tap : say "nothing happens." ; add pokes 1
-when pokes >= 8 : refuse "the void declines to be a game."` },
+on tap : sound blip ; say "nothing happens." ; add pokes 1
+when pokes >= 8 : refuse "the void declines. {pokes} pokes into nothing."` },
 { name:"LOADING", src:
 `@title LOADING
 @about patience
 @bg dots
 obj bar : text "________" at=center
-every 3 : say "loading…"
+every 3 : sound blip ; say "loading…"
 at 4 : become bar text "#_______"
 at 9 : become bar text "###_____"
 at 14 : become bar text "######__"
-at 19 : become bar text "########" ; end "it was the loading screen all along."` },
+at 19 : become bar text "########" ; sound chord ; end "it was the loading screen all along."` },
 { name:"CONSENT", src:
 `@title CONSENT
 @about terms
 obj ok : text "I AGREE" at=center move=flee
-on tap : add tries 1 ; say "the button moved."
-when tries >= 10 : refuse "you never agreed. nothing was installed."` },
+on tap : add tries 1 ; sound blip ; say "the button moved."
+when tries >= 10 : refuse "you never agreed. {tries} tries, nothing installed."` },
 { name:"BUTTERFLY", src:
 `@title BUTTERFLY
 @about longing
 @bg bubbles
 obj you : emoji 🧒 at=bottom move=chase
 obj b : emoji 🦋 at=top move=flee
-on hit you b : win "you caught it. it stopped being beautiful."
+on hit you b : sound chord ; win "you caught it. it stopped being beautiful."
 when time >= 20 : end "it tired before you did, and landed elsewhere."` },
 { name:"TUESDAY MORNING", src:
 `@title TUESDAY MORNING
 @about growing up
 @bg stars
+scene 1
 obj you : emoji 🐛 at=bottom move=tap
 every 1 : spawn emoji 🍃 at=top move=fall tag=leaf
-on hit you #leaf : score +1
-at 12 : become you emoji 🦋 ; say "you grew up." ; flash
-when score >= 15 : win "you ate enough. you flew."` },
+on hit you #leaf : score +1 ; sound ding
+when score >= 8 : goto 2
+scene 2
+obj fly : emoji 🦋 at=center move=tap
+every 0.8 : spawn emoji 🌸 at=top move=fall tag=bloom
+on hit fly #bloom : score +1 ; sound chord
+when score >= 14 : win "you ate enough. you flew. {score}."` },
 { name:"MEETINGS", src:
 `@title MEETINGS
 @about dread
 @bg grid
 obj you : emoji 👆 at=bottom move=tap
 every 1.2 : spawn emoji 📆 at=scatter move=still tag=mtg
-on tap #mtg : destroy it ; score +1 ; say "declined."
-when count #mtg >= 14 : lose "your calendar is full."` },
+on tap #mtg : destroy it ; score +1 ; sound pop ; say "declined."
+when count #mtg >= 14 : lose "your calendar is full."
+when score >= 12 : win "you declined {score}. the day is yours."` },
 { name:"RAIN", src:
 `@title RAIN
 @about weather
 @lives 3
 obj you : emoji 🧍 at=bottom move=tap
 every 0.5 : spawn emoji 💧 at=top move=fall tag=drop
-on hit you #drop : life -1 ; say "drenched."
-when time >= 25 : win "it passed. it always does."` },
+on hit you #drop : life -1 ; sound thud ; say "drenched."
+when time >= 25 : win "it passed. it always does."
+when lives <= 0 : lose "soaked through."` },
 { name:"GARDEN", src:
 `@title GARDEN
 @about tending
 @bg plain
 obj you : emoji 💧 at=bottom move=tap
 every 1.6 : spawn emoji 🌱 at=scatter move=still tag=seed
-on hit you #seed : become it emoji 🌸 ; score +1 ; say "bloom."
-when score >= 6 : win "the garden is enough."` },
+on hit you #seed : become it emoji 🌸 ; score +1 ; sound chord ; say "bloom."
+when score >= 6 : win "the garden is enough. {score} blooms."` },
 { name:"DIET", src:
 `@title DIET
 @about willpower
 @bg dots
 @lives 3
 obj you : emoji 🏃 at=center move=tap
-every 2 : spawn emoji 🍩 at=top move=seek tag=treat speed=0.7
-on hit you #treat : life -1 ; say "you caved."
-when time >= 20 : win "you resisted. thin and unfulfilled."` },
+chance 1.5 : spawn emoji 🍩 at=top move=seek tag=treat speed=0.7
+on hit you #treat : life -1 ; sound buzz ; say "you caved."
+when time >= 20 : win "you resisted. thin and unfulfilled."
+when lives <= 0 : lose "you caved completely."` },
 { name:"BAGGAGE", src:
 `@title BAGGAGE
 @about accumulation
 @bg grid
 obj you : emoji 🧍 at=bottom move=tap
 every 1 : spawn emoji 🧳 at=top move=fall tag=bag
-on hit you #bag : tune you speed -0.12 ; score +1 ; say "you carry it now."
-when score >= 8 : win "you carried everything. you can barely move."` },
+on hit you #bag : tune you speed -0.12 ; score +1 ; sound thud ; say "you carry it now."
+when score >= 8 : win "you carried {score}. you can barely move."` },
 { name:"FIREFLIES", src:
 `@title FIREFLIES
 @about summer
 @bg bubbles
 obj you : emoji 🫙 at=bottom move=tap
 every 1.3 : spawn emoji ✨ at=scatter move=drift tag=fly
-on hit you #fly : score +1 ; say "caught one."
-when score >= 8 : win "the jar glows. summer holds still."
+on hit you #fly : score +1 ; sound blip ; say "caught one."
+when score >= 8 : win "the jar glows. {score} held."
 when time >= 40 : end "they drifted off. summer ended anyway."` },
 { name:"STARGAZING", src:
 `@title STARGAZING
@@ -726,136 +735,142 @@ when time >= 40 : end "they drifted off. summer ended anyway."` },
 @bg stars
 obj you : emoji 🧺 at=bottom move=tap
 every 0.9 : spawn emoji ⭐ at=top move=fall tag=star
-on hit you #star : score +1
-when score >= 12 : win "a basket of light. enough."` },
+on hit you #star : score +1 ; sound ding
+on miss #star : say "one slipped past. there are more."
+when score >= 12 : win "a basket of {score}. enough."` },
 { name:"METEOR", src:
 `@title METEOR
 @about the end
-@lives 3
+@lives 5
 obj you : emoji 🚀 at=bottom move=tap
-every 0.45 : spawn emoji ☄️ at=top move=fall tag=rock speed=1.3
-on hit you #rock : life -1 ; say "hull breach."
-when time >= 28 : win "you flew through. the sky is quiet now."` },
+every 0.7 : spawn emoji ☄️ at=top move=fall tag=rock speed=1.1
+on tap : shoot emoji 🔥 up tag=bolt
+on hit #bolt #rock : score +1 ; sound pop
+on hit you #rock : life -1 ; sound thud ; say "hull breach."
+when score >= 10 : win "you cleared the sky. {score} down."
+when lives <= 0 : lose "the sky won."` },
 { name:"DEBT", src:
 `@title DEBT
 @about money
 @lives 3
 obj you : emoji 🏃 at=center move=tap
-every 2.2 : spawn emoji 🧾 at=top move=seek tag=bill
-on hit you #bill : life -1 ; say "interest."
-when time >= 22 : win "you outran it. this month."` },
+chance 1.4 : spawn emoji 🧾 at=top move=seek tag=bill
+on hit you #bill : life -1 ; sound buzz ; say "interest."
+when time >= 22 : win "you outran it. this month."
+when lives <= 0 : lose "the debt caught up."` },
 { name:"INSOMNIA", src:
 `@title INSOMNIA
 @about 3am
 obj you : emoji 😩 at=bottom move=chase
 obj z : emoji 💤 at=top move=flee
-on hit you z : win "you slept. the alarm rings in nine minutes."
+on hit you z : sound chord ; win "you slept. the alarm rings in nine minutes."
 when time >= 25 : refuse "sleep will not be caught. it has to come to you."` },
 { name:"NOTIFICATIONS", src:
 `@title NOTIFICATIONS
 @about attention
 @bg grid
 obj you : emoji 👆 at=bottom move=tap
-every 0.9 : spawn emoji 🔴 at=scatter move=still tag=dot
-on tap #dot : destroy it ; score +1 ; say "cleared."
+chance 1.2 : spawn emoji 🔴 at=scatter move=still tag=dot
+on tap #dot : destroy it ; score +1 ; sound pop ; say "cleared."
 when count #dot >= 12 : lose "you'll never be caught up."
-when score >= 20 : win "inbox zero. it won't last."` },
+when score >= 20 : win "inbox zero. {score} cleared. it won't last."` },
 { name:"WEEDS", src:
 `@title WEEDS
 @about upkeep
 obj you : emoji ✋ at=bottom move=tap
-every 1 : spawn emoji 🌿 at=scatter move=still tag=weed
-on tap #weed : destroy it ; score +1
+chance 1.1 : spawn emoji 🌿 at=scatter move=still tag=weed
+on tap #weed : destroy it ; score +1 ; sound pop
 when count #weed >= 14 : lose "the garden returns to the wild."
-when score >= 18 : win "tidy. for an afternoon."` },
+when score >= 18 : win "tidy. {score} pulled. for an afternoon."` },
 { name:"BUBBLE WRAP", src:
 `@title BUBBLE WRAP
 @about satisfaction
 @bg dots
 obj you : emoji 👆 at=bottom move=tap
 every 0.5 : spawn emoji 🟦 at=scatter move=still tag=pop
-on tap #pop : destroy it ; score +1 ; say "pop."
-when score >= 25 : win "every one. perfect."` },
+on tap #pop : destroy it ; score +1 ; sound pop ; say "pop."
+when score >= 25 : win "every one. {score}. perfect."` },
 { name:"PATIENCE", src:
 `@title PATIENCE
 @about fermentation
 obj jug : emoji 🍇 at=center
-at 6 : become jug emoji 🍾 ; say "fermenting…"
-at 14 : become jug emoji 🍷 ; end "it became wine. it took longer than the game."` },
+at 6 : become jug emoji 🍾 ; sound blip ; say "fermenting…"
+at 14 : become jug emoji 🍷 ; sound chord ; end "it became wine. it took longer than the game."` },
 { name:"CAREER", src:
 `@title CAREER
 @about time
 @bg stars
 obj me : emoji 👶 at=center
-at 4 : become me emoji 🧑 ; say "you grew."
-at 9 : become me emoji 💼 ; say "you worked."
-at 14 : become me emoji 👴 ; say "you aged."
-at 18 : become me emoji 🪦 ; end "that was the career."` },
+at 4 : become me emoji 🧑 ; sound blip ; say "you grew."
+at 9 : become me emoji 💼 ; sound blip ; say "you worked."
+at 14 : become me emoji 👴 ; sound blip ; say "you aged."
+at 18 : become me emoji 🪦 ; sound thud ; end "that was the career."` },
 { name:"THAW", src:
 `@title THAW
 @about spring
 @lives 4
 obj you : emoji ☃️ at=bottom move=tap
-every 1.3 : spawn emoji ☀️ at=top move=fall tag=sun
-on hit you #sun : life -1 ; tune you scale -0.12 ; say "you melt."
-when time >= 22 : win "you lasted the day. tomorrow is warmer."` },
+chance 1.0 : spawn emoji ☀️ at=top move=fall tag=sun
+on hit you #sun : life -1 ; tune you scale -0.12 ; sound buzz ; say "you melt."
+when time >= 22 : win "you lasted the day. tomorrow is warmer."
+when lives <= 0 : lose "you melted to a puddle."` },
 { name:"KETTLE", src:
 `@title KETTLE
 @about tea
 obj k : emoji 🫖 at=center
-on tap : say "a watched pot…"
-at 18 : become k emoji ♨️ ; win "it boiled. you may have tea now."` },
+on tap : sound blip ; say "a watched pot…"
+at 18 : become k emoji ♨️ ; sound chord ; win "it boiled. you may have tea now."` },
 { name:"VIGIL", src:
 `@title VIGIL
 @about grief
 obj c : emoji 🕯️ at=center
 every 1 : say "…"
-on tap : say "you cup the flame."
-at 20 : become c emoji 💨 ; end "it burned out. you stayed the whole time."` },
+on tap : sound blip ; say "you cup the flame."
+at 20 : become c emoji 💨 ; sound thud ; end "it burned out. you stayed the whole time."` },
 { name:"THE 8:15", src:
 `@title THE 8:15
 @about waiting
 obj stop : text "BUS STOP" at=top
 obj you : emoji 🧍 at=bottom move=tap
-on tap : say "you check the schedule again."
+on tap : sound blip ; say "you check the schedule again."
 when taps >= 14 : refuse "the bus is not coming. it was cancelled in 2019."` },
 { name:"TUTORIAL", src:
 `@title TUTORIAL
 @about onboarding
 obj you : emoji 🎮 at=center move=tap
-at 3 : say "move to begin."
-at 7 : say "now collect."
-at 11 : say "now win."
-at 15 : end "the tutorial is the game. there is nothing after it."` },
+at 3 : sound blip ; say "move to begin."
+at 7 : sound blip ; say "now collect."
+at 11 : sound blip ; say "now win."
+at 15 : sound chord ; end "the tutorial is the game. there is nothing after it."` },
 { name:"HIGH SCORE", src:
 `@title HIGH SCORE
 @about glory
 obj a : text "AAA" at=center
-on tap : add letters 1 ; say "▮"
-when letters >= 3 : end "first place. you never played. you placed anyway."` },
+on tap : add letters 1 ; sound ding ; say "▮"
+when letters >= 3 : end "first place with {letters} letters. you never played. you placed anyway."` },
 { name:"CREDITS", src:
 `@title CREDITS
 @about everyone
 @bg stars
 every 0.8 : spawn text "thank you" at=bottom move=rise tag=name
-at 16 : end "you played nothing. the credits were the whole thing."` },
+at 16 : sound chord ; end "you played nothing. the credits were the whole thing."` },
 { name:"NO", src:
 `@title NO
 @about boundaries
 obj you : emoji 🧍 at=center move=tap
-on tap : add asks 1 ; say "no."
-when asks >= 10 : refuse "good. you've learned to say it."` },
+on tap : add asks 1 ; sound buzz ; say "no."
+when asks >= 10 : refuse "good. {asks} times. you've learned to say it."` },
 { name:"MEH", src:
 `@title MEH
 @about apathy
 obj you : emoji 😐 at=center move=tap
-on tap : say "meh."
-when taps >= 12 : end "meh."` },
+on tap : sound blip ; say "meh."
+when taps >= 12 : end "meh. {taps} times, even."` },
 { name:"OUT OF ORDER", src:
 `@title OUT OF ORDER
 @about machines
 obj sign : text "OUT OF ORDER" at=center
-on tap : shake ; say "it does not work."
+on tap : shake ; sound buzz ; say "it does not work."
 when taps >= 8 : refuse "it was never going to work."` },
 { name:"RED FLAGS", src:
 `@title RED FLAGS
@@ -863,116 +878,127 @@ when taps >= 8 : refuse "it was never going to work."` },
 @lives 3
 obj you : emoji 🥰 at=bottom move=tap
 every 0.8 : spawn emoji 💖 at=top move=fall tag=love
-every 1.7 : spawn emoji 🚩 at=top move=fall tag=flag speed=1.1
-on hit you #love : score +1
-on hit you #flag : life -1 ; say "you ignored it."
-when score >= 14 : win "love, somehow, despite everything."` },
+chance 0.6 : spawn emoji 🚩 at=top move=fall tag=flag speed=1.1
+on hit you #love : score +1 ; sound ding
+on hit you #flag : life -1 ; sound buzz ; say "you ignored it."
+when score >= 14 and lives >= 2 : win "love, somehow — and you kept your standards."
+when lives <= 0 : lose "the flags were red for a reason."` },
 { name:"GHOSTED", src:
 `@title GHOSTED
 @about silence
 obj you : emoji 📱 at=bottom move=tap
 every 1 : spawn emoji 💬 at=top move=fall tag=text
-on hit you #text : score +1 ; say "they replied!"
-at 12 : end "they stopped. you'll reread the old ones."` },
+on hit you #text : score +1 ; sound blip ; say "they replied!"
+at 12 : end "they stopped at {score}. you'll reread the old ones."` },
 { name:"PICNIC", src:
 `@title PICNIC
 @about defense
 obj you : emoji 🧺 at=center move=tap
-every 0.7 : spawn emoji 🐜 at=scatter move=seek tag=ant
-on hit you #ant : score +1 ; say "shoo!"
+at 0 : spawn 4 sprite at=scatter move=seek tag=ant
+chance 1.0 : spawn sprite at=scatter move=seek tag=ant
+on hit you #ant : score +1 ; sound pop ; say "shoo!"
 when count #ant >= 16 : lose "the ants won the picnic."
-when score >= 22 : win "you defended lunch."` },
+when score >= 18 : win "you defended lunch. {score} shooed."` },
 { name:"ESCAPE", src:
 `@title ESCAPE
 @about exits
 obj door : emoji 🚪 at=center move=flee
-on tap : add tries 1 ; say "locked."
-when tries >= 10 : refuse "there is no exit. there is only the lobby."` },
+on tap : add tries 1 ; sound buzz ; say "locked."
+when tries >= 10 : refuse "there is no exit. {tries} tries. only the lobby."` },
 { name:"STAGE FRIGHT", src:
 `@title STAGE FRIGHT
 @about being seen
 @lives 3
 obj you : emoji 😰 at=bottom move=tap
-every 0.6 : spawn emoji 🔦 at=top move=seek tag=light speed=0.9
-on hit you #light : life -1 ; say "they're looking."
-when time >= 20 : win "the curtain fell. you survived being seen."` },
+chance 1.4 : spawn emoji 🔦 at=top move=seek tag=light speed=0.9
+on hit you #light : life -1 ; sound buzz ; say "they're looking."
+when time >= 20 : win "the curtain fell. you survived being seen."
+when lives <= 0 : lose "the spotlight found you."` },
 { name:"AUTUMN", src:
 `@title AUTUMN
 @about letting go
 obj you : emoji 🧹 at=bottom move=tap
 every 0.7 : spawn emoji 🍂 at=top move=fall tag=leaf
-on hit you #leaf : score +1
-when score >= 16 : win "the yard is clear. the tree is bare."` },
+on hit you #leaf : score +1 ; sound blip
+on miss #leaf : say "one drifted to the ground."
+when score >= 16 : win "the yard is clear. {score} swept."` },
 { name:"TAXES", src:
 `@title TAXES
 @about april
 @lives 1
 obj you : emoji 🧾 at=bottom move=tap
 every 0.8 : spawn emoji 📄 at=top move=fall tag=form
-every 2 : spawn emoji 🔍 at=top move=fall tag=audit speed=1.2
-on hit you #form : score +1 ; say "filed."
-on hit you #audit : life -1 ; say "audited."
-when score >= 15 : win "filed on time. the dread lifts for a year."` },
+chance 0.4 : spawn emoji 🔍 at=top move=fall tag=audit speed=1.2
+on hit you #form : score +1 ; sound ding ; say "filed."
+on hit you #audit : life -1 ; sound buzz ; say "audited."
+when score >= 15 : win "filed on time. the dread lifts for a year."
+when lives <= 0 : lose "audited. it's going to be a long spring."` },
 { name:"SISYPHUS", src:
 `@title SISYPHUS
 @about absurdity
 obj rock : emoji 🪨 at=center
-on tap : add pushes 1 ; shake ; say "you push. it does not move."
-when pushes >= 14 : end "one must imagine you content."` },
+on tap : add pushes 1 ; shake ; sound thud ; say "you push. it does not move."
+when pushes >= 14 : end "one must imagine you content. {pushes} pushes."` },
 { name:"SPARK", src:
 `@title SPARK
 @about love, later
 @lives 5
 obj you : emoji 💗 at=bottom move=tap
-every 1.4 : spawn emoji 💧 at=top move=fall tag=cold
-every 3 : spawn emoji 🔥 at=top move=fall tag=warm
-on hit you #cold : life -1 ; say "it dims."
-on hit you #warm : life +1 ; say "it kindles."
-when time >= 26 : win "still burning. quieter, but burning."` },
+chance 1.2 : spawn emoji 💧 at=top move=fall tag=cold
+chance 0.5 : spawn emoji 🔥 at=top move=fall tag=warm
+on hit you #cold : life -1 ; sound buzz ; say "it dims."
+on hit you #warm : life +1 ; sound ding ; say "it kindles."
+when time >= 26 : win "still burning. quieter, but burning."
+when lives <= 0 : lose "it went out."` },
 { name:"PARTY", src:
 `@title PARTY
 @about introversion
 @lives 3
 obj you : emoji 😅 at=center move=tap
-every 0.8 : spawn emoji 🗣️ at=scatter move=seek tag=person
-on hit you #person : life -1 ; say "small talk."
-when time >= 18 : win "you made it to 9pm. you may leave now."` },
+chance 1.3 : spawn sprite at=scatter move=seek tag=person
+on hit you #person : life -1 ; sound buzz ; say "small talk."
+when time >= 18 : win "you made it to 9pm. you may leave now."
+when lives <= 0 : lose "talked out. you leave early."` },
 { name:"MICROWAVE", src:
 `@title MICROWAVE
 @about dinner
 obj food : emoji 🍲 at=center
-on tap : add stirs 1 ; say "you check it."
-at 16 : become food emoji 🔥 ; lose "you forgot. it's lava now."
-when stirs >= 6 : win "ding. dinner is served."` },
+on tap : add stirs 1 ; sound blip ; say "you check it."
+at 16 : become food emoji 🔥 ; sound buzz ; lose "you forgot. it's lava now."
+when stirs >= 6 : sound chord ; win "ding. dinner is served."` },
 { name:"PIANO", src:
 `@title PIANO
 @about practice
 obj p : emoji 🎹 at=center move=tap
-on tap : say "plink" ; add notes 1
-on key a : say "do" ; add notes 1
-when notes >= 8 : win "a tune, almost."` },
+on tap : sound blip ; add notes 1
+on key a : sound ding ; add notes 1
+on key s : sound chord ; add notes 1
+on key d : sound pop ; add notes 1
+when notes >= 8 : win "a tune, almost. {notes} notes."` },
 { name:"FIRST SNOW", src:
 `@title FIRST SNOW
 @about winter
 @bg dots
 obj you : emoji 👅 at=bottom move=tap
 every 0.7 : spawn emoji ❄️ at=top move=fall tag=flake
-on hit you #flake : score +1 ; say "caught it."
-when score >= 10 : win "the first snow. you are eight again."` },
+on hit you #flake : score +1 ; sound ding ; say "caught it."
+on miss #flake : say "it landed on the ground instead."
+when score >= 10 : win "the first snow. you are eight again. {score}."` },
 { name:"COMMUTE", src:
 `@title COMMUTE
 @about monday
 @lives 3
 obj you : emoji 🚗 at=bottom move=tap
-every 0.6 : spawn emoji 🕳️ at=top move=fall tag=hole
-on hit you #hole : life -1 ; say "clunk."
-when time >= 20 : win "you made it to work. unfortunately."` },
+chance 1.6 : spawn emoji 🕳️ at=top move=fall tag=hole
+on hit you #hole : life -1 ; sound thud ; say "clunk."
+when time >= 20 : win "you made it to work. unfortunately."
+when lives <= 0 : lose "the car gave out on the shoulder."` },
 { name:"SECRET", src:
 `@title SECRET
 @about keeping
 obj you : emoji 🤐 at=center move=tap
-every 1.5 : spawn emoji 🗨️ at=scatter move=seek tag=q
-on hit you #q : add told 1 ; say "you almost said it."
+chance 1.0 : spawn emoji 🗨️ at=scatter move=seek tag=q
+on hit you #q : add told 1 ; sound buzz ; say "you almost said it."
 when told >= 5 : lose "you told. it's everywhere now."
 when time >= 20 : win "you kept it. it sits in you like a stone."` },
 { name:"ELEVATOR", src:
@@ -980,8 +1006,8 @@ when time >= 20 : win "you kept it. it sits in you like a stone."` },
 @about smalltalk
 obj other : emoji 🧍 at=top
 obj you : emoji 🧍 at=bottom move=tap
-on tap : add floors 1 ; say "…"
-when floors >= 9 : end "ground floor. you said nothing. neither did they."` }
+on tap : add floors 1 ; sound blip ; say "…"
+when floors >= 9 : end "ground floor. you said nothing. {floors} floors of silence."` }
 ];
 
 let libIdx=0;

@@ -37,6 +37,14 @@ const DICTS = [
   ["arcr-factory.html", "DICT_ARCR",      "arcr"],
 ];
 
+// the canonical 50-game library lives in arcr.html; pull it out as static
+// {name, src} objects (the array literal has no external refs, so it evals clean)
+function arcrLibrary(arcrHtml) {
+  const m = arcrHtml.match(/const LIBRARY = (\[[\s\S]*?\n\]);/);
+  if (!m) throw new Error("LIBRARY not found in arcr.html");
+  return Function('"use strict"; return ' + m[1])();
+}
+
 // replace the marked arcr-renderer region in index.html with one generated
 // from the canonical engine in arcr.html
 function injectArcrRenderer(indexHtml, arcrHtml) {
@@ -65,6 +73,8 @@ function build() {
     out[file] = injectConst(get(file), varName, dicts[dictId]);
   }
   out["index.html"] = injectArcrRenderer(get("index.html"), get("arcr.html"));
+  // single-source the factory's 50-game library from arcr.html (was a manual dup)
+  out["arcr-factory.html"] = injectConst(get("arcr-factory.html"), "LIBRARY", arcrLibrary(get("arcr.html")));
 
   // shared menu renderer -> bootloader + editor (single source)
   const menuRendererSrc = read("ext/menu/renderer.js");
