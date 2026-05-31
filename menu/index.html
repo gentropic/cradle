@@ -405,13 +405,15 @@
 .menu strong { font-weight: 600; }
 .menu a { color: var(--menu-accent); text-decoration: underline; text-underline-offset: 2px; }
 .menu hr { border: 0; border-top: 1px solid var(--menu-rule); margin: 1.75rem 0 1rem; }
-.menu .item {
-  display: flex; gap: 1rem; align-items: baseline; padding: 0.6rem 0;
-  border-bottom: 1px solid var(--menu-rule);
+.menu .item { padding: 0.55rem 0; }   /* leaders + whitespace separate rows, not a full rule */
+.menu .item-line { display: flex; align-items: baseline; }
+.menu .item-name { font-family: var(--menu-name); font-size: 1rem; font-weight: 600; min-width: 0; }
+/* dot leaders: an empty flex-grow span whose dotted underline sits on the text
+   baseline, filling the gap between name and price the way a printed menu does */
+.menu .leader {
+  flex: 1 1 auto; min-width: 1.2rem; margin: 0 0.5rem; align-self: baseline;
+  border-bottom: 1.5px dotted var(--menu-rule); transform: translateY(-0.18em);
 }
-.menu .item:last-of-type { border-bottom: none; }
-.menu .item-body { flex: 1; min-width: 0; }
-.menu .item-name { font-family: var(--menu-name); font-size: 1rem; font-weight: 600; }
 .menu .item-desc { font-size: 0.84rem; color: var(--menu-fg-muted); margin-top: 0.12rem; line-height: 1.4; }
 .menu .item-price {
   font-size: 0.98rem; font-weight: 600; white-space: nowrap; color: var(--menu-fg);
@@ -457,7 +459,6 @@
 .menu.tmpl-bistro h1 { font-style: italic; font-size: 2.05rem; text-align: center; }
 .menu.tmpl-bistro h1 + p { text-align: center; font-style: italic; }
 .menu.tmpl-bistro h2 { border-bottom: none; text-align: center; letter-spacing: 0.22em; }
-.menu.tmpl-bistro .item { border-bottom-style: dotted; }
 .menu.tmpl-bistro .item-name { font-size: 1.1rem; font-weight: 500; }
 
 /* serif — editorial / magazine, full serif, larger type */
@@ -541,7 +542,7 @@
     --menu-rule: rgba(0, 0, 0, 0.2) !important; --menu-tag-bg: rgba(0, 0, 0, 0.06) !important;
   }
   .menu:not(.keep-color) a { color: inherit; text-decoration: none; }
-  .menu:not(.keep-color) .item, .menu:not(.keep-color) .item-body { background: none !important; box-shadow: none !important; }
+  .menu:not(.keep-color) .item { background: none !important; box-shadow: none !important; }
   .menu .attribution { display: none; }   /* the QR-source line — never on paper */
   .menu .item, .menu h2 { break-inside: avoid; }
   .menu h2 { break-after: avoid; }
@@ -882,13 +883,16 @@ function renderMenuHTML(body, locale, attribution) {
         .filter(t => strings.tags[t])
         .map(t => `<span class="tag" title="${escapeHtml(strings.tags[t])}">${escapeHtml(t)}</span>`)
         .join("");
-      const priceHtml = b.price ? `<div class="item-price">${escapeHtml(formatPrice(b.price, locale))}</div>` : "";
+      // name ⋯⋯ price on one line (dot leaders fill the gap via CSS), description
+      // below spanning full width. The leader span only appears when there's a price.
+      const priceHtml = b.price
+        ? `<span class="leader"></span><span class="item-price">${escapeHtml(formatPrice(b.price, locale))}</span>`
+        : "";
       const descHtml = b.desc ? `<div class="item-desc">${renderInline(b.desc)}</div>` : "";
       parts.push(
         `<div class="item">` +
-        `<div class="item-body">` +
-        `<div class="item-name">${renderInline(b.name)}${tagsHtml}</div>` +
-        descHtml + `</div>` + priceHtml + `</div>`
+        `<div class="item-line"><span class="item-name">${renderInline(b.name)}${tagsHtml}</span>${priceHtml}</div>` +
+        descHtml + `</div>`
       );
     }
   }

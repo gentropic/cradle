@@ -118,13 +118,16 @@ function renderMenuHTML(body, locale, attribution) {
         .filter(t => strings.tags[t])
         .map(t => `<span class="tag" title="${escapeHtml(strings.tags[t])}">${escapeHtml(t)}</span>`)
         .join("");
-      const priceHtml = b.price ? `<div class="item-price">${escapeHtml(formatPrice(b.price, locale))}</div>` : "";
+      // name ⋯⋯ price on one line (dot leaders fill the gap via CSS), description
+      // below spanning full width. The leader span only appears when there's a price.
+      const priceHtml = b.price
+        ? `<span class="leader"></span><span class="item-price">${escapeHtml(formatPrice(b.price, locale))}</span>`
+        : "";
       const descHtml = b.desc ? `<div class="item-desc">${renderInline(b.desc)}</div>` : "";
       parts.push(
         `<div class="item">` +
-        `<div class="item-body">` +
-        `<div class="item-name">${renderInline(b.name)}${tagsHtml}</div>` +
-        descHtml + `</div>` + priceHtml + `</div>`
+        `<div class="item-line"><span class="item-name">${renderInline(b.name)}${tagsHtml}</span>${priceHtml}</div>` +
+        descHtml + `</div>`
       );
     }
   }
