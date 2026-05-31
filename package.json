@@ -5,7 +5,7 @@
   "description": "Static capsule bootloader + curated renderers (menu, doorbell, arcr).",
   "scripts": {
     "build": "node build/build.js",
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test"
   },
   "license": "MIT"
 }
