@@ -6,7 +6,11 @@ exploratory sections in `@gcu/capsule`'s ROADMAP — transport-side threads live
 there, renderer/consumer-side ones live here. Mostly "recorded, not built" — but
 the first entry below is a **near-term candidate**, not a far-off doodle.
 
-## Link hub — a crammed "linktree" (grow `contact`) · **near-term, do soon**
+## `!bio1+` — a "link in bio" hub, grown from `contact` · **near-term, do soon**
+
+*Name:* `!bio1+` — "link in bio" is the universal term for this, and it goes in a
+**bio**-implant; the double meaning is real. Versioned: v1 frozen forever (implants
+in the wild keep rendering), `!bio2+` alongside it if it ever evolves.
 
 A self-contained link hub as a capsule: one-tap links to your socials / site / etc.,
 rendered offline by cradle — no Linktree account, no host, no third party that can
@@ -29,11 +33,20 @@ fits an NTAG216 (888 B) with huge headroom (even an NTAG213's 144 B holds severa
 Icons/branding cost **zero** capsule bytes (they live in the engine); a deflate
 dictionary covers the freeform URLs (the *legit* dictionary use — shared vocabulary).
 
-**It's ~80% `contact` already.** Contact does one-tap tel/wa/email/site/map, the
-socials ig/x/in/gh/yt, branded templates, and has its own dict. This is **contact
-with the vCard-save de-emphasized and the link list opened up**, plus a
-*menu-of-links* layout that reads for a project / band / event, not just a person.
-**Grow contact; don't invent a format.**
+**Grown from `contact`, but its own format + renderer (the key distinction).**
+Three separable things: the **magic line/format** (`!bio1+` ≠ `!contact1+` — different
+body grammar: an open labeled-link list vs vCard fields + Save-contact), the
+**renderer** (a link-*menu* vs a person's *card*), and the **substrate** — which is
+*shared*: the platform-code→URL+icon table (`ig:` → instagram.com + glyph), the
+deflate dict (the vocabulary), the templates/style system, the one-tap-action
+mechanism, the `ext/<x>/{renderer,templates,dict}` single-sourcing. So `bio` is a
+**sibling of `contact` sharing a base** — *not* a mode of contact (one renderer),
+*not* a from-scratch invention (reinventing the table + dict). Same pattern as
+`arcr` anticipating multiple engines over one substrate. Build shape: factor
+contact's reusable bits into something `ext/bio/` imports — a small lift, since
+contact already single-sources its parts. Contact does one-tap tel/wa/email/site/map,
+socials ig/x/in/gh/yt, templates, and a dict already — `bio` opens the link list up
+and reads for a project / band / event, not just a person.
 
 **Style byte-golf — brutalist customizability (like `menu`).** A crammed hub leaves
 slack on the carrier, so spend it on terse style directives (`menu`-style
