@@ -38,7 +38,7 @@ const DICTS = [
   ["index.html",        "DICT_CONTACT",   "contact"],
   ["contact/index.html","DICT_CONTACT",   "contact"],
   ["index.html",        "DICT_BIO",       "bio"],
-  // ["bio/index.html", "DICT_BIO", "bio"],  // ← add when the bio editor lands
+  ["bio/index.html",    "DICT_BIO",       "bio"],
 ];
 
 // the canonical 50-game library lives in arcr/index.html; pull it out as static
@@ -100,10 +100,10 @@ function build() {
     out[f] = inlineBetween(get(f), "@build:contact-templates:start", "@build:contact-templates:end", contactTemplatesSrc, "contact-templates");
   }
 
-  // shared bio (link hub) renderer + template CSS -> bootloader (+ editor once it lands)
+  // shared bio (link hub) renderer + template CSS -> bootloader + editor (single source)
   const bioRendererSrc = read("ext/bio/renderer.js");
   const bioTemplatesSrc = read("ext/bio/templates.css");
-  for (const f of ["index.html"]) {
+  for (const f of ["index.html", "bio/index.html"]) {
     out[f] = inlineBetween(get(f), "@build:bio-renderer:start", "@build:bio-renderer:end", bioRendererSrc, "bio-renderer");
     out[f] = inlineBetween(get(f), "@build:bio-templates:start", "@build:bio-templates:end", bioTemplatesSrc, "bio-templates");
   }

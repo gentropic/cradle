@@ -6,7 +6,12 @@ exploratory sections in `@gcu/capsule`'s ROADMAP — transport-side threads live
 there, renderer/consumer-side ones live here. Mostly "recorded, not built" — but
 the first entry below is a **near-term candidate**, not a far-off doodle.
 
-## `!bio1+` — a "link in bio" hub, grown from `contact` · **near-term, do soon**
+## `!bio1+` — a "link in bio" hub, grown from `contact` · **✓ BUILT (2026-06-03)**
+
+*Shipped:* renderer + templates + dict in `ext/bio/`, inlined into the bootloader
+(`index.html`) and the editor `bio/index.html` via `build/build.js`; `SPEC-bio.md`;
+landing card; `test/bio.test.js` + the dict-drift guard. The notes below are the
+design record that produced it.
 
 *Name:* `!bio1+` — "link in bio" is the universal term for this, and it goes in a
 **bio**-implant; the double meaning is real. Versioned: v1 frozen forever (implants

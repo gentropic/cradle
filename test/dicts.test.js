@@ -35,3 +35,11 @@ test("contact dictionary: editor === bootloader", () => {
   assert.ok(typeof editor === "string" && editor.length > 0, "editor DICT_CONTACT missing");
   assert.strictEqual(boot, editor, "contact dictionary drifted between editor and bootloader");
 });
+
+test("bio dictionary: editor === bootloader", () => {
+  const boot = extractConst("index.html", "DICT_BIO");
+  const editor = extractConst("bio/index.html", "DICT_BIO");
+  assert.ok(typeof boot === "string" && boot.length > 0, "bootloader DICT_BIO missing");
+  assert.ok(typeof editor === "string" && editor.length > 0, "editor DICT_BIO missing");
+  assert.strictEqual(boot, editor, "bio dictionary drifted between editor and bootloader");
+});

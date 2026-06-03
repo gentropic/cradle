@@ -10,6 +10,7 @@ The stack is composed of three layered specifications, each addressing one conce
 │  SPEC-doorbell.md     doorbell payload format           │  (one per format)
 │  SPEC-arcr.md         arcade micro-game format          │
 │  SPEC-contact.md      vCard-hub payload format          │
+│  SPEC-bio.md          link-hub payload format           │
 │  SPEC-lostfound.md    (planned)                         │
 ├─────────────────────────────────────────────────────────┤
 │  SPEC-cradle.md         dispatch · renderer registry      │  application layer
@@ -73,10 +74,11 @@ The name is the receiving dock a capsule settles into — it accepts the capsule
 
 Working reference code, deployed live at `gentropic.org/cradle`:
 
-- `index.html` — the canonical bootloader. Single self-contained HTML file with pako (dictionary deflate) inlined — no third-party fetch, so the offline guarantee holds even on first load. Resolves a capsule from the URL fragment, reads the magic line, and dispatches to an embedded **menu**, **doorbell**, **arcr**, or **contact** renderer. With no capsule it shows a landing page. Registers the service worker for offline PWA install.
+- `index.html` — the canonical bootloader. Single self-contained HTML file with pako (dictionary deflate) inlined — no third-party fetch, so the offline guarantee holds even on first load. Resolves a capsule from the URL fragment, reads the magic line, and dispatches to an embedded **menu**, **doorbell**, **arcr**, **contact**, or **bio** renderer. With no capsule it shows a landing page. Registers the service worker for offline PWA install.
 - `menu/index.html` — authoring tool for menus. Generates the `q:d.menu-<locale>_<base45>` capsule and renders a QR.
 - `doorbell/index.html` — authoring tool for doorbells. Generates the X25519 keypair (private stored locally only), the topic, the configuration, and a printable QR sticker.
 - `contact/index.html` — authoring tool for contact cards. Generates the `q:d.contact_<base45>` capsule and renders a QR.
+- `bio/index.html` — authoring tool for "link in bio" hubs. Generates the `q:d.bio_<base45>` capsule, renders a QR, and shows the NFC-tag fit (NTAG213/215/216) for the implant/sticker use case.
 - `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-maskable.svg` — PWA assets enabling offline operation and home-screen install.
 - `verify_vectors.py` — generates the capsule / menu test vectors used in the specs.
 - `verify_doorbell.py` — reference Python implementation of the doorbell encryption envelope; produces test vectors and interops with the browser implementation.

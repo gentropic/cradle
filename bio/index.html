@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bio · cradle</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<style>
+  :root {
+    --bg: #fff; --fg: #1a1a1a; --fg-muted: #666; --fg-faint: #999;
+    --border: rgba(0,0,0,0.14); --panel: #f6f7f8; --accent: #3b6ea5;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: var(--font-sans); color: var(--fg); background: var(--bg); line-height: 1.5; }
+  header { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem;
+           border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+  header .spacer { flex: 1; }
+  .h-btn { font: inherit; font-size: 0.85rem; background: none; border: 1px solid var(--border);
+           border-radius: 6px; padding: 0.35rem 0.7rem; cursor: pointer; color: var(--fg); text-decoration: none; }
+  .h-btn:hover { border-color: var(--fg); }
+  .wrap { display: grid; grid-template-columns: 1fr; gap: 0; }
+  @media (min-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .form { padding: 1.1rem 1.25rem 3rem; max-width: 560px; }
+  .preview-pane { background: #d7d7db; padding: 1.5rem 1rem; }
+  @media (min-width: 860px) { .preview-pane { position: sticky; top: 49px; height: calc(100vh - 49px); overflow: auto; } }
+  .group { margin-bottom: 1.4rem; }
+  .group h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-faint);
+              font-weight: 700; margin: 0 0 0.6rem; }
+  .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
+  .row label { flex: 0 0 7rem; font-size: 0.85rem; color: var(--fg-muted); }
+  .row input, .row select, .row textarea { flex: 1; font: inherit; font-size: 0.9rem; padding: 0.4rem 0.55rem;
+              border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); min-width: 0; }
+  .row input:focus, .row select:focus, .row textarea:focus { outline: none; border-color: var(--accent); }
+  .row textarea { resize: vertical; min-height: 3.2rem; font: 0.84rem/1.5 ui-monospace, Menlo, Consolas, monospace; }
+  .row.col { flex-direction: column; align-items: stretch; }
+  .row.col label { flex: none; margin-bottom: 0.2rem; }
+  .hint { font-size: 0.74rem; color: var(--fg-faint); margin: 0.15rem 0 0; }
+  .swatch { display: inline-block; width: 1.6rem; height: 1.6rem; border-radius: 6px; border: 1px solid var(--border); }
+  .phone { width: 340px; max-width: 100%; margin: 0 auto 1.25rem; border-radius: 28px; background: #fff;
+           box-shadow: 0 6px 26px rgba(0,0,0,0.28); overflow: hidden; border: 8px solid #111; }
+  .phone-screen { max-height: 560px; overflow: auto; }
+  .share { max-width: 340px; margin: 0 auto; }
+  .qrbox { background: #fff; border-radius: 12px; padding: 1rem; display: flex; justify-content: center; }
+  .qrbox > div, .qrbox img, .qrbox canvas { width: 200px !important; height: 200px !important; }
+  .share .b { display: block; width: 100%; text-align: center; font: inherit; font-size: 0.9rem; margin-top: 0.6rem;
+              padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg);
+              cursor: pointer; text-decoration: none; }
+  .share .b:hover { border-color: var(--fg); }
+  .url { width: 100%; margin-top: 0.6rem; font: 0.72rem/1.35 ui-monospace, Menlo, Consolas, monospace; color: var(--fg-muted);
+         word-break: break-all; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem; max-height: 5rem; overflow: auto; }
+  .meta { font-size: 0.72rem; color: var(--fg-faint); text-align: center; margin-top: 0.6rem; line-height: 1.6; }
+  .meta .nfc b { color: var(--fg-muted); font-weight: 600; }
+
+  /* ---------- bio (link hub) visuals — single source: ext/bio/templates.css ---------- */
+  /* @build:bio-templates:start */
+/* bio ("link in bio" hub) visuals — the SINGLE SOURCE for how a bio hub looks.
+   Scoped to a `.bio` root so the bootloader render and the editor preview are
+   pixel-identical. Inlined into index.html + bio/index.html by build/build.js
+   (between @build:bio-templates markers). Edit here, then `npm run build`.
+
+   Templates set their palette via --bio-* props; @accent overrides --bio-accent
+   inline; @font swaps --bio-sans via a .font-* class (consumer-applied). No web
+   fonts — only system stacks (offline). */
+
+.bio {
+  --bio-accent: #1a1a1a;
+  --bio-bg: #ffffff;
+  --bio-fg: #14181d;
+  --bio-fg-muted: #6a7280;
+  --bio-fg-faint: #aab2bd;
+  --bio-rule: rgba(0, 0, 0, 0.14);
+  --bio-link-bg: #ffffff;
+  --bio-avatar-fg: #ffffff;
+  --bio-radius: 12px;
+  --bio-border: 1px;
+  --bio-shadow: none;
+  --bio-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bio-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  --bio-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  box-sizing: border-box;
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 2.75rem 1.4rem 3rem;
+  background: var(--bio-bg);
+  color: var(--bio-fg);
+  font-family: var(--bio-sans);
+  line-height: 1.5;
+  text-align: center;
+  -webkit-text-size-adjust: 100%;
+}
+.bio * { box-sizing: border-box; }
+.bio.font-mono { --bio-sans: var(--bio-mono); }
+.bio.font-serif { --bio-sans: var(--bio-serif); }
+
+.bio-avatar {
+  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 1rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bio-accent); color: var(--bio-avatar-fg);
+  font-size: 2.1rem; font-weight: 700; line-height: 1; overflow: hidden;
+}
+.bio-name { font-size: 1.55rem; font-weight: 700; margin: 0 0 0.2rem; letter-spacing: -0.01em; }
+.bio-tagline { color: var(--bio-fg-muted); margin: 0; font-size: 0.98rem; }
+.bio-note { color: var(--bio-fg); margin: 0.8rem 0 0; font-size: 0.9rem; }
+.bio a { color: var(--bio-accent); }
+
+/* one-tap action buttons (shared mechanism with contact) */
+.bio-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; margin: 1.5rem 0 0; }
+@media (min-width: 360px) { .bio-actions { grid-template-columns: repeat(4, 1fr); } }
+.bio-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem;
+  min-height: 68px; padding: 0.6rem 0.3rem; text-decoration: none;
+  border: var(--bio-border) solid var(--bio-rule); border-radius: var(--bio-radius);
+  background: var(--bio-link-bg); color: var(--bio-fg); box-shadow: var(--bio-shadow);
+  font-size: 0.74rem; font-weight: 600;
+  transition: border-color 0.12s, transform 0.05s;
+}
+.bio-btn:hover, .bio-btn:focus-visible { border-color: var(--bio-accent); outline: none; }
+.bio-btn:active { transform: translate(1px, 1px); }
+.bio-btn-emoji { font-size: 1.3rem; line-height: 1; }
+
+/* the link rows — bio's headline */
+.bio-links { display: flex; flex-direction: column; gap: 0.55rem; margin: 1.4rem 0 0; }
+.bio-link {
+  display: flex; align-items: center; gap: 0.85rem; text-align: left;
+  padding: 0.8rem 0.95rem; text-decoration: none;
+  border: var(--bio-border) solid var(--bio-rule); border-radius: var(--bio-radius);
+  background: var(--bio-link-bg); color: var(--bio-fg); box-shadow: var(--bio-shadow);
+  transition: border-color 0.12s, transform 0.05s, background 0.12s;
+}
+.bio-link:hover, .bio-link:focus-visible { border-color: var(--bio-accent); outline: none; }
+.bio-link:active { transform: translate(1px, 1px); }
+.bio-link-icon { flex: 0 0 auto; width: 22px; height: 22px; color: var(--bio-accent); display: inline-flex; }
+.bio-link-icon svg { width: 22px; height: 22px; }
+.bio-link-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.bio-link-label { font-weight: 600; font-size: 0.96rem; }
+.bio-link-sub { font-size: 0.78rem; color: var(--bio-fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bio-link-go { flex: 0 0 auto; color: var(--bio-fg-faint); font-size: 1rem; }
+
+/* small social-icon row (shared with contact) */
+.bio-socials { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.55rem; margin: 1.2rem 0 0; }
+.bio-social {
+  display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center;
+  border: var(--bio-border) solid var(--bio-rule); border-radius: 50%;
+  color: var(--bio-fg-muted); text-decoration: none; transition: color 0.12s, border-color 0.12s;
+}
+.bio-social:hover { color: var(--bio-accent); border-color: var(--bio-accent); }
+.bio-social svg { width: 17px; height: 17px; }
+
+.bio .attribution {
+  margin-top: 1.7rem; font-size: 0.66rem; color: var(--bio-fg-faint);
+  letter-spacing: 0.04em; text-align: center;
+}
+
+/* ============================== templates ============================== */
+
+/* minimal — clean light, monochrome accent (the base above). */
+
+/* brutal — raw, high-contrast, hard edges + a hard offset shadow. The byte-cheap,
+   intentional look: thick borders, no radius, monospace. */
+.bio.tmpl-brutal {
+  --bio-accent: #111111; --bio-rule: #111111; --bio-radius: 0px; --bio-border: 2.5px;
+  --bio-shadow: 4px 4px 0 #111111; --bio-sans: var(--bio-mono); --bio-avatar-fg: #ffffff;
+}
+.bio.tmpl-brutal .bio-avatar { border-radius: 0; border: 2.5px solid #111; }
+.bio.tmpl-brutal .bio-name { text-transform: uppercase; letter-spacing: 0.01em; }
+.bio.tmpl-brutal .bio-link-go { color: var(--bio-accent); }
+
+/* dark — near-black, light accent */
+.bio.tmpl-dark {
+  --bio-bg: #14161b; --bio-fg: #e8eaed; --bio-fg-muted: #9aa0aa; --bio-fg-faint: #565c66;
+  --bio-rule: rgba(255, 255, 255, 0.16); --bio-link-bg: rgba(255, 255, 255, 0.03);
+  --bio-accent: #6ea8e0; --bio-avatar-fg: #14161b;
+}
+
+/* bold — warm accent flooded into the avatar + link hover */
+.bio.tmpl-bold {
+  --bio-accent: #e0533b;
+}
+.bio.tmpl-bold .bio-avatar { border-radius: 20px; }
+.bio.tmpl-bold .bio-name { color: var(--bio-accent); }
+.bio.tmpl-bold .bio-link:hover { background: var(--bio-accent); color: #fff; }
+.bio.tmpl-bold .bio-link:hover .bio-link-icon, .bio.tmpl-bold .bio-link:hover .bio-link-go,
+.bio.tmpl-bold .bio-link:hover .bio-link-sub { color: #fff; }
+
+/* mono — typographic, monochrome, square avatar */
+.bio.tmpl-mono {
+  --bio-accent: #1a1a1a; --bio-avatar-fg: #1a1a1a; --bio-sans: var(--bio-mono); --bio-radius: 4px;
+}
+.bio.tmpl-mono .bio-avatar { background: none; border: 2px solid var(--bio-fg); border-radius: 0; }
+
+/* ============================== print ============================== */
+@media print {
+  .bio { max-width: none; }
+  .bio .attribution { display: none; }
+  .bio-link, .bio-btn { break-inside: avoid; box-shadow: none; }
+}
+  /* @build:bio-templates:end */
+</style>
+</head>
+<body>
+<header>
+  <h1>bio · <span style="color:var(--fg-muted);font-weight:400">cradle</span></h1>
+  <span class="spacer"></span>
+  <button class="h-btn" id="load-sample" type="button">Load sample</button>
+  <a class="h-btn" href="../" title="cradle">↩ cradle</a>
+</header>
+
+<div class="wrap">
+  <div class="form">
+    <div class="group">
+      <h2>Identity</h2>
+      <div class="row"><label for="f-locale">Language</label>
+        <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
+      <div class="row"><label for="f-name">Name</label><input id="f-name" type="text" placeholder="Arthur Endlein"></div>
+      <div class="row"><label for="f-tagline">Tagline</label><input id="f-tagline" type="text" placeholder="Geoscientist · builder"></div>
+      <div class="row col"><label for="f-note">Note</label><textarea id="f-note" placeholder="Optional line or two. *italic*, **bold** ok."></textarea></div>
+    </div>
+
+    <div class="group">
+      <h2>Links</h2>
+      <div class="row col"><label for="f-links">One per line</label>
+        <textarea id="f-links" rows="7" placeholder="ig:endarthur&#10;gh:endarthur&#10;My blog | https://endarthur.github.io"></textarea></div>
+      <p class="hint">A platform handle <code>code:handle</code> expands to the URL + icon. Anything else:
+        <code>Label | https://…</code> or a bare URL. Codes: ig · x · in · gh · yt · tg · tt · sc · bc · tw · ko.</p>
+    </div>
+
+    <div class="group">
+      <h2>Style</h2>
+      <div class="row"><label for="f-template">Template</label>
+        <select id="f-template"><option>minimal</option><option>brutal</option><option>dark</option><option>bold</option><option>mono</option></select></div>
+      <div class="row"><label for="f-accent">Accent</label>
+        <input id="f-accent" type="text" placeholder="#e0533b (optional)"><span class="swatch" id="accent-sw"></span></div>
+      <div class="row"><label for="f-font">Font</label>
+        <select id="f-font"><option>sans</option><option>mono</option><option>serif</option></select></div>
+      <div class="row"><label for="f-avatar">Avatar emoji</label><input id="f-avatar" type="text" placeholder="🎸 (optional — else initials)" maxlength="4"></div>
+    </div>
+
+    <div class="group">
+      <h2>Reach me &amp; socials (optional)</h2>
+      <div class="row"><label for="f-tel">Phone</label><input id="f-tel" type="tel" placeholder="+55 31 99999-8888"></div>
+      <div class="row"><label for="f-wa">WhatsApp</label><input id="f-wa" type="tel" placeholder="5531999998888"></div>
+      <div class="row"><label for="f-email">Email</label><input id="f-email" type="email" placeholder="arthur@gentropic.org"></div>
+      <div class="row"><label for="f-site">Website</label><input id="f-site" type="text" placeholder="endarthur.github.io"></div>
+      <div class="row"><label for="f-map">Address</label><input id="f-map" type="text" placeholder="Belo Horizonte"></div>
+      <div class="row col"><label for="f-social">Social icons</label><input id="f-social" type="text" placeholder="x=endarthur, tt=endarthur"></div>
+    </div>
+  </div>
+
+  <div class="preview-pane">
+    <div class="phone"><div class="phone-screen"><div id="preview" class="bio tmpl-minimal"></div></div></div>
+    <div class="share">
+      <div class="qrbox" id="qr"></div>
+      <button class="b" id="copy-url" type="button">Copy share link</button>
+      <a class="b" id="dl-qr" download="bio-qr.png">Download QR (PNG)</a>
+      <div class="row" style="margin:0.6rem 0 0"><label for="f-base" style="flex:0 0 5rem;font-size:0.74rem">decoder</label>
+        <input id="f-base" type="text" style="font-size:0.74rem"></div>
+      <div class="url" id="url"></div>
+      <div class="meta" id="size"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function renderInline(s) {
+  let h = escapeHtml(s);
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  h = h.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  return h;
+}
+// @build:bio-renderer:start
+// Shared bio ("link in bio" hub) render logic — single source for the bootloader's
+// bioRenderer and the editor's live preview. Inlined into index.html and
+// bio/index.html by build/build.js (between @build:bio-renderer markers). Uses
+// escapeHtml + renderInline from the host. renderBioHTML returns
+// { html, template, accent, font, lang }; the consumer applies template/accent/font
+// and mounts `html`. Edit here, then `npm run build`.
+//
+// `bio` is a SIBLING of `contact`, sharing its substrate (avatar/name/tagline,
+// one-tap action buttons, social-icon row, template+accent system) but with its own
+// format: an open list of tappable LINK rows (a "linktree"), schema-relative so the
+// capsule carries handles not URLs (`ig:endarthur` → instagram.com/endarthur). No
+// vCard save — that's `contact`'s job; bio is a link menu. Magic line: !bio1+<locale>.
+const BIO_LOCALES = {
+  "pt-BR": { call: "Ligar", whatsapp: "WhatsApp", email: "E-mail", site: "Site", directions: "Como chegar" },
+  "en-US": { call: "Call", whatsapp: "WhatsApp", email: "Email", site: "Website", directions: "Directions" },
+};
+const BIO_SVG = (p) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+// platform code -> { url(handle), icon, name }. Codes are append-only (capsules in
+// the wild — incl. NFC implants — must keep resolving): never remove or repurpose one.
+const BIO_PLATFORMS = {
+  ig: { name: "Instagram", url: (h) => `https://instagram.com/${h.replace(/^@/, "")}`, icon: BIO_SVG('<rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>') },
+  x:  { name: "X", url: (h) => `https://x.com/${h.replace(/^@/, "")}`, icon: BIO_SVG('<path d="M4 4l16 16M20 4L4 20"/>') },
+  in: { name: "LinkedIn", url: (h) => `https://linkedin.com/in/${h}`, icon: BIO_SVG('<path d="M16 8a6 6 0 0 1 6 6v6h-4v-6a2 2 0 0 0-4 0v6h-4v-6a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="11"/><circle cx="4" cy="4" r="2"/>') },
+  gh: { name: "GitHub", url: (h) => `https://github.com/${h}`, icon: BIO_SVG('<path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>') },
+  yt: { name: "YouTube", url: (h) => `https://youtube.com/@${h.replace(/^@/, "")}`, icon: BIO_SVG('<path d="M22.5 6.4a2.8 2.8 0 0 0-1.9-2C18.9 4 12 4 12 4s-6.9 0-8.6.4A2.8 2.8 0 0 0 1.5 6.4 29 29 0 0 0 1 12a29 29 0 0 0 .5 5.6 2.8 2.8 0 0 0 1.9 2C5.1 20 12 20 12 20s6.9 0 8.6-.4a2.8 2.8 0 0 0 1.9-2 29 29 0 0 0 .5-5.6 29 29 0 0 0-.5-5.6z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>') },
+  tg: { name: "Telegram", url: (h) => `https://t.me/${h.replace(/^@/, "")}`, icon: BIO_SVG('<path d="M22 3L2 11l6 2.5L18 6l-7 9 .5 5 3-4 4 3z"/>') },
+  tt: { name: "TikTok", url: (h) => `https://tiktok.com/@${h.replace(/^@/, "")}`, icon: BIO_SVG('<path d="M9 12a4 4 0 1 0 4 4V4a6 6 0 0 0 6 5"/>') },
+  sc: { name: "SoundCloud", url: (h) => `https://soundcloud.com/${h}`, icon: BIO_SVG('<path d="M3 16v-4M6 17v-6M9 17V9M12 17V8M15 17V9a4 4 0 0 1 6 3.5A3 3 0 0 1 18 17z"/>') },
+  bc: { name: "Bandcamp", url: (h) => `https://${h}.bandcamp.com`, icon: BIO_SVG('<path d="M4 16l4-8h12l-4 8z"/>') },
+  tw: { name: "Twitch", url: (h) => `https://twitch.tv/${h}`, icon: BIO_SVG('<path d="M4 3h16v11l-4 4h-4l-3 3v-3H4z"/><line x1="10" y1="8" x2="10" y2="12"/><line x1="15" y1="8" x2="15" y2="12"/>') },
+  ko: { name: "Ko-fi", url: (h) => `https://ko-fi.com/${h}`, icon: BIO_SVG('<path d="M4 5h13a3 3 0 0 1 0 6h-1M4 5v9a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5z"/>') },
+};
+const BIO_LINK = BIO_SVG('<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'); // generic / freeform
+
+const bioDigits = (s) => String(s == null ? "" : s).replace(/[^\d+]/g, "");
+const bioUrl = (s) => (/^https?:\/\//i.test(s) ? s : "https://" + s);
+const bioHost = (u) => bioUrl(u).replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0] || u;
+
+// classify a content line: a platform link, a `Label | url` link, a bare URL, or a note
+function classifyBio(line) {
+  const cm = line.match(/^([A-Za-z][A-Za-z0-9]{1,3}):(.+)$/);
+  if (cm && BIO_PLATFORMS[cm[1].toLowerCase()]) return { type: "link", plat: cm[1].toLowerCase(), handle: cm[2].trim() };
+  const bar = line.indexOf("|");
+  if (bar > 0) { const label = line.slice(0, bar).trim(), url = line.slice(bar + 1).trim(); if (url) return { type: "link", label, url }; }
+  if (/^https?:\/\//i.test(line)) return { type: "link", url: line.trim() };
+  return { type: "p", text: line };
+}
+
+function parseBioBody(body) {
+  const directives = {};
+  const blocks = [];
+  let inDirective = true, gotSub = false;
+  for (const raw of body.split("\n")) {
+    const line = raw.trim();
+    if (!line) { inDirective = false; continue; }
+    if (inDirective && line.startsWith("@") && line.includes(":")) {
+      const i = line.indexOf(":");
+      directives[line.slice(1, i).trim()] = line.slice(i + 1).trim();
+      continue;
+    }
+    inDirective = false;
+    if (line.startsWith("# ")) { blocks.push({ type: "h1", text: line.slice(2) }); continue; }
+    const sm = line.match(/^\*(.+)\*$/);
+    if (sm && !gotSub) { blocks.push({ type: "sub", text: sm[1] }); gotSub = true; continue; }
+    blocks.push(classifyBio(line));
+  }
+  return { directives, blocks };
+}
+
+function renderBioHTML(body, locale, attribution) {
+  const L = BIO_LOCALES[locale] || BIO_LOCALES["pt-BR"];
+  const { directives: d, blocks } = parseBioBody(body);
+  const name = (blocks.find((b) => b.type === "h1") || {}).text || "";
+  const tagline = (blocks.find((b) => b.type === "sub") || {}).text || "";
+  const notes = blocks.filter((b) => b.type === "p").map((b) => `<p class="bio-note">${renderInline(b.text)}</p>`).join("");
+
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const avatar = d.avatar ? escapeHtml(d.avatar) : escapeHtml(initials || "•");
+
+  // one-tap action buttons (shared with contact's mechanism)
+  const btn = (emoji, label, href) =>
+    `<a class="bio-btn" href="${escapeHtml(href)}"><span class="bio-btn-emoji">${emoji}</span><span>${escapeHtml(label)}</span></a>`;
+  const acts = [];
+  if (d.tel) acts.push(btn("📞", L.call, "tel:" + bioDigits(d.tel)));
+  if (d.wa) acts.push(btn("💬", L.whatsapp, "https://wa.me/" + bioDigits(d.wa).replace(/^\+/, "")));
+  if (d.email) acts.push(btn("✉️", L.email, "mailto:" + d.email));
+  if (d.site) acts.push(btn("🌐", L.site, bioUrl(d.site)));
+  if (d.map) acts.push(btn("📍", L.directions, "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(d.map)));
+  const actionsHtml = acts.length ? `<div class="bio-actions">${acts.join("")}</div>` : "";
+
+  // the link rows — bio's reason to exist
+  const row = (iconHtml, label, sub, href) =>
+    `<a class="bio-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">` +
+      `<span class="bio-link-icon">${iconHtml}</span>` +
+      `<span class="bio-link-text"><span class="bio-link-label">${escapeHtml(label)}</span>` +
+      (sub ? `<span class="bio-link-sub">${escapeHtml(sub)}</span>` : "") + `</span>` +
+      `<span class="bio-link-go">↗</span></a>`;
+  const links = [];
+  for (const b of blocks) {
+    if (b.type !== "link") continue;
+    if (b.plat) {
+      const def = BIO_PLATFORMS[b.plat];
+      links.push(row(def.icon, def.name, b.handle, def.url(b.handle)));
+    } else if (b.label) {
+      links.push(row(BIO_LINK, b.label, bioHost(b.url), bioUrl(b.url)));
+    } else if (b.url) {
+      links.push(row(BIO_LINK, bioHost(b.url), "", bioUrl(b.url)));
+    }
+  }
+  const linksHtml = links.length ? `<div class="bio-links">${links.join("")}</div>` : "";
+
+  // optional small social-icon row (shared with contact)
+  let socialsHtml = "";
+  if (d.social) {
+    const items = [];
+    for (const pair of d.social.split(",")) {
+      const [pre, handle] = pair.split("=").map((s) => s.trim());
+      const def = BIO_PLATFORMS[(pre || "").toLowerCase()];
+      if (def && handle) items.push(`<a class="bio-social" href="${escapeHtml(def.url(handle))}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(def.name)}">${def.icon}</a>`);
+    }
+    if (items.length) socialsHtml = `<div class="bio-socials">${items.join("")}</div>`;
+  }
+
+  const parts = [
+    `<div class="bio-card">`,
+    `<div class="bio-avatar">${avatar}</div>`,
+    name ? `<h1 class="bio-name">${renderInline(name)}</h1>` : "",
+    tagline ? `<p class="bio-tagline">${renderInline(tagline)}</p>` : "",
+    notes,
+    actionsHtml,
+    linksHtml,
+    socialsHtml,
+    `</div>`,
+    attribution ? `<div class="attribution">${escapeHtml(attribution)}</div>` : "",
+  ];
+  return {
+    html: parts.join(""),
+    template: d.template || "minimal",
+    accent: d.accent || null,
+    font: d.font || null,   // sans (default) | mono | serif
+    lang: locale,
+  };
+}
+// @build:bio-renderer:end
+
+const td = new TextEncoder();
+function fragmentEncode(s) { return s.replace(/%/g, "%25").replace(/ /g, "%20"); }
+function base45Encode(bytes) {
+  const A = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 2) {
+    if (i + 1 < bytes.length) {
+      const x = bytes[i] * 256 + bytes[i + 1];
+      out += A[x % 45] + A[Math.floor(x / 45) % 45] + A[Math.floor(x / 2025)];
+    } else {
+      out += A[bytes[i] % 45] + A[Math.floor(bytes[i] / 45)];
+    }
+  }
+  return out;
+}
+const DICT_BIO = "minimal brutal dark bold mono sans serif www. .com.br .org .io .github.io tiktok soundcloud bandcamp twitch ko-fi telegram youtube instagram github tg: tt: sc: bc: tw: ko: yt: in: gh: x: ig: https:// | \n# \n*\n@font: \n@map: \n@social: \n@site: \n@email: \n@wa: \n@avatar: \n@accent: #\n@tel: \n@template: \n!bio1+en-US\n!bio1+pt-BR\n";
+const dictBytes = td.encode(DICT_BIO);
+// dict-keyed deflate -> q:d.bio_<base45> (QR alphanumeric mode). The dict is
+// byte-identical to the bootloader's (single-sourced via build/build.js).
+function makeCapsule(program) {
+  return "q:d.bio_" + base45Encode(pako.deflateRaw(td.encode(program), { level: 9, dictionary: dictBytes }));
+}
+
+const $ = (id) => document.getElementById(id);
+function val(id) { return $(id).value.trim(); }
+
+function buildSource() {
+  const locale = val("f-locale") || "pt-BR";
+  let s = "!bio1+" + locale + "\n";
+  const dir = (k, v) => { if (v) s += "@" + k + ": " + v + "\n"; };
+  const tmpl = val("f-template");
+  if (tmpl && tmpl !== "minimal") dir("template", tmpl);
+  dir("accent", val("f-accent"));
+  const font = val("f-font");
+  if (font && font !== "sans") dir("font", font);
+  dir("avatar", val("f-avatar"));
+  dir("tel", val("f-tel"));
+  dir("wa", val("f-wa"));
+  dir("email", val("f-email"));
+  dir("site", val("f-site"));
+  dir("map", val("f-map"));
+  dir("social", val("f-social"));
+  s += "\n# " + (val("f-name") || "Your Name") + "\n";
+  if (val("f-tagline")) s += "*" + val("f-tagline") + "*\n";
+  const note = $("f-note").value.trim();
+  if (note) s += note + "\n";
+  const links = $("f-links").value.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (links.length) s += links.join("\n") + "\n";
+  return s;
+}
+
+function buildQR(text, el) {
+  el.innerHTML = "";
+  if (window.QRCode && window.QRCode.CorrectLevel) {
+    new window.QRCode(el, { text, width: 200, height: 200, correctLevel: window.QRCode.CorrectLevel.M });
+  } else {
+    el.textContent = "(QR library unavailable)";
+  }
+}
+
+let lastURL = "";
+function update() {
+  const src = buildSource();
+  const body = src.slice(src.indexOf("\n") + 1);
+  const locale = (src.match(/^!bio1\+(\S+)/) || [, "pt-BR"])[1];
+  const r = renderBioHTML(body, locale, "");
+  const mount = $("preview");
+  mount.className = "bio tmpl-" + r.template + (r.font ? " font-" + r.font : "");
+  mount.style.removeProperty("--bio-accent");
+  if (r.accent) mount.style.setProperty("--bio-accent", r.accent);
+  mount.innerHTML = r.html;
+  $("accent-sw").style.background = r.accent || getComputedStyle(mount).getPropertyValue("--bio-accent");
+
+  const cap = makeCapsule(src);
+  const base = val("f-base") || new URL("../", location.href).href;
+  lastURL = base + "#" + fragmentEncode(cap);
+  $("url").textContent = lastURL;
+  buildQR(lastURL, $("qr"));
+  // size + NFC-tag budget readout (the same URL writes to a tag as an NDEF URI record)
+  const ub = lastURL.length;
+  const nfc = [["NTAG213", 144], ["NTAG215", 504], ["NTAG216", 888]]
+    .map(([n, c]) => `${n} ${ub <= c ? "✓" : "✗"}`).join(" · ");
+  $("size").innerHTML = `capsule ${cap.length} B · URL ${ub} B<br><span class="nfc"><b>NFC:</b> ${nfc}</span>`;
+  setTimeout(() => {
+    const img = $("qr").querySelector("img, canvas");
+    if (img) $("dl-qr").href = img.tagName === "IMG" ? img.src : img.toDataURL("image/png");
+  }, 60);
+}
+
+const SAMPLE = {
+  "f-locale": "en-US", "f-name": "Arthur Endlein", "f-tagline": "Geoscientist · builder",
+  "f-note": "Quadrilátero Ferrífero, mostly.",
+  "f-links": "ig:endarthur\ngh:endarthur\nin:endarthur\nGCU | https://gentropic.org",
+  "f-template": "brutal", "f-accent": "", "f-font": "mono", "f-avatar": "",
+  "f-tel": "", "f-wa": "", "f-email": "", "f-site": "endarthur.github.io", "f-map": "",
+  "f-social": "x=endarthur",
+};
+function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
+
+document.querySelectorAll("input, select, textarea").forEach((el) => {
+  el.addEventListener("input", update);
+  el.addEventListener("change", update);
+});
+$("load-sample").addEventListener("click", loadSample);
+$("copy-url").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = "Copied ✓";
+        setTimeout(() => $("copy-url").textContent = "Copy share link", 1200); } catch (e) {}
+});
+
+$("f-base").value = new URL("../", location.href).href;
+loadSample();
+</script>
+</body>
+</html>
