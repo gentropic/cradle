@@ -529,6 +529,30 @@ const dictBytes = td.encode(DICT_BIO);
 function makeCapsule(program) {
   return "q:d.bio_" + base45Encode(pako.deflateRaw(td.encode(program), { level: 9, dictionary: dictBytes }));
 }
+// inverse, so the editor can keep its state AS a capsule (round-trip the form)
+function fragmentDecode(s) {
+  let o = "";
+  for (let i = 0; i < s.length;) {
+    if (s[i] === "%" && s[i + 1] === "2" && s[i + 2] === "5") { o += "%"; i += 3; }
+    else if (s[i] === "%" && s[i + 1] === "2" && s[i + 2] === "0") { o += " "; i += 3; }
+    else { o += s[i]; i++; }
+  }
+  return o;
+}
+function base45Decode(s) {
+  const A = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:", R = {};
+  for (let i = 0; i < A.length; i++) R[A[i]] = i;
+  const out = []; let i = 0;
+  for (; i + 2 < s.length; i += 3) { const v = R[s[i]] + R[s[i + 1]] * 45 + R[s[i + 2]] * 2025; out.push((v >> 8) & 255, v & 255); }
+  if (i < s.length) { if (s.length - i !== 2) throw new Error("bad base45"); const v = R[s[i]] + R[s[i + 1]] * 45; out.push(v & 255); }
+  return new Uint8Array(out);
+}
+function decodeCapsule(cap) {            // raw q:d.bio_ capsule (already fragment-decoded) → source text
+  const m = cap.match(/^q:d\.bio_([\s\S]*)$/);
+  if (!m) return null;
+  try { return new TextDecoder().decode(pako.inflateRaw(base45Decode(m[1]), { dictionary: dictBytes })); }
+  catch (e) { return null; }
+}
 
 const $ = (id) => document.getElementById(id);
 function val(id) { return $(id).value.trim(); }
@@ -624,6 +648,33 @@ function buildSource() {
   return s;
 }
 
+// inverse of buildSource: a decoded source → repopulate the form (uses classifyBio
+// from the inlined renderer to route content lines into notes vs the link list)
+function importSource(src) {
+  const lines = src.split("\n"), lm = lines[0].match(/^!bio1\+(\S+)/);
+  const d = {}, content = []; let inDir = true;
+  for (let i = 1; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (inDir && t.startsWith("@") && t.includes(":")) { const c = t.indexOf(":"); d[t.slice(1, c).trim()] = t.slice(c + 1).trim(); continue; }
+    if (t === "") { inDir = false; continue; }
+    inDir = false; content.push(t);
+  }
+  const set = (id, v) => { $(id).value = v == null ? "" : v; };
+  set("f-locale", lm ? lm[1] : "pt-BR");
+  set("f-template", d.template || "minimal"); set("f-accent", d.accent); set("f-font", d.font || "sans");
+  set("f-avatar", d.avatar); set("f-asize", d.avatarsize || "md");
+  set("f-tel", d.tel); set("f-wa", d.wa); set("f-email", d.email); set("f-site", d.site); set("f-map", d.map); set("f-social", d.social);
+  faceB64 = d.face || ""; faceImg = null;
+  $("face-clear").style.display = faceB64 ? "" : "none"; $("face-knobs").style.display = "none";
+  let name = "", tag = ""; const notes = [], links = [];
+  for (const c of content) {
+    if (!name && c.startsWith("# ")) { name = c.slice(2); continue; }
+    const sm = c.match(/^\*(.+)\*$/); if (!tag && sm) { tag = sm[1]; continue; }
+    (classifyBio(c).type === "link" ? links : notes).push(c);
+  }
+  set("f-name", name); set("f-tagline", tag); set("f-note", notes.join("\n")); set("f-links", links.join("\n"));
+}
+
 function buildQR(text, el) {
   el.innerHTML = "";
   if (window.QRCode && window.QRCode.CorrectLevel) {
@@ -656,6 +707,8 @@ function update() {
   const nfc = [["NTAG213", 144], ["NTAG215", 504], ["NTAG216", 888]]
     .map(([n, c]) => `${n} ${ub <= c ? "✓" : "✗"}`).join(" · ");
   $("size").innerHTML = `capsule ${cap.length} B · URL ${ub} B<br><span class="nfc"><b>NFC:</b> ${nfc}</span>`;
+  // keep the editor's state AS a capsule: in its own fragment (reload / bookmark / share-to-edit) + a draft
+  try { localStorage.setItem("bio.draft", cap); history.replaceState(null, "", "#" + fragmentEncode(cap)); } catch (e) {}
   setTimeout(() => {
     const img = $("qr").querySelector("img, canvas");
     if (img) $("dl-qr").href = img.tagName === "IMG" ? img.src : img.toDataURL("image/png");
@@ -686,7 +739,14 @@ $("copy-url").addEventListener("click", async () => {
 });
 
 $("f-base").value = new URL("../", location.href).href;
-loadSample();
+// restore prior state as a capsule: editor's own fragment first, then the draft, else the sample
+(function init() {
+  const h = location.hash.slice(1);
+  let src = h ? decodeCapsule(fragmentDecode(h)) : null;
+  if (!src) { const saved = localStorage.getItem("bio.draft"); if (saved) src = decodeCapsule(saved); }
+  if (src && /^!bio1\+/.test(src)) { importSource(src); update(); }
+  else loadSample();
+})();
 </script>
 </body>
 </html>
