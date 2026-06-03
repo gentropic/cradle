@@ -33,9 +33,12 @@ const BIO_PLATFORMS = {
 };
 const BIO_LINK = BIO_SVG('<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'); // generic / freeform
 
-// @face avatar: a dithered 1-bit square bitmap (Game-Boy-Camera lo-fi), carried
-// base64 in the directive, reconstructed as a 1-bit BMP data: URI — pure JS, no
-// canvas, so it renders in the bootloader, the editor, AND the test harness.
+// @face avatar: a dithered Game-Boy-Camera-style square bitmap, carried base64 in
+// the directive as a self-describing payload [depth(1|2), side, …pixels packed
+// depth-bits/px MSB-first, value 0=black … 2^depth-1=white], reconstructed as an
+// indexed BMP data: URI — pure JS, no canvas, so it renders in the bootloader, the
+// editor, AND the test harness. All preprocessing/dither lives in the editor; the
+// renderer just unpacks and draws. depth/side are in the header → append-only-safe.
 const BIO_B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 function bioB64ToBytes(s) {
   s = s.replace(/[^A-Za-z0-9+/]/g, "");
@@ -51,31 +54,36 @@ function bioBytesToB64(b) {
   }
   return o;
 }
-// build a 1-bit BMP (white=0 / black=1, source bits top-down MSB-first) → data: URI
-function bioBmp(bits, side) {
-  const stride = ((side + 31) >> 5) << 2;       // BMP row bytes, padded to 4
-  const data = stride * side, size = 62 + data;
+// build an 8bpp indexed BMP from per-pixel level indices (0=black … N-1=white)
+function bioBmp(idx, side, levels) {
+  const stride = (side + 3) & ~3;                 // 8bpp rows padded to 4 bytes
+  const off = 54 + levels * 4, data = stride * side, size = off + data;
   const b = new Uint8Array(size);
   const u16 = (o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; };
   const u32 = (o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; b[o + 2] = (v >> 16) & 255; b[o + 3] = (v >> 24) & 255; };
-  b[0] = 0x42; b[1] = 0x4d; u32(2, size); u32(10, 62);                         // BITMAPFILEHEADER
-  u32(14, 40); u32(18, side); u32(22, side); u16(26, 1); u16(28, 1); u32(34, data); u32(46, 2); // BITMAPINFOHEADER
-  b[54] = b[55] = b[56] = 255;                  // palette[0] = white
-  b[58] = b[59] = b[60] = 0;                    // palette[1] = black
-  const src = side >> 3;                          // source bytes/row (side is a multiple of 8)
-  for (let y = 0; y < side; y++) {                // BMP is bottom-up
-    const so = y * src, do_ = 62 + (side - 1 - y) * stride;
-    for (let x = 0; x < src; x++) b[do_ + x] = bits[so + x];
+  b[0] = 0x42; b[1] = 0x4d; u32(2, size); u32(10, off);                       // BITMAPFILEHEADER
+  u32(14, 40); u32(18, side); u32(22, side); u16(26, 1); u16(28, 8); u32(34, data); u32(46, levels); // BITMAPINFOHEADER
+  for (let i = 0; i < levels; i++) { const g = Math.round(255 * i / (levels - 1)), p = 54 + i * 4; b[p] = b[p + 1] = b[p + 2] = g; } // gray ramp palette
+  for (let y = 0; y < side; y++) {                // BMP is bottom-up; idx is top-down
+    const so = y * side, dof = off + (side - 1 - y) * stride;
+    for (let x = 0; x < side; x++) b[dof + x] = idx[so + x];
   }
   return "data:image/bmp;base64," + bioBytesToB64(b);
 }
 function bioFaceImg(face) {
   try {
-    const fb = bioB64ToBytes(face);
-    const side = Math.round(Math.sqrt(fb.length * 8));
-    if (side >= 8 && side % 8 === 0 && (side * side) === fb.length * 8) {
-      return `<img class="bio-face" src="${bioBmp(fb, side)}" alt="" width="${side}" height="${side}">`;
+    const b = bioB64ToBytes(face);
+    const depth = b[0], side = b[1];
+    if ((depth !== 1 && depth !== 2) || side < 8 || side > 64) return null;
+    if (b.length < 2 + Math.ceil(side * side * depth / 8)) return null;
+    const bits = b.subarray(2), idx = new Uint8Array(side * side);
+    let bit = 0;
+    for (let i = 0; i < idx.length; i++) {
+      let v = 0;
+      for (let d = 0; d < depth; d++) { v = (v << 1) | ((bits[bit >> 3] >> (7 - (bit & 7))) & 1); bit++; }
+      idx[i] = v;
     }
+    return `<img class="bio-face" src="${bioBmp(idx, side, 1 << depth)}" alt="" width="${side}" height="${side}">`;
   } catch (e) { /* malformed @face → fall back to initials */ }
   return null;
 }

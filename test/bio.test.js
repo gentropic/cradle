@@ -56,14 +56,18 @@ test("action buttons reuse contact's mechanism (schemes + digit cleaning + en-US
   assert.ok(!/data:text\/vcard/.test(solo), "bio is a link menu, not a vCard");
 });
 
-test("@face: a dithered bitmap renders as a 1-bit BMP data URI; malformed falls back", () => {
-  const face = Buffer.alloc(128, 0xa5).toString("base64");   // 32×32 1-bit (1024 bits)
-  const r = renderBio("!bio1+en-US\n@face: " + face + "\n# Arthur");
+test("@face: self-describing [depth,side,…] payload → BMP data URI; malformed falls back", () => {
+  // 2-bit 32×32: header [2,32] + 32*32*2/8 = 256 pixel bytes
+  const f2 = Buffer.concat([Buffer.from([2, 32]), Buffer.alloc(256, 0xa5)]).toString("base64");
+  const r = renderBio("!bio1+en-US\n@face: " + f2 + "\n# Arthur");
   assert.match(r.html, /<div class="bio-avatar has-face">/);
   assert.ok(r.html.includes('<img class="bio-face" src="data:image/bmp;base64,'), "BMP data URI emitted");
   assert.match(r.html, /width="32" height="32"/);
-  // a non-square / malformed payload degrades to initials, never breaks
-  const bad = renderBio("!bio1+en-US\n@face: notvalid\n# Arthur Endlein");
+  // 1-bit 24×24: header [1,24] + 24*24/8 = 72 pixel bytes
+  const f1 = Buffer.concat([Buffer.from([1, 24]), Buffer.alloc(72, 0x5a)]).toString("base64");
+  assert.match(renderBio("!bio1+en-US\n@face: " + f1 + "\n# X").html, /width="24" height="24"/);
+  // malformed / too-short payload degrades to initials, never breaks
+  const bad = renderBio("!bio1+en-US\n@face: AA\n# Arthur Endlein");
   assert.match(bad.html, /<div class="bio-avatar">AE<\/div>/);
 });
 

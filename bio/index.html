@@ -243,7 +243,23 @@
       <div class="row"><label for="f-face">Photo</label>
         <input id="f-face" type="file" accept="image/*" capture="user" style="flex:1;font-size:0.78rem;min-width:0">
         <button class="h-btn" id="face-clear" type="button" style="display:none;flex:0 0 auto">✕</button></div>
-      <p class="hint">Dithered to a 32×32 1-bit avatar (~Game Boy Camera). Adds ~170 chars; overrides the emoji/initials.</p>
+    </div>
+
+    <div class="group" id="face-knobs" style="display:none">
+      <h2>Photo dither — tweak it into submission</h2>
+      <div class="row"><label for="f-fsize">Detail</label>
+        <select id="f-fsize" class="fctl"><option value="24">24 (tiny)</option><option value="32">32</option><option value="40" selected>40 (good)</option><option value="48">48 (QR/sticker only)</option></select></div>
+      <div class="row"><label for="f-fdepth">Depth</label>
+        <select id="f-fdepth" class="fctl"><option value="1">1-bit (harsh)</option><option value="2" selected>2-bit · 4 grays</option></select></div>
+      <div class="row"><label for="f-fdither">Dither</label>
+        <select id="f-fdither" class="fctl"><option value="fs" selected>Floyd–Steinberg</option><option value="bayer">Ordered (Bayer)</option><option value="none">None (posterize)</option></select></div>
+      <div class="row"><label for="f-fbright">Brightness</label><input id="f-fbright" class="fctl" type="range" min="-100" max="100" value="0"></div>
+      <div class="row"><label for="f-fcontrast">Contrast</label><input id="f-fcontrast" class="fctl" type="range" min="50" max="250" value="115"></div>
+      <div class="row"><label for="f-fgamma">Gamma</label><input id="f-fgamma" class="fctl" type="range" min="40" max="250" value="100"></div>
+      <div class="row"><label for="f-fsharp">Sharpen</label><input id="f-fsharp" class="fctl" type="range" min="0" max="150" value="30"></div>
+      <div class="row"><label for="f-fnorm">Normalize</label><input id="f-fnorm" class="fctl" type="checkbox" checked style="flex:0 0 auto;align-self:flex-start"></div>
+      <div class="row"><label for="f-finv">Invert</label><input id="f-finv" class="fctl" type="checkbox" style="flex:0 0 auto;align-self:flex-start"></div>
+      <p class="hint">Baked into the avatar bitmap — no capsule cost beyond the pixels. Watch the NFC fit below as you push detail/depth; 48 is QR/sticker territory, not an implant.</p>
     </div>
 
     <div class="group">
@@ -318,9 +334,12 @@ const BIO_PLATFORMS = {
 };
 const BIO_LINK = BIO_SVG('<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'); // generic / freeform
 
-// @face avatar: a dithered 1-bit square bitmap (Game-Boy-Camera lo-fi), carried
-// base64 in the directive, reconstructed as a 1-bit BMP data: URI — pure JS, no
-// canvas, so it renders in the bootloader, the editor, AND the test harness.
+// @face avatar: a dithered Game-Boy-Camera-style square bitmap, carried base64 in
+// the directive as a self-describing payload [depth(1|2), side, …pixels packed
+// depth-bits/px MSB-first, value 0=black … 2^depth-1=white], reconstructed as an
+// indexed BMP data: URI — pure JS, no canvas, so it renders in the bootloader, the
+// editor, AND the test harness. All preprocessing/dither lives in the editor; the
+// renderer just unpacks and draws. depth/side are in the header → append-only-safe.
 const BIO_B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 function bioB64ToBytes(s) {
   s = s.replace(/[^A-Za-z0-9+/]/g, "");
@@ -336,31 +355,36 @@ function bioBytesToB64(b) {
   }
   return o;
 }
-// build a 1-bit BMP (white=0 / black=1, source bits top-down MSB-first) → data: URI
-function bioBmp(bits, side) {
-  const stride = ((side + 31) >> 5) << 2;       // BMP row bytes, padded to 4
-  const data = stride * side, size = 62 + data;
+// build an 8bpp indexed BMP from per-pixel level indices (0=black … N-1=white)
+function bioBmp(idx, side, levels) {
+  const stride = (side + 3) & ~3;                 // 8bpp rows padded to 4 bytes
+  const off = 54 + levels * 4, data = stride * side, size = off + data;
   const b = new Uint8Array(size);
   const u16 = (o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; };
   const u32 = (o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; b[o + 2] = (v >> 16) & 255; b[o + 3] = (v >> 24) & 255; };
-  b[0] = 0x42; b[1] = 0x4d; u32(2, size); u32(10, 62);                         // BITMAPFILEHEADER
-  u32(14, 40); u32(18, side); u32(22, side); u16(26, 1); u16(28, 1); u32(34, data); u32(46, 2); // BITMAPINFOHEADER
-  b[54] = b[55] = b[56] = 255;                  // palette[0] = white
-  b[58] = b[59] = b[60] = 0;                    // palette[1] = black
-  const src = side >> 3;                          // source bytes/row (side is a multiple of 8)
-  for (let y = 0; y < side; y++) {                // BMP is bottom-up
-    const so = y * src, do_ = 62 + (side - 1 - y) * stride;
-    for (let x = 0; x < src; x++) b[do_ + x] = bits[so + x];
+  b[0] = 0x42; b[1] = 0x4d; u32(2, size); u32(10, off);                       // BITMAPFILEHEADER
+  u32(14, 40); u32(18, side); u32(22, side); u16(26, 1); u16(28, 8); u32(34, data); u32(46, levels); // BITMAPINFOHEADER
+  for (let i = 0; i < levels; i++) { const g = Math.round(255 * i / (levels - 1)), p = 54 + i * 4; b[p] = b[p + 1] = b[p + 2] = g; } // gray ramp palette
+  for (let y = 0; y < side; y++) {                // BMP is bottom-up; idx is top-down
+    const so = y * side, dof = off + (side - 1 - y) * stride;
+    for (let x = 0; x < side; x++) b[dof + x] = idx[so + x];
   }
   return "data:image/bmp;base64," + bioBytesToB64(b);
 }
 function bioFaceImg(face) {
   try {
-    const fb = bioB64ToBytes(face);
-    const side = Math.round(Math.sqrt(fb.length * 8));
-    if (side >= 8 && side % 8 === 0 && (side * side) === fb.length * 8) {
-      return `<img class="bio-face" src="${bioBmp(fb, side)}" alt="" width="${side}" height="${side}">`;
+    const b = bioB64ToBytes(face);
+    const depth = b[0], side = b[1];
+    if ((depth !== 1 && depth !== 2) || side < 8 || side > 64) return null;
+    if (b.length < 2 + Math.ceil(side * side * depth / 8)) return null;
+    const bits = b.subarray(2), idx = new Uint8Array(side * side);
+    let bit = 0;
+    for (let i = 0; i < idx.length; i++) {
+      let v = 0;
+      for (let d = 0; d < depth; d++) { v = (v << 1) | ((bits[bit >> 3] >> (7 - (bit & 7))) & 1); bit++; }
+      idx[i] = v;
     }
+    return `<img class="bio-face" src="${bioBmp(idx, side, 1 << depth)}" alt="" width="${side}" height="${side}">`;
   } catch (e) { /* malformed @face → fall back to initials */ }
   return null;
 }
@@ -503,34 +527,69 @@ function makeCapsule(program) {
 const $ = (id) => document.getElementById(id);
 function val(id) { return $(id).value.trim(); }
 
-// @face: capture → cover-crop → 32×32 grayscale → Floyd–Steinberg dither to 1-bit
-// → pack (MSB-first, 1=black) → base64. All client-side; the renderer rebuilds it.
-let faceB64 = "";
-function ditherFace(img, S) {
-  const c = document.createElement("canvas"); c.width = c.height = S;
-  const ctx = c.getContext("2d");
-  const s = Math.min(img.naturalWidth, img.naturalHeight);
+// @face: capture → preprocess (normalize/brightness/contrast/gamma/sharpen/invert)
+// → dither (FS / Bayer / none) → quantize to 1- or 2-bit → pack a self-describing
+// [depth, side, …pixels] payload → base64. All client-side; the renderer rebuilds
+// it. Knobs re-run the pipeline on the loaded image, live.
+let faceImg = null, faceB64 = "";
+function faceParams() {
+  return {
+    size: +val("f-fsize"), depth: +val("f-fdepth"), dither: val("f-fdither"),
+    brightness: +$("f-fbright").value, contrast: +$("f-fcontrast").value / 100,
+    gamma: +$("f-fgamma").value / 100, sharpen: +$("f-fsharp").value / 100,
+    normalize: $("f-fnorm").checked, invert: $("f-finv").checked,
+  };
+}
+function processFace(img, p) {
+  const S = p.size, c = document.createElement("canvas"); c.width = c.height = S;
+  const ctx = c.getContext("2d"), s = Math.min(img.naturalWidth, img.naturalHeight);
   ctx.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, S, S);
-  const d = ctx.getImageData(0, 0, S, S).data;
-  const g = new Float32Array(S * S);
-  for (let i = 0; i < S * S; i++) g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
-  const bits = new Uint8Array(S * S / 8);
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    const i = y * S + x, nv = g[i] < 128 ? 0 : 255, err = g[i] - nv;
-    if (nv === 0) bits[i >> 3] |= (0x80 >> (i & 7));   // black pixel → set bit
-    if (x + 1 < S) g[i + 1] += err * 7 / 16;
-    if (y + 1 < S) { if (x > 0) g[i + S - 1] += err * 3 / 16; g[i + S] += err * 5 / 16; if (x + 1 < S) g[i + S + 1] += err * 1 / 16; }
+  const px = ctx.getImageData(0, 0, S, S).data, g = new Float32Array(S * S);
+  for (let i = 0; i < S * S; i++) g[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+  if (p.normalize) {
+    const sd = Float32Array.from(g).sort(), lo = sd[(sd.length * 0.03) | 0], hi = sd[(sd.length * 0.97) | 0];
+    if (hi > lo) for (let i = 0; i < g.length; i++) g[i] = (g[i] - lo) * 255 / (hi - lo);
   }
-  let bin = ""; for (const b of bits) bin += String.fromCharCode(b);
+  for (let i = 0; i < g.length; i++) {
+    let v = g[i] + p.brightness; v = (v - 128) * p.contrast + 128;
+    g[i] = 255 * Math.pow(Math.min(1, Math.max(0, v / 255)), 1 / p.gamma);
+  }
+  if (p.sharpen > 0) {
+    const bl = new Float32Array(S * S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      let sum = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const yy = y + dy, xx = x + dx; if (yy >= 0 && yy < S && xx >= 0 && xx < S) { sum += g[yy * S + xx]; n++; } }
+      bl[y * S + x] = sum / n;
+    }
+    for (let i = 0; i < g.length; i++) g[i] += p.sharpen * (g[i] - bl[i]);
+  }
+  if (p.invert) for (let i = 0; i < g.length; i++) g[i] = 255 - g[i];
+  const N = 1 << p.depth, step = 255 / (N - 1), lv = new Uint8Array(S * S), cl = (v) => Math.max(0, Math.min(N - 1, v));
+  if (p.dither === "fs") {
+    const w = Float32Array.from(g);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const i = y * S + x, q = cl(Math.round(w[i] / step)), err = w[i] - q * step; lv[i] = q;
+      if (x + 1 < S) w[i + 1] += err * 7 / 16;
+      if (y + 1 < S) { if (x > 0) w[i + S - 1] += err * 3 / 16; w[i + S] += err * 5 / 16; if (x + 1 < S) w[i + S + 1] += err * 1 / 16; }
+    }
+  } else if (p.dither === "bayer") {
+    const M = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const i = y * S + x; lv[i] = cl(Math.round(g[i] / step + (M[y & 3][x & 3] + 0.5) / 16 - 0.5)); }
+  } else { for (let i = 0; i < g.length; i++) lv[i] = cl(Math.round(g[i] / step)); }
+  const packed = new Uint8Array(2 + Math.ceil(S * S * p.depth / 8)); packed[0] = p.depth; packed[1] = S;
+  let bit = 16;                                       // pixels start after the 2 header bytes
+  for (const v of lv) for (let d = p.depth - 1; d >= 0; d--) { if ((v >> d) & 1) packed[bit >> 3] |= (0x80 >> (bit & 7)); bit++; }
+  let bin = ""; for (const by of packed) bin += String.fromCharCode(by);
   return btoa(bin);
 }
+function reprocess() { if (faceImg) { try { faceB64 = processFace(faceImg, faceParams()); } catch (e) { faceB64 = ""; } } update(); }
 function loadFace(file) {
   if (!file) return;
   const img = new Image();
-  img.onload = () => { try { faceB64 = ditherFace(img, 32); $("face-clear").style.display = ""; } catch (e) {} URL.revokeObjectURL(img.src); update(); };
+  img.onload = () => { faceImg = img; $("face-knobs").style.display = ""; $("face-clear").style.display = ""; reprocess(); };
   img.src = URL.createObjectURL(file);
 }
-function clearFace() { faceB64 = ""; $("f-face").value = ""; $("face-clear").style.display = "none"; update(); }
+function clearFace() { faceImg = null; faceB64 = ""; $("f-face").value = ""; $("face-knobs").style.display = "none"; $("face-clear").style.display = "none"; update(); }
 
 function buildSource() {
   const locale = val("f-locale") || "pt-BR";
@@ -612,6 +671,7 @@ document.querySelectorAll("input, select, textarea").forEach((el) => {
 });
 $("f-face").addEventListener("change", (e) => loadFace(e.target.files && e.target.files[0]));
 $("face-clear").addEventListener("click", clearFace);
+document.querySelectorAll(".fctl").forEach((el) => { el.addEventListener("input", reprocess); el.addEventListener("change", reprocess); });
 $("load-sample").addEventListener("click", loadSample);
 $("copy-url").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = "Copied ✓";
