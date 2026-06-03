@@ -8,7 +8,7 @@
 // `bio` is a SIBLING of `contact`, sharing its substrate (avatar/name/tagline,
 // one-tap action buttons, social-icon row, template+accent system) but with its own
 // format: an open list of tappable LINK rows (a "linktree"), schema-relative so the
-// capsule carries handles not URLs (`ig:endarthur` → instagram.com/endarthur). No
+// capsule carries handles not URLs (`ig:mitsuha` → instagram.com/mitsuha). No
 // vCard save — that's `contact`'s job; bio is a link menu. Magic line: !bio1+<locale>.
 const BIO_LOCALES = {
   "pt-BR": { call: "Ligar", whatsapp: "WhatsApp", email: "E-mail", site: "Site", directions: "Como chegar" },

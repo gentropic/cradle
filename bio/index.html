@@ -221,15 +221,15 @@
       <h2>Identity</h2>
       <div class="row"><label for="f-locale">Language</label>
         <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
-      <div class="row"><label for="f-name">Name</label><input id="f-name" type="text" placeholder="Arthur Endlein"></div>
-      <div class="row"><label for="f-tagline">Tagline</label><input id="f-tagline" type="text" placeholder="Geoscientist · builder"></div>
+      <div class="row"><label for="f-name">Name</label><input id="f-name" type="text" placeholder="Taki Tachibana"></div>
+      <div class="row"><label for="f-tagline">Tagline</label><input id="f-tagline" type="text" placeholder="Tokyo · aspiring architect"></div>
       <div class="row col"><label for="f-note">Note</label><textarea id="f-note" placeholder="Optional line or two. *italic*, **bold** ok."></textarea></div>
     </div>
 
     <div class="group">
       <h2>Links</h2>
       <div class="row col"><label for="f-links">One per line</label>
-        <textarea id="f-links" rows="7" placeholder="ig:endarthur&#10;gh:endarthur&#10;My blog | https://endarthur.github.io"></textarea></div>
+        <textarea id="f-links" rows="7" placeholder="ig:taki&#10;gh:taki&#10;My café | https://example.jp"></textarea></div>
       <p class="hint">A platform handle <code>code:handle</code> expands to the URL + icon. Anything else:
         <code>Label | https://…</code> or a bare URL. Codes: ig · x · in · gh · yt · tg · tt · sc · bc · tw · ko.</p>
     </div>
@@ -278,12 +278,12 @@
 
     <div class="group">
       <h2>Reach me &amp; socials (optional)</h2>
-      <div class="row"><label for="f-tel">Phone</label><input id="f-tel" type="tel" placeholder="+55 31 99999-8888"></div>
-      <div class="row"><label for="f-wa">WhatsApp</label><input id="f-wa" type="tel" placeholder="5531999998888"></div>
-      <div class="row"><label for="f-email">Email</label><input id="f-email" type="email" placeholder="arthur@gentropic.org"></div>
-      <div class="row"><label for="f-site">Website</label><input id="f-site" type="text" placeholder="endarthur.github.io"></div>
-      <div class="row"><label for="f-map">Address</label><input id="f-map" type="text" placeholder="Belo Horizonte"></div>
-      <div class="row col"><label for="f-social">Social icons</label><input id="f-social" type="text" placeholder="x=endarthur, tt=endarthur"></div>
+      <div class="row"><label for="f-tel">Phone</label><input id="f-tel" type="tel" placeholder="+81 90 1234 5678"></div>
+      <div class="row"><label for="f-wa">WhatsApp</label><input id="f-wa" type="tel" placeholder="819012345678"></div>
+      <div class="row"><label for="f-email">Email</label><input id="f-email" type="email" placeholder="taki@example.jp"></div>
+      <div class="row"><label for="f-site">Website</label><input id="f-site" type="text" placeholder="example.jp"></div>
+      <div class="row"><label for="f-map">Address</label><input id="f-map" type="text" placeholder="Tokyo"></div>
+      <div class="row col"><label for="f-social">Social icons</label><input id="f-social" type="text" placeholder="x=taki, tt=taki"></div>
     </div>
   </div>
 
@@ -323,7 +323,7 @@ function renderInline(s) {
 // `bio` is a SIBLING of `contact`, sharing its substrate (avatar/name/tagline,
 // one-tap action buttons, social-icon row, template+accent system) but with its own
 // format: an open list of tappable LINK rows (a "linktree"), schema-relative so the
-// capsule carries handles not URLs (`ig:endarthur` → instagram.com/endarthur). No
+// capsule carries handles not URLs (`ig:mitsuha` → instagram.com/mitsuha). No
 // vCard save — that's `contact`'s job; bio is a link menu. Magic line: !bio1+<locale>.
 const BIO_LOCALES = {
   "pt-BR": { call: "Ligar", whatsapp: "WhatsApp", email: "E-mail", site: "Site", directions: "Como chegar" },
@@ -739,12 +739,12 @@ function update() {
 }
 
 const SAMPLE = {
-  "f-locale": "en-US", "f-name": "Arthur Endlein", "f-tagline": "Geoscientist · builder",
-  "f-note": "Quadrilátero Ferrífero, mostly.",
-  "f-links": "ig:endarthur\ngh:endarthur\nin:endarthur\nGCU | https://gentropic.org",
+  "f-locale": "en-US", "f-name": "Mitsuha Miyamizu", "f-tagline": "Itomori · shrine maiden",
+  "f-note": "Some days I wake up in Tokyo.",
+  "f-links": "ig:mitsuha\nin:mitsuha-miyamizu\nx:mitsuha\nMusubi | https://example.jp",
   "f-template": "brutal", "f-accent": "", "f-font": "mono", "f-avatar": "",
-  "f-tel": "", "f-wa": "", "f-email": "", "f-site": "endarthur.github.io", "f-map": "",
-  "f-social": "x=endarthur",
+  "f-tel": "", "f-wa": "", "f-email": "", "f-site": "example.jp", "f-map": "",
+  "f-social": "x=mitsuha",
 };
 function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
 

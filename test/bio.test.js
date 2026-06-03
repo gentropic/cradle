@@ -17,29 +17,29 @@ function renderBio(src) {
 }
 
 test("bio dispatches via !bio1 and renders the card scaffold + template/accent/font", () => {
-  const r = renderBio("!bio1+pt-BR\n@template: brutal\n@accent: #f0f\n@font: mono\n# Arthur Endlein\n*Geoscientist · builder*");
+  const r = renderBio("!bio1+pt-BR\n@template: brutal\n@accent: #f0f\n@font: mono\n# Mitsuha Miyamizu\n*Itomori · shrine maiden*");
   assert.strictEqual(r.cls, "bio tmpl-brutal font-mono");
   assert.deepStrictEqual(r.accent, { "--bio-accent": "#f0f" });
   assert.strictEqual(r.lang, "pt-BR");
-  assert.match(r.html, /<h1 class="bio-name">Arthur Endlein<\/h1>/);
-  assert.match(r.html, /<p class="bio-tagline">Geoscientist · builder<\/p>/);
-  assert.match(r.html, /<div class="bio-avatar">AE<\/div>/);   // initials fallback, default size = no class
+  assert.match(r.html, /<h1 class="bio-name">Mitsuha Miyamizu<\/h1>/);
+  assert.match(r.html, /<p class="bio-tagline">Itomori · shrine maiden<\/p>/);
+  assert.match(r.html, /<div class="bio-avatar">MM<\/div>/);   // initials fallback, default size = no class
   // @avatarsize adds a size class (default md = none); unknown values ignored
-  assert.match(renderBio("!bio1+en-US\n@avatarsize: xl\n# Jane Roe").html, /<div class="bio-avatar sz-xl">JR<\/div>/);
-  assert.match(renderBio("!bio1+en-US\n@avatarsize: bogus\n# Jane Roe").html, /<div class="bio-avatar">JR<\/div>/);
+  assert.match(renderBio("!bio1+en-US\n@avatarsize: xl\n# Taki Tachibana").html, /<div class="bio-avatar sz-xl">TT<\/div>/);
+  assert.match(renderBio("!bio1+en-US\n@avatarsize: bogus\n# Taki Tachibana").html, /<div class="bio-avatar">TT<\/div>/);
 });
 
 test("link rows: platform handle → URL+icon+label, labeled link, bare URL", () => {
-  const r = renderBio("!bio1+en-US\n# Me\nig:endarthur\ngh:endarthur\nMy book | https://gentropic.org/book\nhttps://example.org/x");
+  const r = renderBio("!bio1+en-US\n# Me\nig:mitsuha\ngh:mitsuha\nMusubi | https://example.jp/o\nhttps://example.org/x");
   // platform: handle expands, label is the platform name, sub is the handle
-  assert.match(r.html, /href="https:\/\/instagram\.com\/endarthur"/);
+  assert.match(r.html, /href="https:\/\/instagram\.com\/mitsuha"/);
   assert.match(r.html, /<span class="bio-link-label">Instagram<\/span>/);
-  assert.match(r.html, /<span class="bio-link-sub">endarthur<\/span>/);
-  assert.match(r.html, /href="https:\/\/github\.com\/endarthur"/);
+  assert.match(r.html, /<span class="bio-link-sub">mitsuha<\/span>/);
+  assert.match(r.html, /href="https:\/\/github\.com\/mitsuha"/);
   // labeled freeform: label + host as sub
-  assert.match(r.html, /href="https:\/\/gentropic\.org\/book"/);
-  assert.match(r.html, /<span class="bio-link-label">My book<\/span>/);
-  assert.match(r.html, /<span class="bio-link-sub">gentropic\.org<\/span>/);
+  assert.match(r.html, /href="https:\/\/example\.jp\/o"/);
+  assert.match(r.html, /<span class="bio-link-label">Musubi<\/span>/);
+  assert.match(r.html, /<span class="bio-link-sub">example\.jp<\/span>/);
   // bare URL: host becomes the label
   assert.match(r.html, /href="https:\/\/example\.org\/x"/);
   assert.match(r.html, /<span class="bio-link-label">example\.org<\/span>/);
@@ -62,7 +62,7 @@ test("action buttons reuse contact's mechanism (schemes + digit cleaning + en-US
 test("@face: self-describing [depth,side,…] payload → BMP data URI; malformed falls back", () => {
   // 2-bit 32×32: header [2,32] + 32*32*2/8 = 256 pixel bytes
   const f2 = Buffer.concat([Buffer.from([2, 32]), Buffer.alloc(256, 0xa5)]).toString("base64");
-  const r = renderBio("!bio1+en-US\n@face: " + f2 + "\n# Arthur");
+  const r = renderBio("!bio1+en-US\n@face: " + f2 + "\n# Mitsuha");
   assert.match(r.html, /<div class="bio-avatar has-face">/);
   assert.ok(r.html.includes('<img class="bio-face" src="data:image/bmp;base64,'), "BMP data URI emitted");
   assert.match(r.html, /width="32" height="32"/);
@@ -70,15 +70,15 @@ test("@face: self-describing [depth,side,…] payload → BMP data URI; malforme
   const f1 = Buffer.concat([Buffer.from([1, 24]), Buffer.alloc(72, 0x5a)]).toString("base64");
   assert.match(renderBio("!bio1+en-US\n@face: " + f1 + "\n# X").html, /width="24" height="24"/);
   // malformed / too-short payload degrades to initials, never breaks
-  const bad = renderBio("!bio1+en-US\n@face: AA\n# Arthur Endlein");
-  assert.match(bad.html, /<div class="bio-avatar">AE<\/div>/);
+  const bad = renderBio("!bio1+en-US\n@face: AA\n# Mitsuha Miyamizu");
+  assert.match(bad.html, /<div class="bio-avatar">MM<\/div>/);
 });
 
 test("@avatar overrides initials; @social renders known platforms only; unknown link prefix → note", () => {
-  const r = renderBio("!bio1+en-US\n@avatar: 🎸\n@social: ig=jane, bogus=x\n# Jane Doe\nnotaplatform: hello\ntg:jane");
+  const r = renderBio("!bio1+en-US\n@avatar: 🎸\n@social: ig=taki, bogus=x\n# Taki Tachibana\nnotaplatform: hello\ntg:taki");
   assert.match(r.html, /<div class="bio-avatar">🎸<\/div>/);
-  assert.match(r.html, /class="bio-social"[^>]*href="https:\/\/instagram\.com\/jane"/);
+  assert.match(r.html, /class="bio-social"[^>]*href="https:\/\/instagram\.com\/taki"/);
   assert.ok(!/bogus/.test(r.html), "unknown social prefix dropped");
-  assert.match(r.html, /href="https:\/\/t\.me\/jane"/);                 // tg is a known platform
+  assert.match(r.html, /href="https:\/\/t\.me\/taki"/);                 // tg is a known platform
   assert.match(r.html, /<p class="bio-note">notaplatform: hello<\/p>/); // unknown prefix → a note, not a link
 });

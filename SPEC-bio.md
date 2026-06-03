@@ -18,7 +18,7 @@ system) but with its own format — an open link list — and **no vCard save** 
 The point: no Linktree account, no host, no third party that can rent or revoke
 it — the hub renders offline from the bytes. It is **schema-relative**: the
 renderer holds the platform→URL+icon table, so the capsule carries *handles, not
-URLs* (`ig:endarthur` → `instagram.com/endarthur`). That crams a rich hub into a
+URLs* (`ig:mitsuha` → `instagram.com/mitsuha`). That crams a rich hub into a
 few hundred bytes — small enough for a QR or a rewritable **NFC tag/implant**, where
 the carrier's mutability lets you rewrite when links change while keeping the hub
 self-contained and un-killable.
@@ -106,16 +106,15 @@ dict-drift test).
 !bio1+en-US
 @template: brutal
 @font: mono
-@site: endarthur.github.io
-@social: x=endarthur
+@site: example.jp
+@social: x=mitsuha
 
-# Arthur Endlein
-*Geoscientist · builder*
-Quadrilátero Ferrífero, mostly.
-ig:endarthur
-gh:endarthur
-in:endarthur
-GCU | https://gentropic.org
+# Mitsuha Miyamizu
+*Itomori · shrine maiden*
+Some days I wake up in Tokyo.
+ig:mitsuha
+in:mitsuha-miyamizu
+Musubi | https://example.jp
 ```
 
 ## 5. Versioning & stability
