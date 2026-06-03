@@ -424,6 +424,9 @@
   font-size: 2.1rem; font-weight: 700; line-height: 1; overflow: hidden;
 }
 .bio-avatar.has-face { background: #fff; }
+.bio-avatar.sz-sm { width: 64px; height: 64px; font-size: 1.5rem; }
+.bio-avatar.sz-lg { width: 124px; height: 124px; font-size: 3rem; }
+.bio-avatar.sz-xl { width: 168px; height: 168px; font-size: 4rem; margin-bottom: 1.2rem; }
 .bio-face { width: 100%; height: 100%; object-fit: cover; display: block;
   image-rendering: pixelated; image-rendering: crisp-edges; }
 .bio-name { font-size: 1.55rem; font-weight: 700; margin: 0 0 0.2rem; letter-spacing: -0.01em; }
@@ -1282,6 +1285,7 @@ function renderBioHTML(body, locale, attribution) {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const faceImg = d.face ? bioFaceImg(d.face) : null;   // dithered photo wins over emoji/initials
   const avatar = faceImg || (d.avatar ? escapeHtml(d.avatar) : escapeHtml(initials || "•"));
+  const sz = { sm: 1, md: 1, lg: 1, xl: 1 }[d.avatarsize] ? d.avatarsize : "md";   // avatar display size
 
   // one-tap action buttons (shared with contact's mechanism)
   const btn = (emoji, label, href) =>
@@ -1329,7 +1333,7 @@ function renderBioHTML(body, locale, attribution) {
 
   const parts = [
     `<div class="bio-card">`,
-    `<div class="bio-avatar${faceImg ? " has-face" : ""}">${avatar}</div>`,
+    `<div class="bio-avatar${sz !== "md" ? " sz-" + sz : ""}${faceImg ? " has-face" : ""}">${avatar}</div>`,
     name ? `<h1 class="bio-name">${renderInline(name)}</h1>` : "",
     tagline ? `<p class="bio-tagline">${renderInline(tagline)}</p>` : "",
     notes,

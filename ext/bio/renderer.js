@@ -133,6 +133,7 @@ function renderBioHTML(body, locale, attribution) {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const faceImg = d.face ? bioFaceImg(d.face) : null;   // dithered photo wins over emoji/initials
   const avatar = faceImg || (d.avatar ? escapeHtml(d.avatar) : escapeHtml(initials || "•"));
+  const sz = { sm: 1, md: 1, lg: 1, xl: 1 }[d.avatarsize] ? d.avatarsize : "md";   // avatar display size
 
   // one-tap action buttons (shared with contact's mechanism)
   const btn = (emoji, label, href) =>
@@ -180,7 +181,7 @@ function renderBioHTML(body, locale, attribution) {
 
   const parts = [
     `<div class="bio-card">`,
-    `<div class="bio-avatar${faceImg ? " has-face" : ""}">${avatar}</div>`,
+    `<div class="bio-avatar${sz !== "md" ? " sz-" + sz : ""}${faceImg ? " has-face" : ""}">${avatar}</div>`,
     name ? `<h1 class="bio-name">${renderInline(name)}</h1>` : "",
     tagline ? `<p class="bio-tagline">${renderInline(tagline)}</p>` : "",
     notes,

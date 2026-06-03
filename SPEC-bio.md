@@ -55,6 +55,8 @@ A restricted markdown-ish body, in the family of `menu`/`contact`:
 | `@accent` | CSS color; overrides the template's accent |
 | `@font` | Body font: `sans` (default), `mono`, `serif` (system stacks; no web fonts) |
 | `@avatar` | An emoji for the avatar circle (else: initials from the name) |
+| `@face` | A dithered photo avatar (base64 `[depth,side,…pixels]`); overrides `@avatar`. Editor-built; renders as an indexed BMP. |
+| `@avatarsize` | Avatar display size: `sm` · `md` (default) · `lg` · `xl` |
 | `@tel` | Phone → **Call** action (`tel:`) |
 | `@wa` | WhatsApp → **WhatsApp** action (`https://wa.me/…`) |
 | `@email` | → **Email** action (`mailto:`) |

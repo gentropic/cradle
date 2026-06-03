@@ -23,7 +23,10 @@ test("bio dispatches via !bio1 and renders the card scaffold + template/accent/f
   assert.strictEqual(r.lang, "pt-BR");
   assert.match(r.html, /<h1 class="bio-name">Arthur Endlein<\/h1>/);
   assert.match(r.html, /<p class="bio-tagline">Geoscientist · builder<\/p>/);
-  assert.match(r.html, /<div class="bio-avatar">AE<\/div>/);   // initials fallback
+  assert.match(r.html, /<div class="bio-avatar">AE<\/div>/);   // initials fallback, default size = no class
+  // @avatarsize adds a size class (default md = none); unknown values ignored
+  assert.match(renderBio("!bio1+en-US\n@avatarsize: xl\n# Jane Roe").html, /<div class="bio-avatar sz-xl">JR<\/div>/);
+  assert.match(renderBio("!bio1+en-US\n@avatarsize: bogus\n# Jane Roe").html, /<div class="bio-avatar">JR<\/div>/);
 });
 
 test("link rows: platform handle → URL+icon+label, labeled link, bare URL", () => {
