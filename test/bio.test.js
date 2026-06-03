@@ -56,6 +56,17 @@ test("action buttons reuse contact's mechanism (schemes + digit cleaning + en-US
   assert.ok(!/data:text\/vcard/.test(solo), "bio is a link menu, not a vCard");
 });
 
+test("@face: a dithered bitmap renders as a 1-bit BMP data URI; malformed falls back", () => {
+  const face = Buffer.alloc(128, 0xa5).toString("base64");   // 32×32 1-bit (1024 bits)
+  const r = renderBio("!bio1+en-US\n@face: " + face + "\n# Arthur");
+  assert.match(r.html, /<div class="bio-avatar has-face">/);
+  assert.ok(r.html.includes('<img class="bio-face" src="data:image/bmp;base64,'), "BMP data URI emitted");
+  assert.match(r.html, /width="32" height="32"/);
+  // a non-square / malformed payload degrades to initials, never breaks
+  const bad = renderBio("!bio1+en-US\n@face: notvalid\n# Arthur Endlein");
+  assert.match(bad.html, /<div class="bio-avatar">AE<\/div>/);
+});
+
 test("@avatar overrides initials; @social renders known platforms only; unknown link prefix → note", () => {
   const r = renderBio("!bio1+en-US\n@avatar: 🎸\n@social: ig=jane, bogus=x\n# Jane Doe\nnotaplatform: hello\ntg:jane");
   assert.match(r.html, /<div class="bio-avatar">🎸<\/div>/);

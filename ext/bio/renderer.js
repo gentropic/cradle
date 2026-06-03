@@ -33,6 +33,53 @@ const BIO_PLATFORMS = {
 };
 const BIO_LINK = BIO_SVG('<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'); // generic / freeform
 
+// @face avatar: a dithered 1-bit square bitmap (Game-Boy-Camera lo-fi), carried
+// base64 in the directive, reconstructed as a 1-bit BMP data: URI — pure JS, no
+// canvas, so it renders in the bootloader, the editor, AND the test harness.
+const BIO_B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+function bioB64ToBytes(s) {
+  s = s.replace(/[^A-Za-z0-9+/]/g, "");
+  const out = []; let buf = 0, bits = 0;
+  for (const ch of s) { buf = (buf << 6) | BIO_B64.indexOf(ch); bits += 6; if (bits >= 8) { bits -= 8; out.push((buf >> bits) & 0xff); } }
+  return new Uint8Array(out);
+}
+function bioBytesToB64(b) {
+  let o = "";
+  for (let i = 0; i < b.length; i += 3) {
+    const n = (b[i] << 16) | ((b[i + 1] || 0) << 8) | (b[i + 2] || 0);
+    o += BIO_B64[(n >> 18) & 63] + BIO_B64[(n >> 12) & 63] + (i + 1 < b.length ? BIO_B64[(n >> 6) & 63] : "=") + (i + 2 < b.length ? BIO_B64[n & 63] : "=");
+  }
+  return o;
+}
+// build a 1-bit BMP (white=0 / black=1, source bits top-down MSB-first) → data: URI
+function bioBmp(bits, side) {
+  const stride = ((side + 31) >> 5) << 2;       // BMP row bytes, padded to 4
+  const data = stride * side, size = 62 + data;
+  const b = new Uint8Array(size);
+  const u16 = (o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; };
+  const u32 = (o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; b[o + 2] = (v >> 16) & 255; b[o + 3] = (v >> 24) & 255; };
+  b[0] = 0x42; b[1] = 0x4d; u32(2, size); u32(10, 62);                         // BITMAPFILEHEADER
+  u32(14, 40); u32(18, side); u32(22, side); u16(26, 1); u16(28, 1); u32(34, data); u32(46, 2); // BITMAPINFOHEADER
+  b[54] = b[55] = b[56] = 255;                  // palette[0] = white
+  b[58] = b[59] = b[60] = 0;                    // palette[1] = black
+  const src = side >> 3;                          // source bytes/row (side is a multiple of 8)
+  for (let y = 0; y < side; y++) {                // BMP is bottom-up
+    const so = y * src, do_ = 62 + (side - 1 - y) * stride;
+    for (let x = 0; x < src; x++) b[do_ + x] = bits[so + x];
+  }
+  return "data:image/bmp;base64," + bioBytesToB64(b);
+}
+function bioFaceImg(face) {
+  try {
+    const fb = bioB64ToBytes(face);
+    const side = Math.round(Math.sqrt(fb.length * 8));
+    if (side >= 8 && side % 8 === 0 && (side * side) === fb.length * 8) {
+      return `<img class="bio-face" src="${bioBmp(fb, side)}" alt="" width="${side}" height="${side}">`;
+    }
+  } catch (e) { /* malformed @face → fall back to initials */ }
+  return null;
+}
+
 const bioDigits = (s) => String(s == null ? "" : s).replace(/[^\d+]/g, "");
 const bioUrl = (s) => (/^https?:\/\//i.test(s) ? s : "https://" + s);
 const bioHost = (u) => bioUrl(u).replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0] || u;
@@ -76,7 +123,8 @@ function renderBioHTML(body, locale, attribution) {
   const notes = blocks.filter((b) => b.type === "p").map((b) => `<p class="bio-note">${renderInline(b.text)}</p>`).join("");
 
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  const avatar = d.avatar ? escapeHtml(d.avatar) : escapeHtml(initials || "•");
+  const faceImg = d.face ? bioFaceImg(d.face) : null;   // dithered photo wins over emoji/initials
+  const avatar = faceImg || (d.avatar ? escapeHtml(d.avatar) : escapeHtml(initials || "•"));
 
   // one-tap action buttons (shared with contact's mechanism)
   const btn = (emoji, label, href) =>
@@ -124,7 +172,7 @@ function renderBioHTML(body, locale, attribution) {
 
   const parts = [
     `<div class="bio-card">`,
-    `<div class="bio-avatar">${avatar}</div>`,
+    `<div class="bio-avatar${faceImg ? " has-face" : ""}">${avatar}</div>`,
     name ? `<h1 class="bio-name">${renderInline(name)}</h1>` : "",
     tagline ? `<p class="bio-tagline">${renderInline(tagline)}</p>` : "",
     notes,

@@ -43,6 +43,9 @@
   background: var(--bio-accent); color: var(--bio-avatar-fg);
   font-size: 2.1rem; font-weight: 700; line-height: 1; overflow: hidden;
 }
+.bio-avatar.has-face { background: #fff; }
+.bio-face { width: 100%; height: 100%; object-fit: cover; display: block;
+  image-rendering: pixelated; image-rendering: crisp-edges; }
 .bio-name { font-size: 1.55rem; font-weight: 700; margin: 0 0 0.2rem; letter-spacing: -0.01em; }
 .bio-tagline { color: var(--bio-fg-muted); margin: 0; font-size: 0.98rem; }
 .bio-note { color: var(--bio-fg); margin: 0.8rem 0 0; font-size: 0.9rem; }
