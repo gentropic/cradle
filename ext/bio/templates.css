@@ -1,0 +1,141 @@
+/* bio ("link in bio" hub) visuals — the SINGLE SOURCE for how a bio hub looks.
+   Scoped to a `.bio` root so the bootloader render and the editor preview are
+   pixel-identical. Inlined into index.html + bio/index.html by build/build.js
+   (between @build:bio-templates markers). Edit here, then `npm run build`.
+
+   Templates set their palette via --bio-* props; @accent overrides --bio-accent
+   inline; @font swaps --bio-sans via a .font-* class (consumer-applied). No web
+   fonts — only system stacks (offline). */
+
+.bio {
+  --bio-accent: #1a1a1a;
+  --bio-bg: #ffffff;
+  --bio-fg: #14181d;
+  --bio-fg-muted: #6a7280;
+  --bio-fg-faint: #aab2bd;
+  --bio-rule: rgba(0, 0, 0, 0.14);
+  --bio-link-bg: #ffffff;
+  --bio-avatar-fg: #ffffff;
+  --bio-radius: 12px;
+  --bio-border: 1px;
+  --bio-shadow: none;
+  --bio-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bio-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  --bio-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  box-sizing: border-box;
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 2.75rem 1.4rem 3rem;
+  background: var(--bio-bg);
+  color: var(--bio-fg);
+  font-family: var(--bio-sans);
+  line-height: 1.5;
+  text-align: center;
+  -webkit-text-size-adjust: 100%;
+}
+.bio * { box-sizing: border-box; }
+.bio.font-mono { --bio-sans: var(--bio-mono); }
+.bio.font-serif { --bio-sans: var(--bio-serif); }
+
+.bio-avatar {
+  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 1rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bio-accent); color: var(--bio-avatar-fg);
+  font-size: 2.1rem; font-weight: 700; line-height: 1; overflow: hidden;
+}
+.bio-name { font-size: 1.55rem; font-weight: 700; margin: 0 0 0.2rem; letter-spacing: -0.01em; }
+.bio-tagline { color: var(--bio-fg-muted); margin: 0; font-size: 0.98rem; }
+.bio-note { color: var(--bio-fg); margin: 0.8rem 0 0; font-size: 0.9rem; }
+.bio a { color: var(--bio-accent); }
+
+/* one-tap action buttons (shared mechanism with contact) */
+.bio-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; margin: 1.5rem 0 0; }
+@media (min-width: 360px) { .bio-actions { grid-template-columns: repeat(4, 1fr); } }
+.bio-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem;
+  min-height: 68px; padding: 0.6rem 0.3rem; text-decoration: none;
+  border: var(--bio-border) solid var(--bio-rule); border-radius: var(--bio-radius);
+  background: var(--bio-link-bg); color: var(--bio-fg); box-shadow: var(--bio-shadow);
+  font-size: 0.74rem; font-weight: 600;
+  transition: border-color 0.12s, transform 0.05s;
+}
+.bio-btn:hover, .bio-btn:focus-visible { border-color: var(--bio-accent); outline: none; }
+.bio-btn:active { transform: translate(1px, 1px); }
+.bio-btn-emoji { font-size: 1.3rem; line-height: 1; }
+
+/* the link rows — bio's headline */
+.bio-links { display: flex; flex-direction: column; gap: 0.55rem; margin: 1.4rem 0 0; }
+.bio-link {
+  display: flex; align-items: center; gap: 0.85rem; text-align: left;
+  padding: 0.8rem 0.95rem; text-decoration: none;
+  border: var(--bio-border) solid var(--bio-rule); border-radius: var(--bio-radius);
+  background: var(--bio-link-bg); color: var(--bio-fg); box-shadow: var(--bio-shadow);
+  transition: border-color 0.12s, transform 0.05s, background 0.12s;
+}
+.bio-link:hover, .bio-link:focus-visible { border-color: var(--bio-accent); outline: none; }
+.bio-link:active { transform: translate(1px, 1px); }
+.bio-link-icon { flex: 0 0 auto; width: 22px; height: 22px; color: var(--bio-accent); display: inline-flex; }
+.bio-link-icon svg { width: 22px; height: 22px; }
+.bio-link-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.bio-link-label { font-weight: 600; font-size: 0.96rem; }
+.bio-link-sub { font-size: 0.78rem; color: var(--bio-fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bio-link-go { flex: 0 0 auto; color: var(--bio-fg-faint); font-size: 1rem; }
+
+/* small social-icon row (shared with contact) */
+.bio-socials { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.55rem; margin: 1.2rem 0 0; }
+.bio-social {
+  display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center;
+  border: var(--bio-border) solid var(--bio-rule); border-radius: 50%;
+  color: var(--bio-fg-muted); text-decoration: none; transition: color 0.12s, border-color 0.12s;
+}
+.bio-social:hover { color: var(--bio-accent); border-color: var(--bio-accent); }
+.bio-social svg { width: 17px; height: 17px; }
+
+.bio .attribution {
+  margin-top: 1.7rem; font-size: 0.66rem; color: var(--bio-fg-faint);
+  letter-spacing: 0.04em; text-align: center;
+}
+
+/* ============================== templates ============================== */
+
+/* minimal — clean light, monochrome accent (the base above). */
+
+/* brutal — raw, high-contrast, hard edges + a hard offset shadow. The byte-cheap,
+   intentional look: thick borders, no radius, monospace. */
+.bio.tmpl-brutal {
+  --bio-accent: #111111; --bio-rule: #111111; --bio-radius: 0px; --bio-border: 2.5px;
+  --bio-shadow: 4px 4px 0 #111111; --bio-sans: var(--bio-mono); --bio-avatar-fg: #ffffff;
+}
+.bio.tmpl-brutal .bio-avatar { border-radius: 0; border: 2.5px solid #111; }
+.bio.tmpl-brutal .bio-name { text-transform: uppercase; letter-spacing: 0.01em; }
+.bio.tmpl-brutal .bio-link-go { color: var(--bio-accent); }
+
+/* dark — near-black, light accent */
+.bio.tmpl-dark {
+  --bio-bg: #14161b; --bio-fg: #e8eaed; --bio-fg-muted: #9aa0aa; --bio-fg-faint: #565c66;
+  --bio-rule: rgba(255, 255, 255, 0.16); --bio-link-bg: rgba(255, 255, 255, 0.03);
+  --bio-accent: #6ea8e0; --bio-avatar-fg: #14161b;
+}
+
+/* bold — warm accent flooded into the avatar + link hover */
+.bio.tmpl-bold {
+  --bio-accent: #e0533b;
+}
+.bio.tmpl-bold .bio-avatar { border-radius: 20px; }
+.bio.tmpl-bold .bio-name { color: var(--bio-accent); }
+.bio.tmpl-bold .bio-link:hover { background: var(--bio-accent); color: #fff; }
+.bio.tmpl-bold .bio-link:hover .bio-link-icon, .bio.tmpl-bold .bio-link:hover .bio-link-go,
+.bio.tmpl-bold .bio-link:hover .bio-link-sub { color: #fff; }
+
+/* mono — typographic, monochrome, square avatar */
+.bio.tmpl-mono {
+  --bio-accent: #1a1a1a; --bio-avatar-fg: #1a1a1a; --bio-sans: var(--bio-mono); --bio-radius: 4px;
+}
+.bio.tmpl-mono .bio-avatar { background: none; border: 2px solid var(--bio-fg); border-radius: 0; }
+
+/* ============================== print ============================== */
+@media print {
+  .bio { max-width: none; }
+  .bio .attribution { display: none; }
+  .bio-link, .bio-btn { break-inside: avoid; box-shadow: none; }
+}

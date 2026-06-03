@@ -14,7 +14,7 @@ const ROOT = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(ROOT, f), "utf8");
 const write = (f, s) => fs.writeFileSync(path.join(ROOT, f), s);
 
-const dicts = { ...require("../ext/menu/dict.js"), ...require("../ext/arcr/dict.js"), ...require("../ext/contact/dict.js") };
+const dicts = { ...require("../ext/menu/dict.js"), ...require("../ext/arcr/dict.js"), ...require("../ext/contact/dict.js"), ...require("../ext/bio/dict.js") };
 const { generateArcrRenderer } = require("./lib/arcr-renderer.js");
 
 // --- replace a `const <varName> = <...>;` definition with a single source ---
@@ -37,6 +37,8 @@ const DICTS = [
   ["arcr/factory.html", "DICT_ARCR",      "arcr"],
   ["index.html",        "DICT_CONTACT",   "contact"],
   ["contact/index.html","DICT_CONTACT",   "contact"],
+  ["index.html",        "DICT_BIO",       "bio"],
+  // ["bio/index.html", "DICT_BIO", "bio"],  // ← add when the bio editor lands
 ];
 
 // the canonical 50-game library lives in arcr/index.html; pull it out as static
@@ -96,6 +98,14 @@ function build() {
   for (const f of ["index.html", "contact/index.html"]) {
     out[f] = inlineBetween(get(f), "@build:contact-renderer:start", "@build:contact-renderer:end", contactRendererSrc, "contact-renderer");
     out[f] = inlineBetween(get(f), "@build:contact-templates:start", "@build:contact-templates:end", contactTemplatesSrc, "contact-templates");
+  }
+
+  // shared bio (link hub) renderer + template CSS -> bootloader (+ editor once it lands)
+  const bioRendererSrc = read("ext/bio/renderer.js");
+  const bioTemplatesSrc = read("ext/bio/templates.css");
+  for (const f of ["index.html"]) {
+    out[f] = inlineBetween(get(f), "@build:bio-renderer:start", "@build:bio-renderer:end", bioRendererSrc, "bio-renderer");
+    out[f] = inlineBetween(get(f), "@build:bio-templates:start", "@build:bio-templates:end", bioTemplatesSrc, "bio-templates");
   }
 
   const stale = Object.keys(out).filter((f) => out[f] !== read(f));
