@@ -81,6 +81,8 @@
               padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg);
               cursor: pointer; text-decoration: none; }
   .share .b:hover { border-color: var(--fg); }
+  .brow { display: flex; gap: 0.5rem; }
+  .brow .b { flex: 1; }
   .url { width: 100%; margin-top: 0.6rem; font: 0.72rem/1.35 ui-monospace, Menlo, Consolas, monospace; color: var(--fg-muted);
          word-break: break-all; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem; max-height: 5rem; overflow: auto; }
   .meta { font-size: 0.72rem; color: var(--fg-faint); text-align: center; margin-top: 0.6rem; line-height: 1.6; }
@@ -475,7 +477,11 @@
     <div class="share">
       <div class="qrbox" id="qr"></div>
       <button class="b" id="copy-url" type="button">Copy share link</button>
-      <a class="b" id="dl-qr" download="bio-qr.png">Download QR (PNG)</a>
+      <div class="brow">
+        <a class="b" id="dl-qr" download="bio-qr.png">PNG</a>
+        <a class="b" id="dl-svg" download="bio-qr.svg">SVG</a>
+        <a class="b" id="open-cradle" target="_blank" rel="noopener">Open ↗</a>
+      </div>
       <div class="row" style="margin:0.6rem 0 0"><label for="f-base" style="flex:0 0 5rem;font-size:0.74rem">decoder</label>
         <input id="f-base" type="text" style="font-size:0.74rem"></div>
       <div class="url" id="url"></div>
@@ -1128,13 +1134,32 @@ function doImport() {
   else { msg.textContent = "Couldn't read a bio capsule there — paste a …/bio/#q:d.bio_… link or a q:d.bio_ capsule."; msg.style.display = ""; }
 }
 
-function buildQR(text, el) {
-  el.innerHTML = "";
+let qrInstance = null;
+// brand the QR with a contrast-safe darkening of the accent (keep the hue, drop the
+// luminance so it still scans on white), and keep the model around for SVG export.
+function hexRGB(h) { h = (h || "").replace("#", ""); if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0, parseInt(h.slice(2,4),16)||0, parseInt(h.slice(4,6),16)||0]; }
+function rgbHex(r, g, b) { return "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, "0")).join(""); }
+function qrDarkColor(hex) {
+  if (!isHex(hex)) return "#1a1a1a";
+  const [r, g, b] = hexRGB(hex), lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255, f = lum > 0.30 ? 0.30 / lum : 1;
+  return rgbHex(r * f, g * f, b * f);
+}
+function buildQR(text, el, dark) {
+  el.innerHTML = ""; qrInstance = null;
   if (window.QRCode && window.QRCode.CorrectLevel) {
-    new window.QRCode(el, { text, width: 200, height: 200, correctLevel: window.QRCode.CorrectLevel.M });
+    qrInstance = new window.QRCode(el, { text, width: 200, height: 200, colorDark: dark || "#1a1a1a", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.M });
   } else {
     el.textContent = "(QR library unavailable)";
   }
+}
+// vector QR from the model qrcodejs builds (crisp at any print size)
+function qrSVG(inst, dark, size) {
+  try {
+    const q = inst && inst._oQRCode; if (!q || !q.getModuleCount) return null;
+    const n = q.getModuleCount(), cell = size / n; let rects = "";
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) rects += `<rect x="${+(c * cell).toFixed(2)}" y="${+(r * cell).toFixed(2)}" width="${+cell.toFixed(2)}" height="${+cell.toFixed(2)}"/>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/><g fill="${dark}">${rects}</g></svg>`;
+  } catch (e) { return null; }
 }
 
 let lastURL = "";
@@ -1329,7 +1354,9 @@ function update() {
   const base = val("f-base") || new URL("../", location.href).href;
   lastURL = base + "#" + fragmentEncode(cap);
   $("url").textContent = lastURL;
-  buildQR(lastURL, $("qr"));
+  $("open-cradle").href = lastURL;
+  const qd = qrDarkColor(resolvedAccent);   // brand the QR with the bio's accent
+  buildQR(lastURL, $("qr"), qd);
   // size + NFC-tag budget readout (the same URL writes to a tag as an NDEF URI record)
   const ub = lastURL.length;
   const nfc = [["NTAG213", 144], ["NTAG215", 504], ["NTAG216", 888]]
@@ -1342,6 +1369,8 @@ function update() {
   setTimeout(() => {
     const img = $("qr").querySelector("img, canvas");
     if (img) $("dl-qr").href = img.tagName === "IMG" ? img.src : img.toDataURL("image/png");
+    const svg = qrSVG(qrInstance, qd, 200);
+    if (svg) $("dl-svg").href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }, 60);
 }
 
