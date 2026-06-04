@@ -73,7 +73,17 @@ The schema-relative table. **Codes are append-only**: never remove or repurpose
 one — capsules in the wild (incl. implants) must keep resolving.
 
 `ig` Instagram · `x` X · `in` LinkedIn · `gh` GitHub · `yt` YouTube · `tg` Telegram
-· `tt` TikTok · `sc` SoundCloud · `bc` Bandcamp · `tw` Twitch · `ko` Ko-fi.
+· `tt` TikTok · `sc` SoundCloud · `bc` Bandcamp · `tw` Twitch · `ko` Ko-fi · `bsky`
+Bluesky · `th` Threads · `ms` Mastodon · `fb` Facebook · `sb` Substack · `md` Medium
+· `dev` dev.to · `gl` GitLab · `rd` Reddit · `be` Behance · `pin` Pinterest · `sp`
+Spotify · `pt` Patreon · `bmc` Buy Me a Coffee · `pp` PayPal · `dc` Discord · `itch`
+itch.io · `lb` Letterboxd · `gr` Goodreads · `st` Steam.
+
+`@` on a handle is stripped (`ig:@mitsuha` ≡ `ig:mitsuha`). **Mastodon is
+instance-aware**: `ms:user@instance.tld` → `https://instance.tld/@user`; a bare
+`ms:user` defaults to `mastodon.social`. The subdomain platforms (`bc`/`sb`/`itch`)
+take the account as the subdomain (`sb:words` → `words.substack.com`). Icons are
+[Simple Icons](https://simpleicons.org) brand logos (CC0).
 
 ### 2.3 Link forms
 

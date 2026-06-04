@@ -45,6 +45,19 @@ test("link rows: platform handle → URL+icon+label, labeled link, bare URL", ()
   assert.match(r.html, /<span class="bio-link-label">example\.org<\/span>/);
 });
 
+test("expanded platform table: new codes, instance-aware Mastodon, subdomain hosts, brand-logo icons", () => {
+  const r = renderBio("!bio1+en-US\n# Me\nbsky:taki.bsky.social\nms:taki@mastodon.social\nms:mitsuha\nsb:words\nitch:games\nrd:taki");
+  assert.match(r.html, /href="https:\/\/bsky\.app\/profile\/taki\.bsky\.social"/);   // bluesky
+  assert.match(r.html, /href="https:\/\/mastodon\.social\/@taki"/);                  // ms: explicit instance
+  assert.match(r.html, /href="https:\/\/mastodon\.social\/@mitsuha"/);               // ms: bare → default instance
+  assert.match(r.html, /href="https:\/\/words\.substack\.com"/);                     // substack subdomain
+  assert.match(r.html, /href="https:\/\/games\.itch\.io"/);                          // itch subdomain
+  assert.match(r.html, /href="https:\/\/reddit\.com\/user\/taki"/);                  // reddit /user/ path
+  // platform icons are filled brand logos (Simple Icons), not the stroke UI glyphs
+  assert.match(r.html, /<span class="bio-link-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d=/);
+  assert.match(renderBio("!bio1+en-US\n# X\nig:@taki").html, /href="https:\/\/instagram\.com\/taki"/);  // leading @ stripped
+});
+
 test("link list: sections, featured rows, per-link emoji, and tap-to-copy", () => {
   const r = renderBio("!bio1+en-US\n# Me\n> ig:mitsuha\n## elsewhere\n🎀 Musubi | https://example.jp\ncopy: handle | mitsuha");
   assert.match(r.html, /<a class="bio-link featured"[^>]*href="https:\/\/instagram\.com\/mitsuha"/);  // featured
