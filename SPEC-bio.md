@@ -54,6 +54,8 @@ A restricted markdown-ish body, in the family of `menu`/`contact`:
 | `@template` | Visual template: `minimal` (default), `brutal`, `dark`, `bold`, `mono` |
 | `@accent` | CSS color; overrides the template's accent |
 | `@font` | Body font: `sans` (default), `mono`, `serif` (system stacks; no web fonts) |
+| `@bg` | Background surface (§2.4). A hex color, a `#a #b [#c]` gradient (optional leading angle), or a pattern keyword (`dots`/`grid`/`stripes`/`rays`/`noise`). Anything else is ignored. |
+| `@card` | With `@bg`: float the content as a card on the background (`@card: on`). Default fills the surface. |
 | `@avatar` | An emoji for the avatar circle (else: initials from the name) |
 | `@face` | A dithered photo avatar (base64 `[depth,side,…pixels]`); overrides `@avatar`. Editor-built; renders as an indexed BMP. |
 | `@avatarsize` | Avatar display size: `sm` · `md` (default) · `lg` · `xl` |
@@ -105,6 +107,34 @@ Two modifiers on a link/copy line:
 - **Featured** — a leading `> ` highlights the row (accent-flooded): `> ig:handle`.
 - **Per-link emoji** — a label that starts with an emoji uses it as the row icon
   in place of the generic glyph: `🎵 My album | https://…`.
+
+### 2.4 Background (`@bg`, `@card`)
+
+`@bg` sets the background surface. It is parsed into exactly one **safe, concrete**
+form — the body is untrusted DATA, so raw CSS and `url()` are never passed through
+(an arbitrary `url()` would break the offline guarantee and leak the viewer's IP):
+
+- **Color** — a hex (`@bg: #faf0e6`).
+- **Gradient** — two or three hex stops, optional leading angle in degrees
+  (`@bg: #ff5e5e #ffd86b`, `@bg: 90 #001 #003 #006`). Default angle `135`.
+- **Pattern** — a keyword drawn from `@accent` at low opacity, so text stays legible:
+  `dots` · `grid` · `stripes` · `rays` · `noise` (`noise` is an inline SVG data-URI,
+  not a fetch). Patterns overlay the surface and keep its base color.
+
+Anything unrecognized → no background (fail-safe). On a **dark** color/gradient the
+renderer flips the foreground to light automatically, so `@bg` works without also
+forcing a dark `@template`.
+
+Two scope modes, chosen by `@card`:
+
+- **Fill** (default) — the surface *is* the background; the content sits directly on
+  it, edge to edge.
+- **Card** (`@card: on`) — the background floods the whole stage and the content
+  floats as a rounded, shadowed card centered on it (the classic link-hub look,
+  best on wide screens). The card keeps its template surface.
+
+Both are applied by the consumer (bootloader / editor) via a shared `bioApplyBg`, so
+the editor preview is true WYSIWYG.
 
 ## 3. Rendering
 

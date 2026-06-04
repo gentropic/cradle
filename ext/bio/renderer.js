@@ -170,6 +170,62 @@ function parseBioBody(body) {
   return { directives, blocks };
 }
 
+// @bg — the background surface. Parsed into a SAFE, concrete value: a hex color, a
+// 2-3 stop gradient (optional leading angle), or a named pattern (drawn from @accent).
+// Never passes raw CSS or url() through (the body is untrusted DATA — an arbitrary
+// url() would break offline + leak an IP); unrecognized input → null (no bg). @card
+// switches from filling the surface to floating the content as a card on the bg.
+const BIO_HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+function bioLum(hex) {
+  let h = hex.replace("#", ""); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+function bioTint(accent) {                          // accent hex → faint rgba; else a neutral
+  if (accent && BIO_HEX.test(accent)) { let h = accent.replace("#", ""); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},0.16)`; }
+  return "rgba(100,105,120,0.16)";
+}
+const BIO_PATTERNS = {
+  dots:    (t) => ({ image: `radial-gradient(${t} 1.3px, transparent 1.4px)`, size: "18px 18px" }),
+  grid:    (t) => ({ image: `linear-gradient(${t} 1px, transparent 1px), linear-gradient(90deg, ${t} 1px, transparent 1px)`, size: "22px 22px" }),
+  stripes: (t) => ({ image: `repeating-linear-gradient(45deg, ${t} 0 2px, transparent 2px 14px)`, size: "auto" }),
+  rays:    (t) => ({ image: `repeating-conic-gradient(from 0deg at 50% -10%, ${t} 0 4deg, transparent 4deg 12deg)`, size: "auto" }),
+  noise:   () => ({ image: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E")`, size: "auto" }),
+};
+function bioParseBg(raw, accent) {
+  if (!raw) return null;
+  const toks = String(raw).trim().split(/\s+/);
+  const pat = (toks[0] || "").toLowerCase();
+  if (BIO_PATTERNS[pat]) { const p = BIO_PATTERNS[pat](bioTint(accent)); return { mode: "image", image: p.image, size: p.size }; }
+  let angle = 135, t = toks;
+  if (/^\d{1,3}$/.test(t[0])) { angle = +t[0]; t = t.slice(1); }
+  const hex = t.filter((x) => BIO_HEX.test(x)).slice(0, 3);
+  if (hex.length >= 2) return { mode: "color", css: `linear-gradient(${angle}deg, ${hex.join(", ")})`, dark: bioLum(hex[0]) < 0.5 };
+  if (hex.length === 1) return { mode: "color", css: hex[0], dark: bioLum(hex[0]) < 0.5 };
+  return null;                                       // unrecognized → no background (safe)
+}
+// consumer helper: paint @bg onto the stage (page/phone-screen) + adapt the card.
+// fill mode (default): the content sits directly on the bg (card transparent, fg flips
+// on a dark bg). card mode (@card): the bg floods the stage, content floats as a card.
+function bioApplyBg(mount, stage, r) {
+  const reset = (el) => { if (el && el.style) { el.style.background = ""; el.style.backgroundImage = ""; el.style.backgroundSize = ""; } };
+  const paint = (el, bg) => { if (!el || !el.style) return;
+    if (bg.mode === "image") { el.style.backgroundImage = bg.image; el.style.backgroundSize = bg.size; } else el.style.background = bg.css; };
+  reset(mount); reset(stage);
+  if (mount && mount.classList) mount.classList.remove("on-dark", "floating");
+  if (!r.bg) {                                       // legacy: mirror the card's solid color onto the stage
+    try { if (stage && stage.style && mount) { const c = getComputedStyle(mount).backgroundColor; if (c) stage.style.background = c; } } catch (e) {}
+    return;
+  }
+  paint(stage, r.bg);
+  if (r.float) { if (mount && mount.classList) mount.classList.add("floating"); }
+  else {
+    if (mount && mount.style) mount.style.background = "transparent";
+    if (r.bg.dark && mount && mount.classList) mount.classList.add("on-dark");
+  }
+}
+
 function renderBioHTML(body, locale, attribution) {
   const L = BIO_LOCALES[locale] || BIO_LOCALES["pt-BR"];
   const { directives: d, blocks } = parseBioBody(body);
@@ -249,6 +305,8 @@ function renderBioHTML(body, locale, attribution) {
     template: d.template || "minimal",
     accent: d.accent || null,
     font: d.font || null,   // sans (default) | mono | serif
+    bg: bioParseBg(d.bg, d.accent),   // @bg surface (null = none); consumer calls bioApplyBg
+    float: !!d.card,                  // @card → float the content as a card on the bg
     lang: locale,
   };
 }

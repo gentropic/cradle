@@ -147,9 +147,22 @@
 }
 .bio.tmpl-mono .bio-avatar { background: none; border: 2px solid var(--bio-fg); border-radius: 0; }
 
+/* ===== @bg surface modifiers (consumer-applied via bioApplyBg) ===== */
+/* fill mode on a dark @bg: the card is transparent, so flip text + rules to light. */
+.bio.on-dark {
+  --bio-fg: #f3f5f8; --bio-fg-muted: #c6ccd6; --bio-fg-faint: #8a93a3;
+  --bio-rule: rgba(255, 255, 255, 0.22); --bio-link-bg: rgba(255, 255, 255, 0.08);
+}
+/* @card mode: the bg floods the stage; the content floats as a card (keeps its
+   template surface) centered on it. */
+.bio.floating {
+  margin: 1.5rem auto; border-radius: 24px; box-shadow: 0 14px 50px rgba(0, 0, 0, 0.28);
+}
+
 /* ============================== print ============================== */
 @media print {
   .bio { max-width: none; }
+  .bio.floating { box-shadow: none; margin: 0 auto; }
   .bio .attribution { display: none; }
   .bio-link, .bio-btn { break-inside: avoid; box-shadow: none; }
 }

@@ -5,15 +5,26 @@ const { loadBootloader, buildDictCapsule } = require("./harness");
 
 const sb = loadBootloader();
 
-// render a bio capsule through the bootloader's magic dispatch + RENDERERS.bio
+// render a bio capsule through the bootloader's magic dispatch + RENDERERS.bio.
+// The mount carries a classList + a recording style so we can also assert the
+// consumer-applied @bg surface (bioApplyBg paints mount/document.body, toggles classes).
 function renderBio(src) {
   const cap = buildDictCapsule(src, "bio", sb.__dicts["bio"]);
   const { header, body } = sb.__magic(sb.__resolve(cap, sb.__dicts));
   const accent = {};
-  const mount = { innerHTML: "", className: "", style: { setProperty: (k, v) => { accent[k] = v; } } };
+  const classes = new Set();
+  const mount = {
+    innerHTML: "", className: "",
+    classList: { add: (...c) => c.forEach((x) => classes.add(x)), remove: (...c) => c.forEach((x) => classes.delete(x)), contains: (x) => classes.has(x) },
+    style: { setProperty: (k, v) => { accent[k] = v; }, removeProperty: () => {} },
+  };
   sb.document.documentElement.lang = "";
+  sb.document.body.style.background = ""; sb.document.body.style.backgroundImage = "";
   sb.__R.bio(header, body, { mount, bootloaderUrl: "https://gentropic.org/cradle", capsule: cap });
-  return { html: mount.innerHTML, cls: mount.className, accent, lang: sb.document.documentElement.lang };
+  return {
+    html: mount.innerHTML, cls: mount.className, accent, classes, lang: sb.document.documentElement.lang,
+    mountBg: mount.style.background, stageBg: sb.document.body.style.background, stageImg: sb.document.body.style.backgroundImage,
+  };
 }
 
 test("bio dispatches via !bio1 and renders the card scaffold + template/accent/font", () => {
@@ -97,6 +108,29 @@ test("@face: self-describing [depth,side,…] payload → BMP data URI; malforme
   // malformed / too-short payload degrades to initials, never breaks
   const bad = renderBio("!bio1+en-US\n@face: AA\n# Mitsuha Miyamizu");
   assert.match(bad.html, /<div class="bio-avatar">MM<\/div>/);
+});
+
+test("@bg: solid/gradient/pattern fill the stage; dark flips fg; @card floats; junk is ignored", () => {
+  // solid dark color → fills stage, content card transparent, fg flipped to light
+  const dark = renderBio("!bio1+en-US\n@bg: #102030\n# Me\nig:x");
+  assert.strictEqual(dark.stageBg, "#102030");
+  assert.strictEqual(dark.mountBg, "transparent");
+  assert.ok(dark.classes.has("on-dark"), "dark @bg flips foreground");
+  // light solid → no flip
+  assert.ok(!renderBio("!bio1+en-US\n@bg: #faf0e6\n# Me").classes.has("on-dark"));
+  // gradient with explicit angle
+  assert.strictEqual(renderBio("!bio1+en-US\n@bg: 90 #ff5e5e #ffd86b\n# Me").stageBg, "linear-gradient(90deg, #ff5e5e, #ffd86b)");
+  // pattern → a background-image on the stage (drawn from accent), not a color
+  const dots = renderBio("!bio1+en-US\n@accent: #3355ff\n@bg: dots\n# Me");
+  assert.match(dots.stageImg, /radial-gradient\(rgba\(51,85,255,0\.16\)/);
+  // @card → float (no transparent card, no fg flip); bg still on the stage
+  const card = renderBio("!bio1+en-US\n@bg: #102030\n@card: on\n# Me");
+  assert.ok(card.classes.has("floating") && !card.classes.has("on-dark"));
+  assert.notStrictEqual(card.mountBg, "transparent");
+  assert.strictEqual(card.stageBg, "#102030");
+  // unrecognized @bg (would-be CSS/url injection) → ignored, no bg applied
+  const junk = renderBio("!bio1+en-US\n@bg: url(http://evil/x) red\n# Me");
+  assert.ok(!/url\(/.test(junk.stageImg) && !/evil/.test(junk.stageBg + junk.stageImg));
 });
 
 test("@lock is render-inert (an editor-only honor flag, not a render concern)", () => {

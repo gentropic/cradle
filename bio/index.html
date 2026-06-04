@@ -206,9 +206,22 @@
 }
 .bio.tmpl-mono .bio-avatar { background: none; border: 2px solid var(--bio-fg); border-radius: 0; }
 
+/* ===== @bg surface modifiers (consumer-applied via bioApplyBg) ===== */
+/* fill mode on a dark @bg: the card is transparent, so flip text + rules to light. */
+.bio.on-dark {
+  --bio-fg: #f3f5f8; --bio-fg-muted: #c6ccd6; --bio-fg-faint: #8a93a3;
+  --bio-rule: rgba(255, 255, 255, 0.22); --bio-link-bg: rgba(255, 255, 255, 0.08);
+}
+/* @card mode: the bg floods the stage; the content floats as a card (keeps its
+   template surface) centered on it. */
+.bio.floating {
+  margin: 1.5rem auto; border-radius: 24px; box-shadow: 0 14px 50px rgba(0, 0, 0, 0.28);
+}
+
 /* ============================== print ============================== */
 @media print {
   .bio { max-width: none; }
+  .bio.floating { box-shadow: none; margin: 0 auto; }
   .bio .attribution { display: none; }
   .bio-link, .bio-btn { break-inside: avoid; box-shadow: none; }
 }
@@ -270,6 +283,11 @@
         <input id="f-accent" type="text" placeholder="#e0533b (optional)"><span class="swatch" id="accent-sw"></span></div>
       <div class="row"><label for="f-font">Font</label>
         <select id="f-font"><option>sans</option><option>mono</option><option>serif</option></select></div>
+      <div class="row"><label for="f-bg">Background</label>
+        <input id="f-bg" type="text" placeholder="#faf0e6 · 135 #ff5e5e #ffd86b · dots/grid/stripes/rays/noise"></div>
+      <div class="row"><label for="f-card">Float as card</label>
+        <input id="f-card" type="checkbox" style="flex:0 0 auto;align-self:flex-start">
+        <span class="hint" style="margin:0;flex:1">@bg floods the page; the content floats as a card (else it fills the surface)</span></div>
       <div class="row"><label for="f-avatar">Avatar emoji</label><input id="f-avatar" type="text" placeholder="🎸 (optional — else initials)" maxlength="4"></div>
       <div class="row"><label for="f-asize">Avatar size</label>
         <select id="f-asize"><option value="md" selected>Medium</option><option value="sm">Small</option><option value="lg">Large</option><option value="xl">Extra large</option></select></div>
@@ -516,6 +534,62 @@ function parseBioBody(body) {
   return { directives, blocks };
 }
 
+// @bg — the background surface. Parsed into a SAFE, concrete value: a hex color, a
+// 2-3 stop gradient (optional leading angle), or a named pattern (drawn from @accent).
+// Never passes raw CSS or url() through (the body is untrusted DATA — an arbitrary
+// url() would break offline + leak an IP); unrecognized input → null (no bg). @card
+// switches from filling the surface to floating the content as a card on the bg.
+const BIO_HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+function bioLum(hex) {
+  let h = hex.replace("#", ""); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+function bioTint(accent) {                          // accent hex → faint rgba; else a neutral
+  if (accent && BIO_HEX.test(accent)) { let h = accent.replace("#", ""); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},0.16)`; }
+  return "rgba(100,105,120,0.16)";
+}
+const BIO_PATTERNS = {
+  dots:    (t) => ({ image: `radial-gradient(${t} 1.3px, transparent 1.4px)`, size: "18px 18px" }),
+  grid:    (t) => ({ image: `linear-gradient(${t} 1px, transparent 1px), linear-gradient(90deg, ${t} 1px, transparent 1px)`, size: "22px 22px" }),
+  stripes: (t) => ({ image: `repeating-linear-gradient(45deg, ${t} 0 2px, transparent 2px 14px)`, size: "auto" }),
+  rays:    (t) => ({ image: `repeating-conic-gradient(from 0deg at 50% -10%, ${t} 0 4deg, transparent 4deg 12deg)`, size: "auto" }),
+  noise:   () => ({ image: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E")`, size: "auto" }),
+};
+function bioParseBg(raw, accent) {
+  if (!raw) return null;
+  const toks = String(raw).trim().split(/\s+/);
+  const pat = (toks[0] || "").toLowerCase();
+  if (BIO_PATTERNS[pat]) { const p = BIO_PATTERNS[pat](bioTint(accent)); return { mode: "image", image: p.image, size: p.size }; }
+  let angle = 135, t = toks;
+  if (/^\d{1,3}$/.test(t[0])) { angle = +t[0]; t = t.slice(1); }
+  const hex = t.filter((x) => BIO_HEX.test(x)).slice(0, 3);
+  if (hex.length >= 2) return { mode: "color", css: `linear-gradient(${angle}deg, ${hex.join(", ")})`, dark: bioLum(hex[0]) < 0.5 };
+  if (hex.length === 1) return { mode: "color", css: hex[0], dark: bioLum(hex[0]) < 0.5 };
+  return null;                                       // unrecognized → no background (safe)
+}
+// consumer helper: paint @bg onto the stage (page/phone-screen) + adapt the card.
+// fill mode (default): the content sits directly on the bg (card transparent, fg flips
+// on a dark bg). card mode (@card): the bg floods the stage, content floats as a card.
+function bioApplyBg(mount, stage, r) {
+  const reset = (el) => { if (el && el.style) { el.style.background = ""; el.style.backgroundImage = ""; el.style.backgroundSize = ""; } };
+  const paint = (el, bg) => { if (!el || !el.style) return;
+    if (bg.mode === "image") { el.style.backgroundImage = bg.image; el.style.backgroundSize = bg.size; } else el.style.background = bg.css; };
+  reset(mount); reset(stage);
+  if (mount && mount.classList) mount.classList.remove("on-dark", "floating");
+  if (!r.bg) {                                       // legacy: mirror the card's solid color onto the stage
+    try { if (stage && stage.style && mount) { const c = getComputedStyle(mount).backgroundColor; if (c) stage.style.background = c; } } catch (e) {}
+    return;
+  }
+  paint(stage, r.bg);
+  if (r.float) { if (mount && mount.classList) mount.classList.add("floating"); }
+  else {
+    if (mount && mount.style) mount.style.background = "transparent";
+    if (r.bg.dark && mount && mount.classList) mount.classList.add("on-dark");
+  }
+}
+
 function renderBioHTML(body, locale, attribution) {
   const L = BIO_LOCALES[locale] || BIO_LOCALES["pt-BR"];
   const { directives: d, blocks } = parseBioBody(body);
@@ -595,6 +669,8 @@ function renderBioHTML(body, locale, attribution) {
     template: d.template || "minimal",
     accent: d.accent || null,
     font: d.font || null,   // sans (default) | mono | serif
+    bg: bioParseBg(d.bg, d.accent),   // @bg surface (null = none); consumer calls bioApplyBg
+    float: !!d.card,                  // @card → float the content as a card on the bg
     lang: locale,
   };
 }
@@ -737,6 +813,8 @@ function buildSource() {
   dir("accent", val("f-accent"));
   const font = val("f-font");
   if (font && font !== "sans") dir("font", font);
+  dir("bg", val("f-bg"));
+  if ($("f-card").checked) s += "@card: on\n";
   dir("avatar", val("f-avatar"));
   const asz = val("f-asize"); if (asz && asz !== "md") dir("avatarsize", asz);
   if ($("f-lock").checked) s += "@lock: 1\n";
@@ -770,6 +848,7 @@ function importSource(src) {
   const set = (id, v) => { $(id).value = v == null ? "" : v; };
   set("f-locale", lm ? lm[1] : "pt-BR");
   set("f-template", d.template || "minimal"); set("f-accent", d.accent); set("f-font", d.font || "sans");
+  set("f-bg", d.bg); $("f-card").checked = !!d.card;
   set("f-avatar", d.avatar); set("f-asize", d.avatarsize || "md");
   $("f-lock").checked = !!d.lock;
   set("f-tel", d.tel); set("f-wa", d.wa); set("f-email", d.email); set("f-site", d.site); set("f-map", d.map); set("f-social", d.social);
@@ -834,6 +913,7 @@ function update() {
   if (r.accent) mount.style.setProperty("--bio-accent", r.accent);
   mount.innerHTML = r.html;
   $("accent-sw").style.background = r.accent || getComputedStyle(mount).getPropertyValue("--bio-accent");
+  bioApplyBg(mount, document.querySelector(".phone-screen"), r);   // @bg surface + @card float
 
   const cap = makeCapsule(src);
   const base = val("f-base") || new URL("../", location.href).href;
@@ -865,9 +945,9 @@ const SAMPLE = {
 };
 function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
 function clearAll() {
-  ["f-name", "f-tagline", "f-note", "f-links", "f-accent", "f-avatar", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-import"].forEach((id) => { $(id).value = ""; });
+  ["f-name", "f-tagline", "f-note", "f-links", "f-accent", "f-bg", "f-avatar", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-import"].forEach((id) => { $(id).value = ""; });
   $("f-locale").value = "pt-BR"; $("f-template").value = "minimal"; $("f-font").value = "sans"; $("f-asize").value = "md";
-  $("f-lock").checked = false;
+  $("f-lock").checked = false; $("f-card").checked = false;
   $("import-msg").style.display = "none"; $("lock-warn").style.display = "none";
   clearFace();   // resets the photo + knobs, then calls update() (→ empties the URL too)
 }
