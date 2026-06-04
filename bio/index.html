@@ -211,6 +211,7 @@
 <header>
   <h1>bio · <span style="color:var(--fg-muted);font-weight:400">cradle</span></h1>
   <span class="spacer"></span>
+  <button class="h-btn" id="clear-all" type="button">Clear</button>
   <button class="h-btn" id="load-sample" type="button">Load sample</button>
   <a class="h-btn" href="../" title="cradle">↩ cradle</a>
 </header>
@@ -773,6 +774,12 @@ const SAMPLE = {
   "f-social": "x=mitsuha",
 };
 function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
+function clearAll() {
+  ["f-name", "f-tagline", "f-note", "f-links", "f-accent", "f-avatar", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-import"].forEach((id) => { $(id).value = ""; });
+  $("f-locale").value = "pt-BR"; $("f-template").value = "minimal"; $("f-font").value = "sans"; $("f-asize").value = "md";
+  $("import-msg").style.display = "none";
+  clearFace();   // resets the photo + knobs, then calls update() (→ empties the URL too)
+}
 
 document.querySelectorAll("input:not(#f-import), select, textarea").forEach((el) => {
   el.addEventListener("input", update);
@@ -784,6 +791,7 @@ $("f-face").addEventListener("change", (e) => loadFace(e.target.files && e.targe
 $("face-clear").addEventListener("click", clearFace);
 document.querySelectorAll(".fctl").forEach((el) => { el.addEventListener("input", reprocess); el.addEventListener("change", reprocess); });
 $("load-sample").addEventListener("click", loadSample);
+$("clear-all").addEventListener("click", clearAll);
 $("copy-url").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = "Copied ✓";
         setTimeout(() => $("copy-url").textContent = "Copy share link", 1200); } catch (e) {}
