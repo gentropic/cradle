@@ -90,20 +90,27 @@ in 10 years: the GCU "outlives the tooling" promise, and the real edge over a
 hosted Linktree that can pivot or die. **Build + confirm stable before telling
 anyone to inject one.**
 
-## Femto-DSL for animated/interactive backgrounds (a tiny "background language")
+## Generative-visual capsule — a demoscene-in-a-QR, cousin to arcr
 
-`@fx` (shipped: `holo`/`tilt`/`shine`/`living`) is a fixed menu of curated effects.
-The bigger idea is a **minuscule DSL** carried in a directive that drives a generated,
-animated, possibly interactive background — the way `arcr` is a sandboxed DSL for a
-game. Think: a few bytes describing layered gradient/shape generators, a palette, and
-motion bound to the same `--fx-x`/`--fx-y` tilt/pointer inputs the effects engine
-already exposes — so a `bio` (or any renderer) could ship a *unique* living backdrop in
-the capsule, not just pick from a list. Same security stance as `arcr`: the program is
-untrusted **DATA** interpreted by a curated engine (no third-party code), so it stays
-offline + safe. Open questions: grammar (SDF/gradient ops? a Shadertoy-lite?), byte
-budget (must stay QR/implant-scale), and whether the engine is shared across renderers
-or `bio`-specific. **Deferred** — `@fx`'s fixed set covers the common want; revisit if
-"every card should feel one-of-a-kind" becomes the goal.
+A tiny **DSL whose generated visual IS the payload**: scan a sticker → the screen blooms
+into a unique, living, tilt-reactive piece (layered gradient/SDF ops + palette + motion,
+a Shadertoy-lite in a few bytes). Same stance as `arcr`: the program is untrusted **DATA**
+interpreted by a curated engine — offline, no third-party code — and the same LLM-faucet
+authoring model works (a model spews infinite unique pieces; the program is the point).
+The shipped `--fx-x`/`--fx-y` tilt/pointer plumbing carries straight over. Natural family
+member alongside `arcr` (games) and chiptune-in-a-QR (sound) — its own magic line
+(`!gfx1+`?) or an `arcr`-family engine.
+
+**Considered and rejected: the same idea as a `@bg` microlanguage on `bio`.** It
+underwhelms there — the background is *garnish behind the links*, so the expressiveness
+fights legibility (a human won't hand-write a shader for their link page; `@bg`'s named
+patterns + `@fx` already cover the want for ~5 bytes), and a meaningful generator eats a
+third of bio's 250–500 B budget competing with the actual content. The idea only gets
+neat when the generated visual is the *whole* payload (above), not a backdrop — that
+reframe dodges every objection (no content to compete with, the byte budget is all yours,
+the faucet model fits). Open: grammar + byte budget (must stay QR/implant-scale), and
+whether to share one engine across the `arcr` family. **Deferred**, but this is the
+genuinely cradle-shaped version.
 
 ## Chiptune-in-a-QR — a non-game arcr-family engine
 
