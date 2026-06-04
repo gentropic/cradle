@@ -44,6 +44,11 @@
   font-size: 2.1rem; font-weight: 700; line-height: 1; overflow: hidden;
 }
 .bio-avatar.has-face { background: #fff; }
+/* @avatarshape — explicit override of the template default (!important to win over
+   per-template avatar radius like brutal/mono's square or bold's rounded). */
+.bio-avatar.shape-circle { border-radius: 50% !important; }
+.bio-avatar.shape-rounded { border-radius: 22% !important; }
+.bio-avatar.shape-square { border-radius: 0 !important; }
 .bio-avatar.sz-sm { width: 64px; height: 64px; font-size: 1.5rem; }
 .bio-avatar.sz-lg { width: 124px; height: 124px; font-size: 3rem; }
 .bio-avatar.sz-xl { width: 168px; height: 168px; font-size: 4rem; margin-bottom: 1.2rem; }

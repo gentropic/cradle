@@ -142,6 +142,20 @@ test("@fx: applies the named effect classes (combinable), ignoring unknown token
   assert.ok(![...none.classes].some((c) => c.startsWith("fx-")), "no effects without @fx");
 });
 
+test("@facepal duotones the dithered photo (render-time); @avatarshape overrides the template", () => {
+  const f2 = Buffer.concat([Buffer.from([2, 16]), Buffer.alloc(64, 0xa5)]).toString("base64");
+  const palOf = (html) => { const m = html.match(/data:image\/bmp;base64,([A-Za-z0-9+/=]+)/); const b = Buffer.from(m[1], "base64"); return Array.from(b.subarray(54, 70)).join(","); };
+  const gray = renderBio("!bio1+en-US\n@face: " + f2 + "\n# Me").html;
+  const green = renderBio("!bio1+en-US\n@facepal: green\n@face: " + f2 + "\n# Me").html;
+  assert.notStrictEqual(palOf(gray), palOf(green), "a duotone changes the BMP palette");
+  assert.match(palOf(green), /15,188,155,0$/, "GB-green lightest entry = #9bbc0f (BMP stores B,G,R,reserved)");
+  // accent duotone resolves @accent into the light end
+  assert.match(palOf(renderBio("!bio1+en-US\n@accent: #f0a35e\n@facepal: accent\n@face: " + f2 + "\n# Me").html), /94,163,240,0$/);
+  // @avatarshape adds an override class; default leaves the template's own shape
+  assert.match(renderBio("!bio1+en-US\n@avatarshape: square\n# AB").html, /<div class="bio-avatar[^"]*shape-square/);
+  assert.ok(!/shape-/.test(renderBio("!bio1+en-US\n# AB").html), "no shape class without @avatarshape");
+});
+
 test("@lock is render-inert (an editor-only honor flag, not a render concern)", () => {
   const r = renderBio("!bio1+en-US\n@lock: 1\n# Mitsuha Miyamizu\nig:mitsuha");
   assert.match(r.html, /<h1 class="bio-name">Mitsuha Miyamizu<\/h1>/);   // renders normally

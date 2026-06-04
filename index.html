@@ -424,6 +424,11 @@
   font-size: 2.1rem; font-weight: 700; line-height: 1; overflow: hidden;
 }
 .bio-avatar.has-face { background: #fff; }
+/* @avatarshape — explicit override of the template default (!important to win over
+   per-template avatar radius like brutal/mono's square or bold's rounded). */
+.bio-avatar.shape-circle { border-radius: 50% !important; }
+.bio-avatar.shape-rounded { border-radius: 22% !important; }
+.bio-avatar.shape-square { border-radius: 0 !important; }
 .bio-avatar.sz-sm { width: 64px; height: 64px; font-size: 1.5rem; }
 .bio-avatar.sz-lg { width: 124px; height: 124px; font-size: 3rem; }
 .bio-avatar.sz-xl { width: 168px; height: 168px; font-size: 4rem; margin-bottom: 1.2rem; }
@@ -1315,8 +1320,12 @@ function bioBytesToB64(b) {
   }
   return o;
 }
-// build an 8bpp indexed BMP from per-pixel level indices (0=black … N-1=white)
-function bioBmp(idx, side, levels) {
+// build an 8bpp indexed BMP from per-pixel level indices (0=darkest … N-1=lightest).
+// pal = [[r,g,b]dark, [r,g,b]light]; the palette ramp lerps between them (default gray
+// = black→white). This is where the Game-Boy-green / amber / sepia / accent duotones
+// come from — same baked pixels, a different two-colour ramp, decided at render time.
+function bioBmp(idx, side, levels, pal) {
+  pal = pal || [[0, 0, 0], [255, 255, 255]];
   const stride = (side + 3) & ~3;                 // 8bpp rows padded to 4 bytes
   const off = 54 + levels * 4, data = stride * side, size = off + data;
   const b = new Uint8Array(size);
@@ -1324,14 +1333,19 @@ function bioBmp(idx, side, levels) {
   const u32 = (o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; b[o + 2] = (v >> 16) & 255; b[o + 3] = (v >> 24) & 255; };
   b[0] = 0x42; b[1] = 0x4d; u32(2, size); u32(10, off);                       // BITMAPFILEHEADER
   u32(14, 40); u32(18, side); u32(22, side); u16(26, 1); u16(28, 8); u32(34, data); u32(46, levels); // BITMAPINFOHEADER
-  for (let i = 0; i < levels; i++) { const g = Math.round(255 * i / (levels - 1)), p = 54 + i * 4; b[p] = b[p + 1] = b[p + 2] = g; } // gray ramp palette
+  for (let i = 0; i < levels; i++) {              // BMP palette entries are B,G,R,0
+    const t = levels <= 1 ? 0 : i / (levels - 1), p = 54 + i * 4;
+    b[p]     = Math.round(pal[0][2] + (pal[1][2] - pal[0][2]) * t);
+    b[p + 1] = Math.round(pal[0][1] + (pal[1][1] - pal[0][1]) * t);
+    b[p + 2] = Math.round(pal[0][0] + (pal[1][0] - pal[0][0]) * t);
+  }
   for (let y = 0; y < side; y++) {                // BMP is bottom-up; idx is top-down
     const so = y * side, dof = off + (side - 1 - y) * stride;
     for (let x = 0; x < side; x++) b[dof + x] = idx[so + x];
   }
   return "data:image/bmp;base64," + bioBytesToB64(b);
 }
-function bioFaceImg(face) {
+function bioFaceImg(face, pal) {
   try {
     const b = bioB64ToBytes(face);
     const depth = b[0], side = b[1];
@@ -1344,9 +1358,24 @@ function bioFaceImg(face) {
       for (let d = 0; d < depth; d++) { v = (v << 1) | ((bits[bit >> 3] >> (7 - (bit & 7))) & 1); bit++; }
       idx[i] = v;
     }
-    return `<img class="bio-face" src="${bioBmp(idx, side, 1 << depth)}" alt="" width="${side}" height="${side}">`;
+    return `<img class="bio-face" src="${bioBmp(idx, side, 1 << depth, pal)}" alt="" width="${side}" height="${side}">`;
   } catch (e) { /* malformed @face → fall back to initials */ }
   return null;
+}
+// @facepal — a duotone for the dithered photo (render-time; the payload is unchanged).
+const BIO_FACE_PALETTES = {
+  gray:  ["#000000", "#ffffff"],
+  green: ["#0f380f", "#9bbc0f"], gb: ["#0f380f", "#9bbc0f"],   // Game Boy DMG
+  amber: ["#1a1200", "#ffb000"],
+  sepia: ["#2b1d0e", "#e8d3a8"],
+  ink:   ["#0a1530", "#cdd9ff"],
+};
+function bioHexToRGB(h) { h = (h || "").replace("#", ""); if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0, parseInt(h.slice(2,4),16)||0, parseInt(h.slice(4,6),16)||0]; }
+function bioFacePalette(name, accent) {
+  const n = (name || "").toLowerCase();
+  if (n === "accent" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent || "")) return [[13, 15, 20], bioHexToRGB(accent)];
+  const pair = BIO_FACE_PALETTES[n] || BIO_FACE_PALETTES.gray;
+  return [bioHexToRGB(pair[0]), bioHexToRGB(pair[1])];
 }
 
 const bioDigits = (s) => String(s == null ? "" : s).replace(/[^\d+]/g, "");
@@ -1526,9 +1555,10 @@ function renderBioHTML(body, locale, attribution) {
   const notes = blocks.filter((b) => b.type === "p").map((b) => `<p class="bio-note">${renderInline(b.text)}</p>`).join("");
 
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  const faceImg = d.face ? bioFaceImg(d.face) : null;   // dithered photo wins over emoji/initials
+  const faceImg = d.face ? bioFaceImg(d.face, bioFacePalette(d.facepal, d.accent)) : null;   // dithered photo wins over emoji/initials
   const avatar = faceImg || (d.avatar ? escapeHtml(d.avatar) : escapeHtml(initials || "•"));
   const sz = { sm: 1, md: 1, lg: 1, xl: 1 }[d.avatarsize] ? d.avatarsize : "md";   // avatar display size
+  const shape = d.avatarshape && { circle: 1, rounded: 1, square: 1 }[d.avatarshape.toLowerCase()] ? d.avatarshape.toLowerCase() : "";  // override template default
 
   // one-tap action buttons (shared with contact's mechanism)
   const btn = (emoji, label, href) =>
@@ -1582,7 +1612,7 @@ function renderBioHTML(body, locale, attribution) {
 
   const parts = [
     `<div class="bio-card">`,
-    `<div class="bio-avatar${sz !== "md" ? " sz-" + sz : ""}${faceImg ? " has-face" : ""}">${avatar}</div>`,
+    `<div class="bio-avatar${sz !== "md" ? " sz-" + sz : ""}${shape ? " shape-" + shape : ""}${faceImg ? " has-face" : ""}">${avatar}</div>`,
     name ? `<h1 class="bio-name">${renderInline(name)}</h1>` : "",
     tagline ? `<p class="bio-tagline">${renderInline(tagline)}</p>` : "",
     notes,

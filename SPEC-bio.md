@@ -59,7 +59,9 @@ A restricted markdown-ish body, in the family of `menu`/`contact`:
 | `@fx` | Playful card effects (§2.5), space-separated + combinable: `holo` (tilt-reactive rainbow foil), `tilt` (3D parallax), `shine` (specular sweep on featured rows + avatar), `living` (self-drifting background). Unknown tokens ignored. |
 | `@avatar` | An emoji for the avatar circle (else: initials from the name) |
 | `@face` | A dithered photo avatar (base64 `[depth,side,…pixels]`); overrides `@avatar`. Editor-built; renders as an indexed BMP. |
+| `@facepal` | Duotone for the `@face` photo (render-time; payload unchanged): `gray` (default) · `green`/`gb` (Game Boy) · `amber` · `sepia` · `ink` · `accent` (uses `@accent`). |
 | `@avatarsize` | Avatar display size: `sm` · `md` (default) · `lg` · `xl` |
+| `@avatarshape` | Override the template's avatar shape: `circle` · `rounded` · `square` (default: the template's own). |
 | `@lock` | **Honor-system** "do not edit" flag (`@lock: 1`). The reference editor declines to open a locked bio (with an "Edit anyway" override). **Not security** — the capsule stays fully decodable and editable by hand; renderers ignore it (no lock indicator in the rendered output). |
 | `@tel` | Phone → **Call** action (`tel:`) |
 | `@wa` | WhatsApp → **WhatsApp** action (`https://wa.me/…`) |

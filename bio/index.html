@@ -67,8 +67,9 @@
   .cpick::-webkit-color-swatch { border: none; border-radius: 4px; }
   .cpick::-moz-color-swatch { border: none; border-radius: 4px; }
   .spacer-lbl { flex: 0 0 7rem; }
-  .bg-pane { display: none; }
-  .bg-pane.on { display: flex; }
+  .bg-pane, .avatar-pane { display: none; }
+  .bg-pane.on, .avatar-pane.on { display: flex; }
+  .chip .duo { width: 0.85rem; height: 0.85rem; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }
   .adv-lbl { font-size: 0.72rem !important; color: var(--fg-faint) !important; }
   .phone { width: 340px; max-width: 100%; margin: 0 auto 1.25rem; border-radius: 28px; background: #fff;
            box-shadow: 0 6px 26px rgba(0,0,0,0.28); overflow: hidden; border: 8px solid #111; }
@@ -133,6 +134,11 @@
   font-size: 2.1rem; font-weight: 700; line-height: 1; overflow: hidden;
 }
 .bio-avatar.has-face { background: #fff; }
+/* @avatarshape — explicit override of the template default (!important to win over
+   per-template avatar radius like brutal/mono's square or bold's rounded). */
+.bio-avatar.shape-circle { border-radius: 50% !important; }
+.bio-avatar.shape-rounded { border-radius: 22% !important; }
+.bio-avatar.shape-square { border-radius: 0 !important; }
 .bio-avatar.sz-sm { width: 64px; height: 64px; font-size: 1.5rem; }
 .bio-avatar.sz-lg { width: 124px; height: 124px; font-size: 3rem; }
 .bio-avatar.sz-xl { width: 168px; height: 168px; font-size: 4rem; margin-bottom: 1.2rem; }
@@ -399,20 +405,36 @@
       <div class="row"><label>Effects</label><div class="chips" id="fx-chips"></div></div>
       <input id="fx-holo" type="checkbox" hidden><input id="fx-tilt" type="checkbox" hidden><input id="fx-shine" type="checkbox" hidden><input id="fx-living" type="checkbox" hidden>
       <p class="hint">Tap to toggle. Tilt-reactive on phones (tap the card once to allow motion); on desktop they follow your pointer over the preview. Honors “reduce motion.”</p>
-      <div class="row"><label for="f-avatar">Avatar emoji</label><input id="f-avatar" type="text" placeholder="🎸 (optional — else initials)" maxlength="4"></div>
+      <div class="row"><label>Avatar</label>
+        <div class="seg" id="avatar-src">
+          <button type="button" data-src="initials">Initials</button><button type="button" data-src="emoji">Emoji</button><button type="button" data-src="photo">Photo</button>
+        </div></div>
+      <div class="row avatar-pane" data-apane="initials"><span class="spacer-lbl"></span>
+        <span class="hint" style="margin:0">Uses the initials from the name.</span></div>
+      <div class="row avatar-pane" data-apane="emoji"><span class="spacer-lbl"></span>
+        <input id="f-avatar" type="text" placeholder="🎸 an emoji" maxlength="4"></div>
+      <div class="row avatar-pane" data-apane="photo"><span class="spacer-lbl"></span>
+        <input id="f-face" type="file" accept="image/*" capture="user" style="flex:1;font-size:0.78rem;min-width:0">
+        <button class="h-btn" id="face-clear" type="button" style="display:none;flex:0 0 auto">✕</button></div>
+
       <div class="row"><label for="f-asize">Avatar size</label>
         <select id="f-asize"><option value="md" selected>Medium</option><option value="sm">Small</option><option value="lg">Large</option><option value="xl">Extra large</option></select></div>
+      <div class="row"><label>Avatar shape</label>
+        <div class="seg" id="avatar-shape">
+          <button type="button" data-shape="">Auto</button><button type="button" data-shape="circle">● Circle</button><button type="button" data-shape="rounded">▢ Rounded</button><button type="button" data-shape="square">■ Square</button>
+        </div>
+        <input id="f-avatarshape" type="hidden"></div>
       <div class="row"><label>Lock</label>
         <button type="button" class="chip toggle" id="lock-toggle"><span class="ic">🔒</span> Do-not-edit</button>
         <input id="f-lock" type="checkbox" hidden>
         <span class="hint" style="margin:0;flex:1">a courtesy, not security — still decodable by hand</span></div>
-      <div class="row"><label for="f-face">Photo</label>
-        <input id="f-face" type="file" accept="image/*" capture="user" style="flex:1;font-size:0.78rem;min-width:0">
-        <button class="h-btn" id="face-clear" type="button" style="display:none;flex:0 0 auto">✕</button></div>
     </div>
 
     <div class="group" id="face-knobs" style="display:none">
       <h2>Photo dither — tweak it into submission</h2>
+      <div class="row"><label>Preset</label><div class="chips" id="dither-presets"></div></div>
+      <div class="row"><label>Palette</label><div class="chips" id="facepal-chips"></div>
+        <input id="f-facepal" type="hidden"></div>
       <div class="row"><label for="f-fsize">Detail</label>
         <select id="f-fsize" class="fctl"><option value="24">24 (tiny)</option><option value="32">32</option><option value="40" selected>40 (good)</option><option value="48">48 (QR/sticker only)</option></select></div>
       <div class="row"><label for="f-fdepth">Depth</label>
@@ -569,8 +591,12 @@ function bioBytesToB64(b) {
   }
   return o;
 }
-// build an 8bpp indexed BMP from per-pixel level indices (0=black … N-1=white)
-function bioBmp(idx, side, levels) {
+// build an 8bpp indexed BMP from per-pixel level indices (0=darkest … N-1=lightest).
+// pal = [[r,g,b]dark, [r,g,b]light]; the palette ramp lerps between them (default gray
+// = black→white). This is where the Game-Boy-green / amber / sepia / accent duotones
+// come from — same baked pixels, a different two-colour ramp, decided at render time.
+function bioBmp(idx, side, levels, pal) {
+  pal = pal || [[0, 0, 0], [255, 255, 255]];
   const stride = (side + 3) & ~3;                 // 8bpp rows padded to 4 bytes
   const off = 54 + levels * 4, data = stride * side, size = off + data;
   const b = new Uint8Array(size);
@@ -578,14 +604,19 @@ function bioBmp(idx, side, levels) {
   const u32 = (o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; b[o + 2] = (v >> 16) & 255; b[o + 3] = (v >> 24) & 255; };
   b[0] = 0x42; b[1] = 0x4d; u32(2, size); u32(10, off);                       // BITMAPFILEHEADER
   u32(14, 40); u32(18, side); u32(22, side); u16(26, 1); u16(28, 8); u32(34, data); u32(46, levels); // BITMAPINFOHEADER
-  for (let i = 0; i < levels; i++) { const g = Math.round(255 * i / (levels - 1)), p = 54 + i * 4; b[p] = b[p + 1] = b[p + 2] = g; } // gray ramp palette
+  for (let i = 0; i < levels; i++) {              // BMP palette entries are B,G,R,0
+    const t = levels <= 1 ? 0 : i / (levels - 1), p = 54 + i * 4;
+    b[p]     = Math.round(pal[0][2] + (pal[1][2] - pal[0][2]) * t);
+    b[p + 1] = Math.round(pal[0][1] + (pal[1][1] - pal[0][1]) * t);
+    b[p + 2] = Math.round(pal[0][0] + (pal[1][0] - pal[0][0]) * t);
+  }
   for (let y = 0; y < side; y++) {                // BMP is bottom-up; idx is top-down
     const so = y * side, dof = off + (side - 1 - y) * stride;
     for (let x = 0; x < side; x++) b[dof + x] = idx[so + x];
   }
   return "data:image/bmp;base64," + bioBytesToB64(b);
 }
-function bioFaceImg(face) {
+function bioFaceImg(face, pal) {
   try {
     const b = bioB64ToBytes(face);
     const depth = b[0], side = b[1];
@@ -598,9 +629,24 @@ function bioFaceImg(face) {
       for (let d = 0; d < depth; d++) { v = (v << 1) | ((bits[bit >> 3] >> (7 - (bit & 7))) & 1); bit++; }
       idx[i] = v;
     }
-    return `<img class="bio-face" src="${bioBmp(idx, side, 1 << depth)}" alt="" width="${side}" height="${side}">`;
+    return `<img class="bio-face" src="${bioBmp(idx, side, 1 << depth, pal)}" alt="" width="${side}" height="${side}">`;
   } catch (e) { /* malformed @face → fall back to initials */ }
   return null;
+}
+// @facepal — a duotone for the dithered photo (render-time; the payload is unchanged).
+const BIO_FACE_PALETTES = {
+  gray:  ["#000000", "#ffffff"],
+  green: ["#0f380f", "#9bbc0f"], gb: ["#0f380f", "#9bbc0f"],   // Game Boy DMG
+  amber: ["#1a1200", "#ffb000"],
+  sepia: ["#2b1d0e", "#e8d3a8"],
+  ink:   ["#0a1530", "#cdd9ff"],
+};
+function bioHexToRGB(h) { h = (h || "").replace("#", ""); if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0, parseInt(h.slice(2,4),16)||0, parseInt(h.slice(4,6),16)||0]; }
+function bioFacePalette(name, accent) {
+  const n = (name || "").toLowerCase();
+  if (n === "accent" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent || "")) return [[13, 15, 20], bioHexToRGB(accent)];
+  const pair = BIO_FACE_PALETTES[n] || BIO_FACE_PALETTES.gray;
+  return [bioHexToRGB(pair[0]), bioHexToRGB(pair[1])];
 }
 
 const bioDigits = (s) => String(s == null ? "" : s).replace(/[^\d+]/g, "");
@@ -780,9 +826,10 @@ function renderBioHTML(body, locale, attribution) {
   const notes = blocks.filter((b) => b.type === "p").map((b) => `<p class="bio-note">${renderInline(b.text)}</p>`).join("");
 
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  const faceImg = d.face ? bioFaceImg(d.face) : null;   // dithered photo wins over emoji/initials
+  const faceImg = d.face ? bioFaceImg(d.face, bioFacePalette(d.facepal, d.accent)) : null;   // dithered photo wins over emoji/initials
   const avatar = faceImg || (d.avatar ? escapeHtml(d.avatar) : escapeHtml(initials || "•"));
   const sz = { sm: 1, md: 1, lg: 1, xl: 1 }[d.avatarsize] ? d.avatarsize : "md";   // avatar display size
+  const shape = d.avatarshape && { circle: 1, rounded: 1, square: 1 }[d.avatarshape.toLowerCase()] ? d.avatarshape.toLowerCase() : "";  // override template default
 
   // one-tap action buttons (shared with contact's mechanism)
   const btn = (emoji, label, href) =>
@@ -836,7 +883,7 @@ function renderBioHTML(body, locale, attribution) {
 
   const parts = [
     `<div class="bio-card">`,
-    `<div class="bio-avatar${sz !== "md" ? " sz-" + sz : ""}${faceImg ? " has-face" : ""}">${avatar}</div>`,
+    `<div class="bio-avatar${sz !== "md" ? " sz-" + sz : ""}${shape ? " shape-" + shape : ""}${faceImg ? " has-face" : ""}">${avatar}</div>`,
     name ? `<h1 class="bio-name">${renderInline(name)}</h1>` : "",
     tagline ? `<p class="bio-tagline">${renderInline(tagline)}</p>` : "",
     notes,
@@ -985,7 +1032,8 @@ function loadFace(file) {
   img.onload = () => { faceImg = img; $("face-knobs").style.display = ""; $("face-clear").style.display = ""; reprocess(); };
   img.src = URL.createObjectURL(file);
 }
-function clearFace() { faceImg = null; faceB64 = ""; $("f-face").value = ""; $("face-knobs").style.display = "none"; $("face-clear").style.display = "none"; update(); }
+function resetFaceData() { faceImg = null; faceB64 = ""; $("f-face").value = ""; $("face-knobs").style.display = "none"; $("face-clear").style.display = "none"; }
+function clearFace() { resetFaceData(); update(); }
 
 function buildSource() {
   const locale = val("f-locale") || "pt-BR";
@@ -1002,8 +1050,9 @@ function buildSource() {
   if (fx.length) s += "@fx: " + fx.join(" ") + "\n";
   dir("avatar", val("f-avatar"));
   const asz = val("f-asize"); if (asz && asz !== "md") dir("avatarsize", asz);
+  dir("avatarshape", val("f-avatarshape"));
   if ($("f-lock").checked) s += "@lock: 1\n";
-  if (faceB64) s += "@face: " + faceB64 + "\n";
+  if (faceB64) { s += "@face: " + faceB64 + "\n"; const fp = val("f-facepal"); if (fp && fp !== "gray") dir("facepal", fp); }
   dir("tel", val("f-tel"));
   dir("wa", val("f-wa"));
   dir("email", val("f-email"));
@@ -1036,6 +1085,7 @@ function importSource(src) {
   set("f-bg", d.bg); $("f-card").checked = !!d.card;
   { const fxs = new Set((d.fx || "").toLowerCase().split(/\s+/)); ["holo", "tilt", "shine", "living"].forEach((k) => { $("fx-" + k).checked = fxs.has(k); }); }
   set("f-avatar", d.avatar); set("f-asize", d.avatarsize || "md");
+  set("f-avatarshape", d.avatarshape || ""); set("f-facepal", d.facepal || ""); avatarSrc = null;
   $("f-lock").checked = !!d.lock;
   set("f-tel", d.tel); set("f-wa", d.wa); set("f-email", d.email); set("f-site", d.site); set("f-map", d.map); set("f-social", d.social);
   faceB64 = d.face || ""; faceImg = null;
@@ -1199,6 +1249,63 @@ function syncStyleUI() {
   $("card-mode").querySelectorAll("button").forEach((b) => b.classList.toggle("on", (b.dataset.card === "card") === isCard));
   $("fx-chips").querySelectorAll("button").forEach((b) => b.classList.toggle("on", $("fx-" + b.dataset.fx).checked));
   $("lock-toggle").classList.toggle("on", $("f-lock").checked);
+  syncAvatarUI();
+}
+
+// ---- Avatar / photo UI: source selector, shape, duotone palettes, dither presets ----
+const FACEPALS = [
+  { id: "gray",   label: "Gray",     c: ["#000000", "#ffffff"] },
+  { id: "green",  label: "GB green", c: ["#0f380f", "#9bbc0f"] },
+  { id: "amber",  label: "Amber",    c: ["#1a1200", "#ffb000"] },
+  { id: "sepia",  label: "Sepia",    c: ["#2b1d0e", "#e8d3a8"] },
+  { id: "ink",    label: "Ink",      c: ["#0a1530", "#cdd9ff"] },
+  { id: "accent", label: "Accent",   c: ["#0d0f14", "#888888"] },   // swatch is a hint; resolved at render
+];
+// one-click knob combos (raw control values, as the inputs hold them)
+const DITHERPRESETS = {
+  "Game Boy":      { size: "40", depth: "2", dither: "bayer4",   bright: 0, contrast: 120, gamma: 100, sharp: 35, norm: true, inv: false },
+  "Newsprint":     { size: "40", depth: "1", dither: "halftone", bright: 0, contrast: 135, gamma: 100, sharp: 20, norm: true, inv: false },
+  "Soft":          { size: "32", depth: "2", dither: "fs",       bright: 8, contrast: 95,  gamma: 110, sharp: 0,  norm: true, inv: false },
+  "Crisp":         { size: "48", depth: "2", dither: "atkinson", bright: 0, contrast: 140, gamma: 95,  sharp: 70, norm: true, inv: false },
+  "High contrast": { size: "40", depth: "1", dither: "bluenoise",bright: 0, contrast: 175, gamma: 90,  sharp: 45, norm: true, inv: false },
+};
+let avatarSrc = null;   // explicit source intent from the selector (null = derive from data)
+function applyDitherPreset(name) {
+  const p = DITHERPRESETS[name]; if (!p) return;
+  $("f-fsize").value = p.size; $("f-fdepth").value = p.depth; $("f-fdither").value = p.dither;
+  $("f-fbright").value = p.bright; $("f-fcontrast").value = p.contrast; $("f-fgamma").value = p.gamma; $("f-fsharp").value = p.sharp;
+  $("f-fnorm").checked = p.norm; $("f-finv").checked = p.inv;
+  reprocess();   // re-bake the bitmap from the new knobs (calls update)
+}
+function buildAvatarUI() {
+  $("avatar-src").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    avatarSrc = b.dataset.src;
+    if (avatarSrc === "initials") { $("f-avatar").value = ""; resetFaceData(); }
+    else if (avatarSrc === "emoji") { resetFaceData(); }
+    else if (avatarSrc === "photo") { $("f-avatar").value = ""; }
+    update();
+  }));
+  $("avatar-shape").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { $("f-avatarshape").value = b.dataset.shape; update(); }));
+  const fp = $("facepal-chips"); fp.innerHTML = "";
+  for (const p of FACEPALS) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.fp = p.id; b.title = p.label;
+    b.innerHTML = '<span class="duo" style="background:linear-gradient(135deg,' + p.c[0] + ' 50%,' + p.c[1] + ' 50%)"></span>' + p.label;
+    b.addEventListener("click", () => { $("f-facepal").value = p.id; update(); }); fp.appendChild(b);
+  }
+  const dp = $("dither-presets"); dp.innerHTML = "";
+  for (const name of Object.keys(DITHERPRESETS)) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = name;
+    b.addEventListener("click", () => applyDitherPreset(name)); dp.appendChild(b);
+  }
+}
+function syncAvatarUI() {
+  const src = avatarSrc || (faceB64 ? "photo" : (val("f-avatar") ? "emoji" : "initials"));
+  $("avatar-src").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.src === src));
+  document.querySelectorAll(".avatar-pane").forEach((p) => p.classList.toggle("on", p.dataset.apane === src));
+  const sh = val("f-avatarshape");
+  $("avatar-shape").querySelectorAll("button").forEach((b) => b.classList.toggle("on", (b.dataset.shape || "") === sh));
+  const pal = val("f-facepal") || "gray";
+  $("facepal-chips").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.fp === pal));
 }
 
 function update() {
@@ -1264,6 +1371,7 @@ const SAMPLE = {
   "f-social": "",
 };
 function loadSample() {
+  avatarSrc = null; $("f-avatarshape").value = ""; $("f-facepal").value = "";
   for (const k in SAMPLE) { const el = $(k); if (!el) continue; if (el.type === "checkbox") el.checked = !!SAMPLE[k]; else el.value = SAMPLE[k]; }
   update();
 }
@@ -1271,12 +1379,14 @@ function clearAll() {
   ["f-name", "f-tagline", "f-note", "f-links", "f-accent", "f-bg", "f-avatar", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-import"].forEach((id) => { $(id).value = ""; });
   $("f-locale").value = "pt-BR"; $("f-template").value = "minimal"; $("f-font").value = "sans"; $("f-asize").value = "md";
   $("f-lock").checked = false; $("f-card").checked = false;
+  $("f-avatarshape").value = ""; $("f-facepal").value = ""; avatarSrc = null;
   ["holo", "tilt", "shine", "living"].forEach((k) => { $("fx-" + k).checked = false; });
   $("import-msg").style.display = "none"; $("lock-warn").style.display = "none";
   clearFace();   // resets the photo + knobs, then calls update() (→ empties the URL too)
 }
 
 buildStyleUI();   // render the Looks / template / accent / pattern chips + wire builder controls
+buildAvatarUI();  // render the avatar source/shape/palette/preset controls
 document.querySelectorAll("input:not(#f-import):not(.builder), select, textarea").forEach((el) => {
   el.addEventListener("input", update);
   el.addEventListener("change", update);
