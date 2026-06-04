@@ -1068,15 +1068,35 @@ function update() {
   }, 60);
 }
 
+// A tasteful, complete showcase (every feature, Your-Name twilight/cord motif): emoji
+// avatar + size, sections, a featured emoji row, platform handles, a tap-to-copy code,
+// a twilight gradient @bg behind a floating @card, and all four @fx effects.
 const SAMPLE = {
-  "f-locale": "en-US", "f-name": "Mitsuha Miyamizu", "f-tagline": "Itomori · shrine maiden",
-  "f-note": "Some days I wake up in Tokyo.",
-  "f-links": "> ig:mitsuha\n## elsewhere\nin:mitsuha-miyamizu\nx:mitsuha\n🎀 Musubi | https://example.jp\ncopy: handle | mitsuha",
-  "f-template": "brutal", "f-accent": "", "f-font": "mono", "f-avatar": "",
-  "f-tel": "", "f-wa": "", "f-email": "", "f-site": "example.jp", "f-map": "",
-  "f-social": "x=mitsuha",
+  "f-locale": "en-US", "f-name": "Mitsuha Miyamizu", "f-tagline": "Itomori · shrine maiden · sometimes Tokyo",
+  "f-note": "Some days I wake up in someone else's city.",
+  "f-links": [
+    '> 🌠 New: "Kataware-doki" zine | https://example.jp/zine',
+    "## find me",
+    "ig:mitsuha",
+    "bsky:mitsuha.bsky.social",
+    "in:mitsuha-miyamizu",
+    "## listen",
+    "🎐 Itomori, at dusk | https://example.jp/album",
+    "sc:mitsuha",
+    "## say hi",
+    "copy: kumihimo workshop code | MUSUBI",
+  ].join("\n"),
+  "f-template": "dark", "f-accent": "#f0a35e", "f-font": "serif",
+  "f-avatar": "🎀", "f-asize": "lg",
+  "f-bg": "160 #221a3a #b34a78 #f0a35e", "f-card": true,
+  "fx-holo": true, "fx-tilt": true, "fx-shine": true, "fx-living": true,
+  "f-tel": "", "f-wa": "", "f-email": "hi@example.jp", "f-site": "example.jp", "f-map": "",
+  "f-social": "",
 };
-function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
+function loadSample() {
+  for (const k in SAMPLE) { const el = $(k); if (!el) continue; if (el.type === "checkbox") el.checked = !!SAMPLE[k]; else el.value = SAMPLE[k]; }
+  update();
+}
 function clearAll() {
   ["f-name", "f-tagline", "f-note", "f-links", "f-accent", "f-bg", "f-avatar", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-import"].forEach((id) => { $(id).value = ""; });
   $("f-locale").value = "pt-BR"; $("f-template").value = "minimal"; $("f-font").value = "sans"; $("f-asize").value = "md";
