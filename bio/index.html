@@ -83,6 +83,20 @@
   .share .b:hover { border-color: var(--fg); }
   .brow { display: flex; gap: 0.5rem; }
   .brow .b { flex: 1; }
+  .nfc-status { font-size: 0.76rem; color: var(--fg-muted); text-align: center; margin-top: 0.4rem; min-height: 1.1em; }
+  /* print: a sheet of cut-out QR stickers (browser dialog picks the paper) */
+  #print-area { display: none; }
+  @media print {
+    body > header, body > .wrap { display: none !important; }
+    #print-area { display: grid !important; grid-template-columns: repeat(auto-fill, 46mm); gap: 4mm;
+                  justify-content: center; align-content: start; padding: 6mm; }
+    .sticker { width: 46mm; box-sizing: border-box; border: 0.3mm dashed #b0b0b0; border-radius: 3mm;
+               padding: 2.5mm 2mm; text-align: center; break-inside: avoid; }
+    .sticker .qr svg { width: 38mm; height: 38mm; display: block; margin: 0 auto; }
+    .sticker .lbl { font: 600 8.5pt/1.15 -apple-system, Arial, sans-serif; margin-top: 1.2mm; color: #111; word-break: break-word; }
+    .sticker .sub { font: 6.5pt -apple-system, Arial, sans-serif; color: #777; margin-top: 0.4mm; }
+    @page { margin: 8mm; }
+  }
   .url { width: 100%; margin-top: 0.6rem; font: 0.72rem/1.35 ui-monospace, Menlo, Consolas, monospace; color: var(--fg-muted);
          word-break: break-all; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem; max-height: 5rem; overflow: auto; }
   .meta { font-size: 0.72rem; color: var(--fg-faint); text-align: center; margin-top: 0.6rem; line-height: 1.6; }
@@ -482,6 +496,11 @@
         <a class="b" id="dl-svg" download="bio-qr.svg">SVG</a>
         <a class="b" id="open-cradle" target="_blank" rel="noopener">Open ↗</a>
       </div>
+      <div class="brow">
+        <button class="b" id="print-stickers" type="button">🖨 Print stickers</button>
+        <button class="b" id="write-nfc" type="button">📶 Write to tag</button>
+      </div>
+      <div class="nfc-status" id="nfc-status"></div>
       <div class="row" style="margin:0.6rem 0 0"><label for="f-base" style="flex:0 0 5rem;font-size:0.74rem">decoder</label>
         <input id="f-base" type="text" style="font-size:0.74rem"></div>
       <div class="url" id="url"></div>
@@ -489,6 +508,7 @@
     </div>
   </div>
 </div>
+<div id="print-area" aria-hidden="true"></div>
 
 <script>
 function escapeHtml(s) {
@@ -1134,7 +1154,22 @@ function doImport() {
   else { msg.textContent = "Couldn't read a bio capsule there — paste a …/bio/#q:d.bio_… link or a q:d.bio_ capsule."; msg.style.display = ""; }
 }
 
-let qrInstance = null;
+let qrInstance = null, lastQD = "#1a1a1a";
+// a printable sheet of identical, cut-out QR stickers (the SVG → crisp at any size)
+function buildPrintArea() {
+  const svg = qrSVG(qrInstance, lastQD, 200) || "";
+  const name = escapeHtml(val("f-name") || "bio");
+  const cell = `<div class="sticker"><div class="qr">${svg}</div><div class="lbl">${name}</div><div class="sub">scan / tap</div></div>`;
+  $("print-area").innerHTML = cell.repeat(24);
+}
+// Web NFC: write the share URL straight to an NTAG sticker (Chrome on Android only)
+async function writeNFC() {
+  const st = $("nfc-status");
+  if (!("NDEFReader" in window)) { st.textContent = "Web NFC needs Chrome on Android — desktop/iOS browsers can't write tags; use a tag-writer app."; return; }
+  st.textContent = "Hold an NFC tag to your phone…";
+  try { await new window.NDEFReader().write({ records: [{ recordType: "url", data: lastURL }] }); st.textContent = "Written ✓ — your bio is on the tag."; }
+  catch (e) { st.textContent = "Couldn't write: " + (e && e.message ? e.message : e); }
+}
 // brand the QR with a contrast-safe darkening of the accent (keep the hue, drop the
 // luminance so it still scans on white), and keep the model around for SVG export.
 function hexRGB(h) { h = (h || "").replace("#", ""); if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0, parseInt(h.slice(2,4),16)||0, parseInt(h.slice(4,6),16)||0]; }
@@ -1356,6 +1391,7 @@ function update() {
   $("url").textContent = lastURL;
   $("open-cradle").href = lastURL;
   const qd = qrDarkColor(resolvedAccent);   // brand the QR with the bio's accent
+  lastQD = qd;
   buildQR(lastURL, $("qr"), qd);
   // size + NFC-tag budget readout (the same URL writes to a tag as an NDEF URI record)
   const ub = lastURL.length;
@@ -1429,6 +1465,8 @@ document.querySelectorAll(".fctl").forEach((el) => { el.addEventListener("input"
 $("load-sample").addEventListener("click", loadSample);
 $("clear-all").addEventListener("click", clearAll);
 $("preview").addEventListener("click", bioCopyHandler);   // tap-to-copy rows in the preview
+$("print-stickers").addEventListener("click", () => { buildPrintArea(); setTimeout(() => window.print(), 80); });
+$("write-nfc").addEventListener("click", writeNFC);
 $("copy-url").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = "Copied ✓";
         setTimeout(() => $("copy-url").textContent = "Copy share link", 1200); } catch (e) {}
