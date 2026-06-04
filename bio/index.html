@@ -26,7 +26,12 @@
   @media (min-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   .form { padding: 1.1rem 1.25rem 3rem; max-width: 560px; }
   .preview-pane { background: #d7d7db; padding: 1.5rem 1rem; }
-  @media (min-width: 860px) { .preview-pane { position: sticky; top: 49px; height: calc(100vh - 49px); overflow: auto; } }
+  @media (min-width: 860px) { .preview-pane { position: sticky; top: 49px; height: calc(100vh - 49px); overflow-y: auto; overflow-x: hidden;
+                              scrollbar-width: thin; scrollbar-color: rgba(0, 0, 0, 0.28) transparent; } }
+  .preview-pane::-webkit-scrollbar { width: 9px; }
+  .preview-pane::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.24); border-radius: 9px; }
+  .preview-pane::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.4); }
+  .preview-pane::-webkit-scrollbar-track { background: transparent; }
   .group { margin-bottom: 1.4rem; }
   .group h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-faint);
               font-weight: 700; margin: 0 0 0.6rem; cursor: pointer; user-select: none; }
@@ -99,7 +104,15 @@
   .adv-lbl { font-size: 0.72rem !important; color: var(--fg-faint) !important; }
   .phone { width: 340px; max-width: 100%; margin: 0 auto 1.25rem; border-radius: 28px; background: #fff;
            box-shadow: 0 6px 26px rgba(0,0,0,0.28); overflow: hidden; border: 8px solid #111; }
-  .phone-screen { max-height: 560px; overflow: auto; }
+  /* vertical scroll only — the @fx tilt's 3D rotateY extends the card sideways, which a
+     narrow container counts as scrollable width (a horizontal scrollbar); clip it. The
+     deployed bootloader has the whole viewport, so it never sees this. */
+  .phone-screen { max-height: 560px; overflow-y: auto; overflow-x: hidden;
+                  scrollbar-width: thin; scrollbar-color: rgba(140, 142, 150, 0.55) transparent; }
+  .phone-screen::-webkit-scrollbar { width: 7px; height: 7px; }
+  .phone-screen::-webkit-scrollbar-thumb { background: rgba(140, 142, 150, 0.55); border-radius: 7px; }
+  .phone-screen::-webkit-scrollbar-thumb:hover { background: rgba(140, 142, 150, 0.85); }
+  .phone-screen::-webkit-scrollbar-track { background: transparent; }
   .share { max-width: 340px; margin: 0 auto; }
   .qrbox { background: #fff; border-radius: 12px; padding: 1rem; display: flex; justify-content: center; }
   .qrbox > div, .qrbox img, .qrbox canvas { width: 200px !important; height: 200px !important; }
