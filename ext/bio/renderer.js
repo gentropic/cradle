@@ -32,6 +32,20 @@ const BIO_PLATFORMS = {
   ko: { name: "Ko-fi", url: (h) => `https://ko-fi.com/${h}`, icon: BIO_SVG('<path d="M4 5h13a3 3 0 0 1 0 6h-1M4 5v9a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5z"/>') },
 };
 const BIO_LINK = BIO_SVG('<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'); // generic / freeform
+const BIO_COPY = BIO_SVG('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'); // tap-to-copy
+const BIO_EMOJI = /^(\p{Extended_Pictographic})\s+(.+)$/u; // leading emoji → row icon
+// tap-to-copy click handler — a consumer (bootloader bioRenderer, the editor preview)
+// attaches this once; clicking a .bio-copy row copies its data-copy value to the clipboard.
+function bioCopyHandler(e) {
+  const el = e.target.closest && e.target.closest(".bio-copy");
+  if (!el) return;
+  e.preventDefault();
+  const v = el.getAttribute("data-copy"), lab = el.querySelector(".bio-link-label");
+  if (navigator.clipboard && lab) navigator.clipboard.writeText(v).then(() => {
+    const old = lab.textContent; lab.textContent = "Copied ✓";
+    setTimeout(() => { lab.textContent = old; }, 1000);
+  }).catch(() => {});
+}
 
 // @face avatar: a dithered Game-Boy-Camera-style square bitmap, carried base64 in
 // the directive as a self-describing payload [depth(1|2), side, …pixels packed
@@ -92,8 +106,11 @@ const bioDigits = (s) => String(s == null ? "" : s).replace(/[^\d+]/g, "");
 const bioUrl = (s) => (/^https?:\/\//i.test(s) ? s : "https://" + s);
 const bioHost = (u) => bioUrl(u).replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0] || u;
 
-// classify a content line: a platform link, a `Label | url` link, a bare URL, or a note
+// classify a content line: tap-to-copy, a platform link, a `Label | url` link, a bare URL, or a note
 function classifyBio(line) {
+  const cp = line.match(/^copy:\s*(.+)$/i);
+  if (cp) { const r = cp[1].trim(), bar = r.indexOf("|");
+    return bar > 0 ? { type: "copy", label: r.slice(0, bar).trim(), value: r.slice(bar + 1).trim() } : { type: "copy", label: r, value: r }; }
   const cm = line.match(/^([A-Za-z][A-Za-z0-9]{1,3}):(.+)$/);
   if (cm && BIO_PLATFORMS[cm[1].toLowerCase()]) return { type: "link", plat: cm[1].toLowerCase(), handle: cm[2].trim() };
   const bar = line.indexOf("|");
@@ -116,9 +133,14 @@ function parseBioBody(body) {
     }
     inDirective = false;
     if (line.startsWith("# ")) { blocks.push({ type: "h1", text: line.slice(2) }); continue; }
+    if (line.startsWith("## ")) { blocks.push({ type: "section", text: line.slice(3).trim() }); continue; }  // section header
     const sm = line.match(/^\*(.+)\*$/);
     if (sm && !gotSub) { blocks.push({ type: "sub", text: sm[1] }); gotSub = true; continue; }
-    blocks.push(classifyBio(line));
+    let ln = line, featured = false;
+    if (ln.startsWith("> ")) { featured = true; ln = ln.slice(2).trim(); }   // featured (highlighted) row
+    const blk = classifyBio(ln);
+    if (featured && (blk.type === "link" || blk.type === "copy")) blk.featured = true;
+    blocks.push(blk);
   }
   return { directives, blocks };
 }
@@ -146,26 +168,32 @@ function renderBioHTML(body, locale, attribution) {
   if (d.map) acts.push(btn("📍", L.directions, "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(d.map)));
   const actionsHtml = acts.length ? `<div class="bio-actions">${acts.join("")}</div>` : "";
 
-  // the link rows — bio's reason to exist
-  const row = (iconHtml, label, sub, href) =>
-    `<a class="bio-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">` +
-      `<span class="bio-link-icon">${iconHtml}</span>` +
+  // the link rows — bio's reason to exist: sections, featured rows, per-link emoji, tap-to-copy
+  const iconCell = (h) => `<span class="bio-link-icon">${h}</span>`;
+  const emojiOr = (label, fallback) => { const m = label.match(BIO_EMOJI); return m ? { icon: escapeHtml(m[1]), text: m[2] } : { icon: fallback, text: label }; };
+  const link = (iconHtml, label, sub, href, feat) =>
+    `<a class="bio-link${feat ? " featured" : ""}" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">` +
+      iconCell(iconHtml) +
       `<span class="bio-link-text"><span class="bio-link-label">${escapeHtml(label)}</span>` +
       (sub ? `<span class="bio-link-sub">${escapeHtml(sub)}</span>` : "") + `</span>` +
       `<span class="bio-link-go">↗</span></a>`;
-  const links = [];
+  const rows = [];
   for (const b of blocks) {
-    if (b.type !== "link") continue;
-    if (b.plat) {
-      const def = BIO_PLATFORMS[b.plat];
-      links.push(row(def.icon, def.name, b.handle, def.url(b.handle)));
-    } else if (b.label) {
-      links.push(row(BIO_LINK, b.label, bioHost(b.url), bioUrl(b.url)));
-    } else if (b.url) {
-      links.push(row(BIO_LINK, bioHost(b.url), "", bioUrl(b.url)));
+    if (b.type === "section") { rows.push(`<div class="bio-section">${renderInline(b.text)}</div>`); continue; }
+    if (b.type === "copy") {
+      const { icon, text } = emojiOr(b.label, BIO_COPY);
+      rows.push(`<button type="button" class="bio-link bio-copy${b.featured ? " featured" : ""}" data-copy="${escapeHtml(b.value)}">` +
+        iconCell(icon) +
+        `<span class="bio-link-text"><span class="bio-link-label">${escapeHtml(text)}</span><span class="bio-link-sub">${escapeHtml(b.value)}</span></span>` +
+        `<span class="bio-link-go">⧉</span></button>`);
+      continue;
     }
+    if (b.type !== "link") continue;
+    if (b.plat) { const def = BIO_PLATFORMS[b.plat]; rows.push(link(def.icon, def.name, b.handle, def.url(b.handle), b.featured)); }
+    else if (b.label) { const { icon, text } = emojiOr(b.label, BIO_LINK); rows.push(link(icon, text, bioHost(b.url), bioUrl(b.url), b.featured)); }
+    else if (b.url) { rows.push(link(BIO_LINK, bioHost(b.url), "", bioUrl(b.url), b.featured)); }
   }
-  const linksHtml = links.length ? `<div class="bio-links">${links.join("")}</div>` : "";
+  const linksHtml = rows.length ? `<div class="bio-links">${rows.join("")}</div>` : "";
 
   // optional small social-icon row (shared with contact)
   let socialsHtml = "";

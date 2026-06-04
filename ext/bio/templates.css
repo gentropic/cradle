@@ -71,16 +71,24 @@
 
 /* the link rows — bio's headline */
 .bio-links { display: flex; flex-direction: column; gap: 0.55rem; margin: 1.4rem 0 0; }
+.bio-section { text-align: left; font: 700 0.64rem var(--bio-mono); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--bio-fg-faint); margin: 0.7rem 0 -0.1rem; padding: 0 0.15rem; }
+.bio-section:first-child { margin-top: 0; }
 .bio-link {
-  display: flex; align-items: center; gap: 0.85rem; text-align: left;
-  padding: 0.8rem 0.95rem; text-decoration: none;
+  display: flex; align-items: center; gap: 0.85rem; text-align: left; width: 100%;
+  padding: 0.8rem 0.95rem; text-decoration: none; font: inherit; cursor: pointer;
   border: var(--bio-border) solid var(--bio-rule); border-radius: var(--bio-radius);
   background: var(--bio-link-bg); color: var(--bio-fg); box-shadow: var(--bio-shadow);
   transition: border-color 0.12s, transform 0.05s, background 0.12s;
 }
 .bio-link:hover, .bio-link:focus-visible { border-color: var(--bio-accent); outline: none; }
 .bio-link:active { transform: translate(1px, 1px); }
-.bio-link-icon { flex: 0 0 auto; width: 22px; height: 22px; color: var(--bio-accent); display: inline-flex; }
+/* featured (highlighted) row — accent-flooded */
+.bio-link.featured { background: var(--bio-accent); border-color: var(--bio-accent); color: var(--bio-avatar-fg); }
+.bio-link.featured .bio-link-icon, .bio-link.featured .bio-link-go { color: var(--bio-avatar-fg); }
+.bio-link.featured .bio-link-sub { color: var(--bio-avatar-fg); opacity: 0.8; }
+.bio-link-icon { flex: 0 0 auto; width: 22px; height: 22px; color: var(--bio-accent); display: inline-flex;
+  align-items: center; justify-content: center; font-size: 1.15rem; line-height: 1; }
 .bio-link-icon svg { width: 22px; height: 22px; }
 .bio-link-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .bio-link-label { font-weight: 600; font-size: 0.96rem; }

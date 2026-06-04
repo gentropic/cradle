@@ -45,6 +45,18 @@ test("link rows: platform handle → URL+icon+label, labeled link, bare URL", ()
   assert.match(r.html, /<span class="bio-link-label">example\.org<\/span>/);
 });
 
+test("link list: sections, featured rows, per-link emoji, and tap-to-copy", () => {
+  const r = renderBio("!bio1+en-US\n# Me\n> ig:mitsuha\n## elsewhere\n🎀 Musubi | https://example.jp\ncopy: handle | mitsuha");
+  assert.match(r.html, /<a class="bio-link featured"[^>]*href="https:\/\/instagram\.com\/mitsuha"/);  // featured
+  assert.match(r.html, /<div class="bio-section">elsewhere<\/div>/);                                  // section header
+  assert.match(r.html, /<span class="bio-link-icon">🎀<\/span>/);                                     // emoji → icon
+  assert.match(r.html, /<span class="bio-link-label">Musubi<\/span>/);                                // …rest is the label
+  assert.match(r.html, /<button type="button" class="bio-link bio-copy" data-copy="mitsuha">/);       // tap-to-copy (a button, no href)
+  assert.match(r.html, /<span class="bio-link-sub">mitsuha<\/span>/);
+  // `copy:` with no value-label still works (value = label)
+  assert.match(renderBio("!bio1+en-US\n# X\ncopy: 0xABCD").html, /data-copy="0xABCD"/);
+});
+
 test("action buttons reuse contact's mechanism (schemes + digit cleaning + en-US labels)", () => {
   const r = renderBio("!bio1+en-US\n@tel: +55 (31) 99999-8888\n@wa: 5531999998888\n@email: a@x.com\n@site: studio.com\n# A");
   assert.match(r.html, /href="tel:\+5531999998888"/);

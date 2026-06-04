@@ -79,13 +79,22 @@ one — capsules in the wild (incl. implants) must keep resolving.
 
 Each content line is, in order of precedence:
 
-1. **Platform handle** — `code:handle` where `code` is in the table (§2.2) →
+1. **Section header** — `## Heading` → a small label that groups the rows beneath it.
+2. **Tap-to-copy** — `copy: Label | value` (or `copy: value`) → a row that copies
+   `value` to the clipboard on tap (a wallet address, a handle, a code) — not a link.
+3. **Platform handle** — `code:handle` where `code` is in the table (§2.2) →
    a link row to the platform URL, icon + platform name + the handle as a sub-label.
    (`@` on a handle is tolerated: `yt:@chan`.)
-2. **Labeled link** — `Label | https://…` → a row with that label and the URL's host
+4. **Labeled link** — `Label | https://…` → a row with that label and the URL's host
    as a sub-label, generic link icon.
-3. **Bare URL** — `https://…` → a row labelled by the host.
-4. Otherwise → a **note** paragraph (so stray text never becomes a broken link).
+5. **Bare URL** — `https://…` → a row labelled by the host.
+6. Otherwise → a **note** paragraph (so stray text never becomes a broken link).
+
+Two modifiers on a link/copy line:
+
+- **Featured** — a leading `> ` highlights the row (accent-flooded): `> ig:handle`.
+- **Per-link emoji** — a label that starts with an emoji uses it as the row icon
+  in place of the generic glyph: `🎵 My album | https://…`.
 
 ## 3. Rendering
 
