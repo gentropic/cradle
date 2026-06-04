@@ -42,6 +42,28 @@
   .swatch { display: inline-block; width: 1.6rem; height: 1.6rem; border-radius: 6px; border: 1px solid var(--border); }
   .fxopt { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; cursor: pointer; }
   .fxopt input { flex: 0 0 auto; }
+  /* visual style pickers */
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; flex: 1; min-width: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.55rem; font: inherit; font-size: 0.78rem;
+          line-height: 1.1; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--fg); cursor: pointer; }
+  .chip:hover { border-color: var(--fg-muted); }
+  .chip.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .chip .dots { display: inline-flex; }
+  .chip .dot { width: 0.72rem; height: 0.72rem; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }
+  .chip .dots .dot + .dot { margin-left: -0.16rem; }
+  .seg { display: inline-flex; flex: 1; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .seg button { flex: 1; font: inherit; font-size: 0.78rem; border: 0; border-right: 1px solid var(--border);
+                background: var(--bg); color: var(--fg); padding: 0.35rem 0.3rem; cursor: pointer; }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .cpick { flex: 0 0 auto !important; width: 2.2rem !important; height: 1.95rem; padding: 2px; cursor: pointer;
+           border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
+  .cpick::-webkit-color-swatch { border: none; border-radius: 4px; }
+  .cpick::-moz-color-swatch { border: none; border-radius: 4px; }
+  .spacer-lbl { flex: 0 0 7rem; }
+  .bg-pane { display: none; }
+  .bg-pane.on { display: flex; }
+  .adv-lbl { font-size: 0.72rem !important; color: var(--fg-faint) !important; }
   .phone { width: 340px; max-width: 100%; margin: 0 auto 1.25rem; border-radius: 28px; background: #fff;
            box-shadow: 0 6px 26px rgba(0,0,0,0.28); overflow: hidden; border: 8px solid #111; }
   .phone-screen { max-height: 560px; overflow: auto; }
@@ -326,14 +348,40 @@
 
     <div class="group">
       <h2>Style</h2>
-      <div class="row"><label for="f-template">Template</label>
-        <select id="f-template"><option>minimal</option><option>brutal</option><option>dark</option><option>bold</option><option>mono</option></select></div>
+      <div class="row"><label>Looks</label><div class="chips" id="looks"></div></div>
+
+      <div class="row"><label>Template</label>
+        <div class="chips" id="template-chips"></div>
+        <select id="f-template" hidden><option>minimal</option><option>brutal</option><option>dark</option><option>bold</option><option>mono</option></select></div>
+
       <div class="row"><label for="f-accent">Accent</label>
-        <input id="f-accent" type="text" placeholder="#e0533b (optional)"><span class="swatch" id="accent-sw"></span></div>
+        <input id="f-accent" type="text" placeholder="#e0533b (optional)">
+        <input id="f-accent-pick" class="cpick builder" type="color" title="Pick an accent"></div>
+      <div class="row"><span class="spacer-lbl"></span><div class="chips" id="accent-swatches"></div></div>
+
       <div class="row"><label for="f-font">Font</label>
         <select id="f-font"><option>sans</option><option>mono</option><option>serif</option></select></div>
-      <div class="row"><label for="f-bg">Background</label>
+
+      <div class="row"><label>Background</label>
+        <div class="seg" id="bg-mode">
+          <button type="button" data-m="off">Off</button><button type="button" data-m="color">Color</button><button type="button" data-m="grad">Gradient</button><button type="button" data-m="pattern">Pattern</button>
+        </div></div>
+      <div class="row bg-pane" data-pane="color"><span class="spacer-lbl"></span>
+        <input id="bg-c1" class="cpick builder" type="color" value="#5b8def">
+        <span class="hint" style="margin:0">a solid colour</span></div>
+      <div class="row bg-pane" data-pane="grad"><span class="spacer-lbl"></span>
+        <input id="bg-g1" class="cpick builder" type="color" value="#ff5e5e">
+        <input id="bg-g2" class="cpick builder" type="color" value="#ffd86b">
+        <input id="bg-g3" class="cpick builder" type="color" value="#5e8bff">
+        <label class="fxopt"><input id="bg-g3on" class="builder" type="checkbox"> 3rd</label></div>
+      <div class="row bg-pane" data-pane="grad"><span class="spacer-lbl"></span>
+        <input id="bg-angle" class="builder" type="range" min="0" max="360" value="135">
+        <span class="hint" id="bg-angle-v" style="margin:0;flex:0 0 auto">135°</span></div>
+      <div class="row bg-pane" data-pane="pattern"><span class="spacer-lbl"></span>
+        <div class="chips" id="bg-pat"></div></div>
+      <div class="row"><label for="f-bg" class="adv-lbl">advanced @bg</label>
         <input id="f-bg" type="text" placeholder="#faf0e6 · 135 #ff5e5e #ffd86b · dots/grid/stripes/rays/noise"></div>
+
       <div class="row"><label for="f-card">Float as card</label>
         <input id="f-card" type="checkbox" style="flex:0 0 auto;align-self:flex-start">
         <span class="hint" style="margin:0;flex:1">@bg floods the page; the content floats as a card (else it fills the surface)</span></div>
@@ -1033,6 +1081,97 @@ function buildQR(text, el) {
 }
 
 let lastURL = "";
+// ---- Style UI: visual pickers that drive the underlying directive fields ----
+// (the fields f-template/f-accent/f-bg/f-card/fx-* stay the single source of truth;
+// these are just friendlier views that write into them, kept in sync by syncStyleUI.)
+const TEMPLATES = [
+  { id: "minimal", dots: ["#ffffff", "#1a1a1a", "#5b6470"] },
+  { id: "brutal",  dots: ["#ffffff", "#111111", "#111111"] },
+  { id: "dark",    dots: ["#14161b", "#6ea8e0", "#e8eaed"] },
+  { id: "bold",    dots: ["#ffffff", "#e0533b", "#1d1d1d"] },
+  { id: "mono",    dots: ["#ffffff", "#1a1a1a", "#1a1a1a"] },
+];
+const ACCENTS = ["", "#e0533b", "#f0a35e", "#e8b84b", "#3fa66a", "#2f8fd6", "#7c5cff", "#d6457f", "#111111"];
+const BGPATTERNS = ["dots", "grid", "stripes", "rays", "noise"];
+const LOOKS = {
+  Twilight:  { template: "dark", accent: "#f0a35e", font: "serif", bg: "160 #221a3a #b34a78 #f0a35e", card: true,  fx: ["holo", "tilt", "living"] },
+  Brutalist: { template: "brutal", accent: "", font: "mono", bg: "", card: false, fx: [] },
+  Neon:      { template: "dark", accent: "#21e6c1", font: "mono", bg: "135 #0b0f2a #2a0b4a", card: true, fx: ["holo", "shine", "living"] },
+  Paper:     { template: "minimal", accent: "#b5651d", font: "serif", bg: "noise", card: false, fx: [] },
+  Holo:      { template: "dark", accent: "#9b8cff", font: "sans", bg: "150 #1a1d2b #3a2150", card: true, fx: ["holo", "tilt", "shine"] },
+};
+const isHex = (s) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s);
+const expandHex = (s) => { let h = (s || "").replace("#", ""); if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return "#" + (h.length === 6 ? h.toLowerCase() : "000000"); };
+let bgMode = "off", bgPattern = "";
+
+function buildStyleUI() {
+  const looks = $("looks"); looks.innerHTML = "";
+  for (const name of Object.keys(LOOKS)) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = name;
+    b.addEventListener("click", () => applyLook(name)); looks.appendChild(b);
+  }
+  const tc = $("template-chips"); tc.innerHTML = "";
+  for (const t of TEMPLATES) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.t = t.id;
+    b.innerHTML = '<span class="dots">' + t.dots.map((c) => '<span class="dot" style="background:' + c + '"></span>').join("") + "</span>" + t.id;
+    b.addEventListener("click", () => { $("f-template").value = t.id; update(); }); tc.appendChild(b);
+  }
+  const sw = $("accent-swatches"); sw.innerHTML = "";
+  for (const c of ACCENTS) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.a = c;
+    b.title = c || "auto (template default)"; b.innerHTML = c ? '<span class="dot" style="background:' + c + '"></span>' : "auto";
+    b.addEventListener("click", () => { $("f-accent").value = c; update(); }); sw.appendChild(b);
+  }
+  const bp = $("bg-pat"); bp.innerHTML = "";
+  for (const p of BGPATTERNS) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.p = p; b.textContent = p;
+    b.addEventListener("click", () => { bgPattern = p; bgMode = "pattern"; composeBg(); update(); }); bp.appendChild(b);
+  }
+  $("bg-mode").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    bgMode = b.dataset.m; if (bgMode === "pattern" && !bgPattern) bgPattern = "dots"; composeBg(); update();
+  }));
+  ["bg-c1", "bg-g1", "bg-g2", "bg-g3", "bg-g3on", "bg-angle"].forEach((id) => $(id).addEventListener("input", () => { composeBg(); update(); }));
+  $("f-accent-pick").addEventListener("input", () => { $("f-accent").value = $("f-accent-pick").value; update(); });
+}
+function composeBg() {
+  let v = "";
+  if (bgMode === "color") v = $("bg-c1").value;
+  else if (bgMode === "grad") { const s = [$("bg-g1").value, $("bg-g2").value]; if ($("bg-g3on").checked) s.push($("bg-g3").value); v = $("bg-angle").value + " " + s.join(" "); }
+  else if (bgMode === "pattern") v = bgPattern;
+  $("f-bg").value = v;
+}
+function applyLook(name) {
+  const L = LOOKS[name]; if (!L) return;
+  $("f-template").value = L.template; $("f-accent").value = L.accent; $("f-font").value = L.font;
+  $("f-bg").value = L.bg; $("f-card").checked = !!L.card;
+  ["holo", "tilt", "shine", "living"].forEach((k) => { $("fx-" + k).checked = L.fx.indexOf(k) >= 0; });
+  update();
+}
+// reflect the underlying field values back into the visual pickers (called from update)
+function syncStyleUI() {
+  const tv = val("f-template") || "minimal";
+  $("template-chips").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.t === tv));
+  const av = val("f-accent").trim().toLowerCase();
+  $("accent-swatches").querySelectorAll("button").forEach((b) => b.classList.toggle("on", (b.dataset.a || "").toLowerCase() === av));
+  const raw = val("f-bg").trim(); let m = "off", pat = "";
+  if (raw) {
+    const toks = raw.split(/\s+/), p0 = toks[0].toLowerCase();
+    if (BGPATTERNS.indexOf(p0) >= 0) { m = "pattern"; pat = p0; }
+    else {
+      let t = toks, angle = 135;
+      if (/^\d{1,3}$/.test(t[0])) { angle = +t[0]; t = t.slice(1); }
+      const hex = t.filter(isHex);
+      if (hex.length >= 2) { m = "grad"; $("bg-angle").value = angle; $("bg-g1").value = expandHex(hex[0]); $("bg-g2").value = expandHex(hex[1]); $("bg-g3on").checked = hex.length >= 3; if (hex[2]) $("bg-g3").value = expandHex(hex[2]); }
+      else if (hex.length === 1) { m = "color"; $("bg-c1").value = expandHex(hex[0]); }
+    }
+  }
+  bgMode = m; bgPattern = pat;
+  $("bg-mode").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.m === m));
+  document.querySelectorAll(".bg-pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === m));
+  $("bg-pat").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.p === pat));
+  $("bg-angle-v").textContent = $("bg-angle").value + "°";
+}
+
 function update() {
   const src = buildSource();
   const body = src.slice(src.indexOf("\n") + 1);
@@ -1043,7 +1182,9 @@ function update() {
   mount.style.removeProperty("--bio-accent");
   if (r.accent) mount.style.setProperty("--bio-accent", r.accent);
   mount.innerHTML = r.html;
-  $("accent-sw").style.background = r.accent || getComputedStyle(mount).getPropertyValue("--bio-accent");
+  const resolvedAccent = (r.accent || getComputedStyle(mount).getPropertyValue("--bio-accent") || "").trim();
+  if (isHex(resolvedAccent)) $("f-accent-pick").value = expandHex(resolvedAccent);
+  syncStyleUI();
   const stage = document.querySelector(".phone-screen");
   bioApplyBg(mount, stage, r);   // @bg surface + @card float
   bioApplyFx(mount, stage, r);   // @fx holo/tilt/shine/living — pointer/idle-driven on desktop
@@ -1106,7 +1247,8 @@ function clearAll() {
   clearFace();   // resets the photo + knobs, then calls update() (→ empties the URL too)
 }
 
-document.querySelectorAll("input:not(#f-import), select, textarea").forEach((el) => {
+buildStyleUI();   // render the Looks / template / accent / pattern chips + wire builder controls
+document.querySelectorAll("input:not(#f-import):not(.builder), select, textarea").forEach((el) => {
   el.addEventListener("input", update);
   el.addEventListener("change", update);
 });
