@@ -265,6 +265,8 @@ The cache version is independent of the spec version and the renderer registry c
 
 The bootloader SHOULD use `self.skipWaiting()` and `clients.claim()` to make new caches active on the next page load without requiring the user to close all tabs. Stale tabs continue running the old cache until they're closed; the cache invalidation runs on `activate` of the next service worker generation.
 
+**The bootloader HTML itself SHOULD be served *network-first* (fetch fresh, fall back to the cached copy only when offline), not cache-first.** The bootloader is the one asset that continually gains registered renderers and dictionaries, so a cache-first bootloader strands already-installed clients on a stale build: a freshly-deployed renderer or dictionary produces a hard error (`EUNSUPPORTEDCODEC: unknown dict-id …`, `ENORENDERER …`) on every client that cached an earlier bootloader, even though the server is correct — and it persists until the cache version happens to change *and* that client revisits. Network-first keeps the bootloader current the moment the device is online while preserving the total offline guarantee (the last cached bootloader still serves with no network). Static, version-gated assets (manifest, icons) MAY remain cache-first. Cache-version bumping (above) stays as a backstop for the static set, but the bootloader no longer depends on it to propagate new renderers.
+
 ### 10. Conformance
 
 A conforming bootloader:

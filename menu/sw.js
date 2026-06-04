@@ -3,9 +3,13 @@
 // Pre-caches the editor shell; the CDN deps (pako, qrcode) are network-loaded, so
 // full offline editing would need them vendored — a separate step.
 //
+// The editor HTML is NETWORK-FIRST (cache fallback offline): like the bootloader, it
+// gains features over time, and a cache-first shell strands installed clients on a
+// stale editor until the cache version changes. Static assets stay cache-first.
+//
 // Bump CACHE_VERSION on any cached-asset change.
 
-const CACHE_VERSION = "cradle-menu-v1";
+const CACHE_VERSION = "cradle-menu-v2";
 
 const CORE_ASSETS = [
   "./",
@@ -37,14 +41,34 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+
+  // Editor shell: network-first (cache fallback offline) so it self-updates.
+  const isShell =
+    event.request.mode === "navigate" ||
+    url.pathname.endsWith("/index.html") ||
+    url.pathname.endsWith("/menu/");
+  if (isShell) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((c) => c.put("./index.html", copy)).catch(() => {});
+          }
+          return res;
+        })
+        .catch(() => caches.match("./index.html").then((r) => r || caches.match("./")))
+    );
+    return;
+  }
+
+  // Static assets: cache-first.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).catch(() => {
-        if (event.request.mode === "navigate") {
-          return caches.match("./index.html").then((r) => r || caches.match("./"));
-        }
-        throw new Error("offline and not cached: " + event.request.url);
+        throw new Error("offline and not cached: " + url);
       });
     })
   );

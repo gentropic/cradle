@@ -7,11 +7,21 @@
 //   fetches and no third-party origin in the install set (a CDN outage at
 //   install time can no longer break the offline guarantee)
 // - On activate, deletes all cradle-v* caches that don't match the current version
-// - Serves cached assets offline; falls through to network for anything not cached
 //
-// Bump CACHE_VERSION on any cached-asset change.
+// Caching strategy (deliberately split — see the fetch handler):
+// - The BOOTLOADER (navigation / index.html) is **network-first** with a cache
+//   fallback. The bootloader is the one asset that keeps gaining renderers and
+//   dictionaries, so serving it cache-first silently breaks every newly-added
+//   capsule type on already-installed clients (e.g. "unknown dict-id 'bio'") until
+//   the cache version happens to change. Network-first keeps it current online and
+//   still works offline (falls back to the last cached bootloader).
+// - Static assets (manifest, icons) stay **cache-first** — they're version-gated and
+//   rarely change. Runtime capsule resolutions (gh:, zenodo:, …) pass through.
+//
+// Bump CACHE_VERSION on any cached-asset change (still belt-and-suspenders for the
+// static set; the bootloader self-updates regardless now).
 
-const CACHE_VERSION = "cradle-v2";
+const CACHE_VERSION = "cradle-v3";
 
 const CORE_ASSETS = [
   "./",
@@ -47,22 +57,38 @@ self.addEventListener("fetch", (event) => {
   // Network-only: relay POSTs (e.g., ntfy.sh), POSTs in general
   if (event.request.method !== "GET") return;
 
-  // Network-only: capsule reference resolutions (gh:, zenodo:, etc.) that
-  // happen at runtime — those are someone else's caching concern. We can't
-  // know in advance what URLs renderers will request; if they're not in
-  // CORE_ASSETS, just let them through with default semantics.
+  // Bootloader: NETWORK-FIRST. A navigation, or a direct hit on the root /
+  // index.html, must reflect the latest curated renderers + dictionaries. Fetch
+  // fresh, refresh the cached copy, and fall back to cache only when offline.
+  const isBootloader =
+    event.request.mode === "navigate" ||
+    url.pathname.endsWith("/index.html") ||
+    url.pathname.endsWith("/cradle/") ||
+    url.pathname === "/";
+  if (isBootloader) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((c) => c.put("./index.html", copy)).catch(() => {});
+          }
+          return res;
+        })
+        .catch(() => caches.match("./index.html").then((r) => r || caches.match("./")))
+    );
+    return;
+  }
 
+  // Everything else: CACHE-FIRST. Static assets (manifest, icons) are version-gated;
+  // runtime capsule resolutions (gh:, zenodo:, …) aren't in CORE_ASSETS, so they
+  // simply fall through to the network with default semantics.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).catch(() => {
-        // Offline fallback for the bootloader: serve the cached root.
-        if (event.request.mode === "navigate") {
-          return caches.match("./index.html").then((r) => r || caches.match("./"));
-        }
-        // Otherwise: re-throw the fetch failure (which becomes a network error
-        // visible to the renderer; appropriate for e.g. a doorbell POST that
-        // couldn't go through).
+        // Re-throw the fetch failure (becomes a network error visible to the
+        // renderer; appropriate for e.g. a doorbell POST that couldn't go through).
         throw new Error("offline and not cached: " + url);
       });
     })
