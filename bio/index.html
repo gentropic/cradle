@@ -730,8 +730,8 @@ function update() {
   const nfc = [["NTAG213", 144], ["NTAG215", 504], ["NTAG216", 888]]
     .map(([n, c]) => `${n} ${ub <= c ? "✓" : "✗"}`).join(" · ");
   $("size").innerHTML = `capsule ${cap.length} B · URL ${ub} B<br><span class="nfc"><b>NFC:</b> ${nfc}</span>`;
-  // keep the editor's state AS a capsule: in its own fragment (reload / bookmark / share-to-edit) + a draft
-  try { localStorage.setItem("bio.draft", cap); history.replaceState(null, "", "#" + fragmentEncode(cap)); } catch (e) {}
+  // keep the editor's state AS a capsule, in its own URL fragment (reload / bookmark / share-to-edit)
+  try { history.replaceState(null, "", "#" + fragmentEncode(cap)); } catch (e) {}
   setTimeout(() => {
     const img = $("qr").querySelector("img, canvas");
     if (img) $("dl-qr").href = img.tagName === "IMG" ? img.src : img.toDataURL("image/png");
@@ -762,13 +762,13 @@ $("copy-url").addEventListener("click", async () => {
 });
 
 $("f-base").value = new URL("../", location.href).href;
-// restore prior state as a capsule: editor's own fragment first, then the draft, else the sample
+// state lives in the URL fragment (a capsule): restore it if present, else start blank.
+// (the demo is one click away via "Load sample".)
 (function init() {
   const h = location.hash.slice(1);
-  let src = h ? decodeCapsule(fragmentDecode(h)) : null;
-  if (!src) { const saved = localStorage.getItem("bio.draft"); if (saved) src = decodeCapsule(saved); }
+  const src = h ? decodeCapsule(fragmentDecode(h)) : null;
   if (src && /^!bio1\+/.test(src)) { importSource(src); update(); }
-  else loadSample();
+  else update();
 })();
 </script>
 </body>
