@@ -833,7 +833,7 @@ function bioFxEngine(mount) {
   const set = (x, y) => { mount.style.setProperty("--fx-x", x.toFixed(3)); mount.style.setProperty("--fx-y", y.toFixed(3)); };
   if (reduce) { set(0.22, -0.12); return () => {}; }     // static, tasteful, no motion
   const clk = typeof performance !== "undefined" ? () => performance.now() : () => Date.now();
-  let cx = 0, cy = 0, tx = 0, ty = 0, last = -9999, raf = 0;
+  let cx = 0, cy = 0, tx = 0, ty = 0, last = -9999, raf = 0, dead = false;
   const onPointer = (e) => {
     const r = mount.getBoundingClientRect(); if (!r.width) return;
     tx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
@@ -849,7 +849,7 @@ function bioFxEngine(mount) {
   const enableGyro = () => {
     const E = window.DeviceOrientationEvent;
     if (E && typeof E.requestPermission === "function") {
-      E.requestPermission().then((s) => { if (s === "granted") window.addEventListener("deviceorientation", onOrient); }).catch(() => {});
+      E.requestPermission().then((s) => { if (!dead && s === "granted") window.addEventListener("deviceorientation", onOrient); }).catch(() => {});  // bail if torn down mid-permission
     } else if (E) { window.addEventListener("deviceorientation", onOrient); }
   };
   const loop = () => {
@@ -865,6 +865,7 @@ function bioFxEngine(mount) {
   else enableGyro();
   raf = requestAnimationFrame(loop);
   return () => {
+    dead = true;
     cancelAnimationFrame(raf);
     mount.removeEventListener("pointermove", onPointer);
     window.removeEventListener("deviceorientation", onOrient);
@@ -967,9 +968,9 @@ function renderBioHTML(body, locale, attribution) {
   ];
   return {
     html: parts.join(""),
-    template: d.template || "minimal",
+    template: { minimal: 1, brutal: 1, dark: 1, bold: 1, mono: 1 }[d.template] ? d.template : "minimal",  // allowlist → explicit fallback
     accent: d.accent || null,
-    font: d.font || null,   // sans (default) | mono | serif
+    font: { sans: 1, mono: 1, serif: 1 }[d.font] && d.font !== "sans" ? d.font : null,   // sans (default) | mono | serif
     bg: bioParseBg(d.bg, d.accent),   // @bg surface (null = none); consumer calls bioApplyBg
     float: !!d.card,                  // @card → float the content as a card on the bg
     fx: (d.fx || "").toLowerCase().split(/\s+/).filter((x) => BIO_FX.indexOf(x) >= 0),  // @fx effects; consumer calls bioApplyFx
