@@ -552,6 +552,8 @@
            border-radius: 4px; color: #800; }
   .error pre { background: rgba(0,0,0,0.04); padding: 0.5rem; overflow-x: auto;
                font-size: 0.8rem; }
+  .error-hint { margin: 0.75rem 0 0; font-size: 0.85rem; color: #642; }
+  .error-hint a { color: #642; font-weight: 600; }
 
   /* ---------- landing (shown at the root with no capsule in the fragment) ---------- */
   .landing-hero { text-align: center; padding: 0.5rem 0 0.5rem; }
@@ -2349,8 +2351,18 @@ async function main() {
       capsule: frag,
     });
   } catch (err) {
+    const code = err.message.split(":")[0];
+    const detail = err.message.split(":").slice(1).join(":").trim() || err.message;
+    // "I don't recognize this format/dict/codec" — when the same capsule works on
+    // another device, that's the signature of a STALE cached bootloader (this build
+    // predates the renderer/dictionary the capsule needs). The service worker is now
+    // network-first, so a reload self-heals; point the user at that.
+    const maybeStale = code === "EUNKNOWN-FORMAT" || /unknown (dict-id|compact codec|format)/i.test(err.message);
+    const hint = maybeStale
+      ? `<p class="error-hint">If this works on another device, this installed copy is likely out of date. <a href="${escapeHtml(location.href)}" onclick="location.reload();return false;">Reload to update</a> (or close and reopen the page).</p>`
+      : "";
     root.innerHTML =
-      `<div class="error"><strong>${escapeHtml(err.message.split(":")[0])}</strong>: ${escapeHtml(err.message.split(":").slice(1).join(":").trim() || err.message)}<pre>${escapeHtml(location.hash.slice(1, 200))}${location.hash.length > 201 ? "…" : ""}</pre></div>`;
+      `<div class="error"><strong>${escapeHtml(code)}</strong>: ${escapeHtml(detail)}<pre>${escapeHtml(location.hash.slice(1, 200))}${location.hash.length > 201 ? "…" : ""}</pre>${hint}</div>`;
     console.error(err);
   }
 }
