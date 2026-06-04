@@ -38,6 +38,24 @@
   .navchip { font: inherit; font-size: 0.78rem; padding: 0.25rem 0.65rem; border: 1px solid var(--border); border-radius: 999px;
              background: var(--bg); color: var(--fg-muted); cursor: pointer; }
   .navchip:hover { color: var(--fg); border-color: var(--fg-muted); }
+  /* structured link editor */
+  .lbar { display: flex; align-items: center; gap: 0.5rem; margin: 0.3rem 0; }
+  .lbl-mini { font-size: 0.74rem; color: var(--fg-faint); }
+  .b2 { font: inherit; font-size: 0.8rem; padding: 0.3rem 0.75rem; border: 1px dashed var(--border); border-radius: 7px;
+        background: var(--bg); color: var(--fg-muted); cursor: pointer; }
+  .b2:hover { color: var(--fg); border-color: var(--fg-muted); }
+  .lrow { display: flex; align-items: center; gap: 0.4rem; margin: 0.35rem 0; }
+  .lrow.dragging { opacity: 0.4; }
+  .lhandle { cursor: grab; color: var(--fg-faint); flex: 0 0 auto; padding: 0 0.1rem; }
+  .ltype { flex: 0 0 1.4rem; height: 1.4rem; display: inline-flex; align-items: center; justify-content: center;
+           color: var(--fg-muted); font-size: 0.95rem; }
+  .ltype svg { width: 1rem; height: 1rem; }
+  .lrow .lval { flex: 1; min-width: 0; }
+  .lrow.section .lval { font-weight: 700; }
+  .lstar, .lx { flex: 0 0 auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+                cursor: pointer; font-size: 0.85rem; line-height: 1; padding: 0.35rem 0.45rem; color: var(--fg-muted); }
+  .lstar.on { color: #e0a020; border-color: #e0a020; }
+  .lx:hover { color: #c0392b; border-color: #c0392b; }
   .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
   .row label { flex: 0 0 7rem; font-size: 0.85rem; color: var(--fg-muted); }
   .row input, .row select, .row textarea { flex: 1; font: inherit; font-size: 0.9rem; padding: 0.4rem 0.55rem;
@@ -374,13 +392,16 @@
 
     <div class="group">
       <h2>Links</h2>
-      <div class="row col"><label for="f-links">One per line</label>
-        <textarea id="f-links" rows="7" placeholder="ig:taki&#10;gh:taki&#10;My café | https://example.jp"></textarea></div>
-      <p class="hint">Per line: a handle <code>code:handle</code> (ig · x · in · gh · yt · tg · tt · bsky · th · ms · fb ·
-        sb · md · rd · be · pin · sp · tw · sc · bc · ko · pt · bmc · pp · dc · gl · dev · itch · lb · gr · st),
-        a <code>Label | https://…</code> link, or a bare URL. Also: <code>## Heading</code> a section ·
-        <code>&gt; </code> prefix to feature a row · a leading emoji becomes its icon (<code>🎵 Album | …</code>) ·
-        <code>copy: Label | value</code> for a tap-to-copy row (a wallet, a handle, anything).</p>
+      <div class="lbar"><span class="lbl-mini">drag ⠿ to reorder · ★ to feature · ✕ to remove</span>
+        <span style="flex:1"></span><button type="button" class="navchip" id="links-mode">raw text</button></div>
+      <div id="links-builder"></div>
+      <div class="lbar" id="add-link-bar">
+        <button type="button" class="b2" id="add-link">+ link</button>
+        <button type="button" class="b2" id="add-section">+ section</button></div>
+      <textarea id="f-links" rows="7" placeholder="ig:taki&#10;gh:taki&#10;My café | https://example.jp" style="display:none"></textarea>
+      <p class="hint">Each row's value: a handle <code>code:handle</code>, a <code>Label | https://…</code> link, a bare URL,
+        <code>## Heading</code> for a section, or <code>copy: Label | value</code> for tap-to-copy. A leading emoji becomes the icon.
+        Codes: ig·x·in·gh·yt·tg·tt·bsky·th·ms·fb·sb·md·rd·be·pin·sp·tw·sc·bc·ko·pt·bmc·pp·dc·gl·dev·itch·lb·gr·st.</p>
     </div>
 
     <div class="group">
@@ -1137,6 +1158,7 @@ function importSource(src) {
     (classifyBio(ln).type === "p" ? notes : links).push(c);        // links/copy/sections → links box, plain text → note
   }
   set("f-name", name); set("f-tagline", tag); set("f-note", notes.join("\n")); set("f-links", links.join("\n"));
+  buildLinksUI();   // re-render the structured rows from the imported links
 }
 
 // decode a pasted link/capsule (full URL, #fragment, or bare q:d.bio_…) → bio source, or null
@@ -1450,7 +1472,7 @@ const SAMPLE = {
 function loadSample() {
   avatarSrc = null; $("f-avatarshape").value = ""; $("f-facepal").value = "";
   for (const k in SAMPLE) { const el = $(k); if (!el) continue; if (el.type === "checkbox") el.checked = !!SAMPLE[k]; else el.value = SAMPLE[k]; }
-  update();
+  buildLinksUI(); update();
 }
 function clearAll() {
   ["f-name", "f-tagline", "f-note", "f-links", "f-accent", "f-bg", "f-avatar", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-import"].forEach((id) => { $(id).value = ""; });
@@ -1459,7 +1481,78 @@ function clearAll() {
   $("f-avatarshape").value = ""; $("f-facepal").value = ""; avatarSrc = null;
   ["holo", "tilt", "shine", "living"].forEach((k) => { $("fx-" + k).checked = false; });
   $("import-msg").style.display = "none"; $("lock-warn").style.display = "none";
+  buildLinksUI();   // clear the structured rows too
   clearFace();   // resets the photo + knobs, then calls update() (→ empties the URL too)
+}
+
+// ---- Structured link editor: rows you can add / remove / reorder / feature ----
+// (f-links textarea stays the source of truth; rows serialize into it. A "raw text"
+// toggle drops back to the textarea. Uses classifyBio + BIO_PLATFORMS from the inlined
+// renderer for the per-row type glyph.)
+let linksRaw = false;
+function lineIcon(line) {
+  if (line.startsWith("## ")) return { type: "section", html: "§" };
+  const ln = line.startsWith("> ") ? line.slice(2).trim() : line;
+  const b = classifyBio(ln);
+  if (b.type === "copy") return { type: "copy", html: "⧉" };
+  if (b.type === "link") return b.plat && BIO_PLATFORMS[b.plat] ? { type: "platform", html: BIO_PLATFORMS[b.plat].icon } : { type: "link", html: "🔗" };
+  return { type: "note", html: "¶" };
+}
+function serializeLinks() {
+  const lines = Array.from($("links-builder").querySelectorAll(".lrow")).map((row) => {
+    const v = row.querySelector(".lval").value.trim(); if (!v) return "";
+    return (row.querySelector(".lstar").classList.contains("on") && !v.startsWith("## ") ? "> " : "") + v;
+  }).filter(Boolean);
+  $("f-links").value = lines.join("\n");
+  update();
+}
+function makeLinkRow(line) {
+  let featured = false, value = line;
+  if (value.startsWith("> ")) { featured = true; value = value.slice(2); }
+  const row = document.createElement("div"); row.className = "lrow"; row.draggable = true;
+  row.innerHTML = '<span class="lhandle" title="drag to reorder">⠿</span><span class="ltype"></span>' +
+    '<input class="lval" type="text" placeholder="ig:handle · Label | url · ## Heading · copy: …">' +
+    '<button type="button" class="lstar" title="feature">☆</button><button type="button" class="lx" title="remove">✕</button>';
+  const input = row.querySelector(".lval"); input.value = value;
+  const star = row.querySelector(".lstar");
+  const setStar = (on) => { star.classList.toggle("on", on); star.textContent = on ? "★" : "☆"; };
+  setStar(featured);
+  const refresh = () => {
+    const ic = lineIcon((star.classList.contains("on") ? "> " : "") + input.value);
+    row.querySelector(".ltype").innerHTML = ic.html;
+    row.classList.toggle("section", ic.type === "section");
+    star.style.visibility = ic.type === "section" ? "hidden" : "";
+  };
+  input.addEventListener("input", () => { refresh(); serializeLinks(); });
+  star.addEventListener("click", () => { setStar(!star.classList.contains("on")); refresh(); serializeLinks(); });
+  row.querySelector(".lx").addEventListener("click", () => { row.remove(); serializeLinks(); });
+  row.addEventListener("dragstart", () => row.classList.add("dragging"));
+  row.addEventListener("dragend", () => { row.classList.remove("dragging"); serializeLinks(); });
+  refresh();
+  return row;
+}
+function buildLinksUI() {
+  if (linksRaw) return;
+  const box = $("links-builder"); box.innerHTML = "";
+  $("f-links").value.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim() !== "").forEach((line) => box.appendChild(makeLinkRow(line)));
+}
+function wireLinkEditor() {
+  $("add-link").addEventListener("click", () => { const r = makeLinkRow(""); $("links-builder").appendChild(r); r.querySelector(".lval").focus(); });
+  $("add-section").addEventListener("click", () => { const r = makeLinkRow("## "); $("links-builder").appendChild(r); const i = r.querySelector(".lval"); i.focus(); i.setSelectionRange(3, 3); serializeLinks(); });
+  $("links-builder").addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const dragging = $("links-builder").querySelector(".dragging"); if (!dragging) return;
+    const after = [...$("links-builder").querySelectorAll(".lrow:not(.dragging)")].find((r) => e.clientY < r.getBoundingClientRect().top + r.offsetHeight / 2);
+    if (after) $("links-builder").insertBefore(dragging, after); else $("links-builder").appendChild(dragging);
+  });
+  $("links-mode").addEventListener("click", () => {
+    linksRaw = !linksRaw;
+    $("links-builder").style.display = linksRaw ? "none" : "";
+    $("add-link-bar").style.display = linksRaw ? "none" : "";
+    $("f-links").style.display = linksRaw ? "" : "none";
+    $("links-mode").textContent = linksRaw ? "structured" : "raw text";
+    if (!linksRaw) buildLinksUI();
+  });
 }
 
 // section nav + collapsible groups — a map for the long form
@@ -1480,6 +1573,7 @@ function buildSectionNav() {
 buildSectionNav(); // sticky jump-nav + click-to-collapse headers
 buildStyleUI();   // render the Looks / template / accent / pattern chips + wire builder controls
 buildAvatarUI();  // render the avatar source/shape/palette/preset controls
+wireLinkEditor(); // structured link rows (add/remove/reorder/feature) + raw toggle
 document.querySelectorAll("input:not(#f-import):not(.builder), select, textarea").forEach((el) => {
   el.addEventListener("input", update);
   el.addEventListener("change", update);
@@ -1506,6 +1600,7 @@ $("f-base").value = new URL("../", location.href).href;
 (function init() {
   const src = decodeFromText(location.hash);
   if (!src || !importGate(src)) update();   // locked → warning shown; render the (blank) form
+  buildLinksUI();   // render structured link rows from whatever loaded (blank → no rows)
 })();
 </script>
 </body>
