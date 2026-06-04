@@ -730,8 +730,10 @@ function update() {
   const nfc = [["NTAG213", 144], ["NTAG215", 504], ["NTAG216", 888]]
     .map(([n, c]) => `${n} ${ub <= c ? "✓" : "✗"}`).join(" · ");
   $("size").innerHTML = `capsule ${cap.length} B · URL ${ub} B<br><span class="nfc"><b>NFC:</b> ${nfc}</span>`;
-  // keep the editor's state AS a capsule, in its own URL fragment (reload / bookmark / share-to-edit)
-  try { history.replaceState(null, "", "#" + fragmentEncode(cap)); } catch (e) {}
+  // keep the editor's state AS a capsule in the URL fragment — but only once there's
+  // real content, so an untouched editor stays a clean …/bio/ (no empty capsule)
+  const hasContent = faceB64 || ["f-name", "f-tagline", "f-note", "f-links", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-avatar"].some((id) => val(id));
+  try { history.replaceState(null, "", hasContent ? "#" + fragmentEncode(cap) : location.pathname + location.search); } catch (e) {}
   setTimeout(() => {
     const img = $("qr").querySelector("img, canvas");
     if (img) $("dl-qr").href = img.tagName === "IMG" ? img.src : img.toDataURL("image/png");
