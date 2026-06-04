@@ -27,12 +27,12 @@ that's the insight that makes *inline* the right call here:
   owned, no middleman) and **rewrite the tag** when links change. The carrier's
   mutability substitutes for a server. So a printed QR favors a *reference* (update
   behind a stable URL); an **implant favors inline** — a better fit, not worse.
-  (Arthur's implant currently just points at `endarthur.github.io`; this would put
-  the hub itself in the tag.)
+  (A typical NFC implant just points at a hosted page; this puts the hub itself in
+  the tag — no host, no third party in the loop.)
 
 **Cram via handles-not-URLs (schema-relative — the cradle stance).** The renderer
 holds the platform→URL templates + icons; the capsule carries only **handles** —
-`ig:endarthur` → `instagram.com/endarthur` + glyph + label — with a freeform
+`ig:mitsuha` → `instagram.com/mitsuha` + glyph + label — with a freeform
 labeled-URL fallback for off-table links. A dozen links ≈ 150–250 B of capsule →
 fits an NTAG216 (888 B) with huge headroom (even an NTAG213's 144 B holds several).
 Icons/branding cost **zero** capsule bytes (they live in the engine); a deflate
@@ -63,8 +63,8 @@ into a **creative budget meter** — "600 B left on your NTAG216 — spend it on
 custom palette, a background, or more links." Style as a budget game; make the
 leftover bytes count.
 
-**Why near-term:** real personal use, a small delta over `contact`, and it reuses
-the dict + templates + the size-literacy tooling already shipped. A strong
+**Why near-term:** a real, concrete use case, a small delta over `contact`, and it
+reuses the dict + templates + the size-literacy tooling already shipped. A strong
 candidate to actually build, not just doodle.
 
 **Measured (2026-06-03, with the real capsule lib).** Compression helps a *lot*
