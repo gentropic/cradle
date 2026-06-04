@@ -29,7 +29,15 @@
   @media (min-width: 860px) { .preview-pane { position: sticky; top: 49px; height: calc(100vh - 49px); overflow: auto; } }
   .group { margin-bottom: 1.4rem; }
   .group h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-faint);
-              font-weight: 700; margin: 0 0 0.6rem; }
+              font-weight: 700; margin: 0 0 0.6rem; cursor: pointer; user-select: none; }
+  .group h2 .caret { display: inline-block; width: 1em; color: var(--fg-faint); font-size: 0.9em; }
+  .group.collapsed { margin-bottom: 0.7rem; }
+  .group.collapsed > *:not(h2) { display: none; }
+  .secnav { position: sticky; top: 49px; z-index: 4; background: var(--bg); display: flex; flex-wrap: wrap; gap: 0.4rem;
+            padding: 0.55rem 0; margin: 0 0 0.8rem; border-bottom: 1px solid var(--border); }
+  .navchip { font: inherit; font-size: 0.78rem; padding: 0.25rem 0.65rem; border: 1px solid var(--border); border-radius: 999px;
+             background: var(--bg); color: var(--fg-muted); cursor: pointer; }
+  .navchip:hover { color: var(--fg); border-color: var(--fg-muted); }
   .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
   .row label { flex: 0 0 7rem; font-size: 0.85rem; color: var(--fg-muted); }
   .row input, .row select, .row textarea { flex: 1; font: inherit; font-size: 0.9rem; padding: 0.4rem 0.55rem;
@@ -338,6 +346,7 @@
 
 <div class="wrap">
   <div class="form">
+    <nav class="secnav" id="secnav"></nav>
     <div class="group">
       <div class="row"><label for="f-import">Load a link</label>
         <input id="f-import" type="text" placeholder="paste a bio link or capsule to edit it">
@@ -421,7 +430,10 @@
       <div class="row"><label>Effects</label><div class="chips" id="fx-chips"></div></div>
       <input id="fx-holo" type="checkbox" hidden><input id="fx-tilt" type="checkbox" hidden><input id="fx-shine" type="checkbox" hidden><input id="fx-living" type="checkbox" hidden>
       <p class="hint">Tap to toggle. Tilt-reactive on phones (tap the card once to allow motion); on desktop they follow your pointer over the preview. Honors “reduce motion.”</p>
-      <div class="row"><label>Avatar</label>
+    </div>
+
+    <div class="group"><h2>Avatar</h2>
+      <div class="row"><label>Source</label>
         <div class="seg" id="avatar-src">
           <button type="button" data-src="initials">Initials</button><button type="button" data-src="emoji">Emoji</button><button type="button" data-src="photo">Photo</button>
         </div></div>
@@ -433,9 +445,9 @@
         <input id="f-face" type="file" accept="image/*" capture="user" style="flex:1;font-size:0.78rem;min-width:0">
         <button class="h-btn" id="face-clear" type="button" style="display:none;flex:0 0 auto">✕</button></div>
 
-      <div class="row"><label for="f-asize">Avatar size</label>
+      <div class="row"><label for="f-asize">Size</label>
         <select id="f-asize"><option value="md" selected>Medium</option><option value="sm">Small</option><option value="lg">Large</option><option value="xl">Extra large</option></select></div>
-      <div class="row"><label>Avatar shape</label>
+      <div class="row"><label>Shape</label>
         <div class="seg" id="avatar-shape">
           <button type="button" data-shape="">Auto</button><button type="button" data-shape="circle">● Circle</button><button type="button" data-shape="rounded">▢ Rounded</button><button type="button" data-shape="square">■ Square</button>
         </div>
@@ -1450,6 +1462,22 @@ function clearAll() {
   clearFace();   // resets the photo + knobs, then calls update() (→ empties the URL too)
 }
 
+// section nav + collapsible groups — a map for the long form
+function buildSectionNav() {
+  const nav = $("secnav"); nav.innerHTML = "";
+  document.querySelectorAll(".form > .group").forEach((g) => {
+    const h2 = g.querySelector("h2"); if (!h2) return;
+    const label = h2.textContent.replace(/—.*/, "").replace(/\(.*/, "").trim();
+    if (!g.id) g.id = "sec-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (!h2.querySelector(".caret")) { const c = document.createElement("span"); c.className = "caret"; c.textContent = "▾"; h2.insertBefore(c, h2.firstChild); }
+    h2.addEventListener("click", () => { const col = g.classList.toggle("collapsed"); h2.querySelector(".caret").textContent = col ? "▸" : "▾"; });
+    if (g.id === "face-knobs" || g.id === "lock-warn") return;   // conditional panels stay out of the nav
+    const b = document.createElement("button"); b.type = "button"; b.className = "navchip"; b.textContent = label;
+    b.addEventListener("click", () => { g.classList.remove("collapsed"); h2.querySelector(".caret").textContent = "▾"; g.scrollIntoView({ behavior: "smooth", block: "start" }); });
+    nav.appendChild(b);
+  });
+}
+buildSectionNav(); // sticky jump-nav + click-to-collapse headers
 buildStyleUI();   // render the Looks / template / accent / pattern chips + wire builder controls
 buildAvatarUI();  // render the avatar source/shape/palette/preset controls
 document.querySelectorAll("input:not(#f-import):not(.builder), select, textarea").forEach((el) => {
