@@ -218,6 +218,13 @@
 <div class="wrap">
   <div class="form">
     <div class="group">
+      <div class="row"><label for="f-import">Load a link</label>
+        <input id="f-import" type="text" placeholder="paste a bio link or capsule to edit it">
+        <button class="h-btn" id="do-import" type="button" style="flex:0 0 auto">Load</button></div>
+      <p class="hint" id="import-msg" style="display:none;color:var(--accent)"></p>
+    </div>
+
+    <div class="group">
       <h2>Identity</h2>
       <div class="row"><label for="f-locale">Language</label>
         <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
@@ -698,6 +705,23 @@ function importSource(src) {
   set("f-name", name); set("f-tagline", tag); set("f-note", notes.join("\n")); set("f-links", links.join("\n"));
 }
 
+// load an existing hub from a pasted link/capsule — a full URL, a #fragment, or a
+// bare q:d.bio_… capsule. Returns true on success.
+function loadFromLink(text) {
+  text = (text || "").trim();
+  if (!text) return false;
+  const h = text.lastIndexOf("#");
+  const cap = fragmentDecode(h >= 0 ? text.slice(h + 1) : text);
+  const src = decodeCapsule(cap);
+  if (src && /^!bio1\+/.test(src)) { importSource(src); update(); return true; }
+  return false;
+}
+function doImport() {
+  const msg = $("import-msg");
+  if (loadFromLink($("f-import").value)) { $("f-import").value = ""; msg.style.display = "none"; }
+  else { msg.textContent = "Couldn't read a bio capsule there — paste a …/bio/#q:d.bio_… link or a q:d.bio_ capsule."; msg.style.display = ""; }
+}
+
 function buildQR(text, el) {
   el.innerHTML = "";
   if (window.QRCode && window.QRCode.CorrectLevel) {
@@ -750,10 +774,12 @@ const SAMPLE = {
 };
 function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
 
-document.querySelectorAll("input, select, textarea").forEach((el) => {
+document.querySelectorAll("input:not(#f-import), select, textarea").forEach((el) => {
   el.addEventListener("input", update);
   el.addEventListener("change", update);
 });
+$("do-import").addEventListener("click", doImport);
+$("f-import").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doImport(); } });
 $("f-face").addEventListener("change", (e) => loadFace(e.target.files && e.target.files[0]));
 $("face-clear").addEventListener("click", clearFace);
 document.querySelectorAll(".fctl").forEach((el) => { el.addEventListener("input", reprocess); el.addEventListener("change", reprocess); });
