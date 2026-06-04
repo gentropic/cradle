@@ -40,6 +40,8 @@
   .row.col label { flex: none; margin-bottom: 0.2rem; }
   .hint { font-size: 0.74rem; color: var(--fg-faint); margin: 0.15rem 0 0; }
   .swatch { display: inline-block; width: 1.6rem; height: 1.6rem; border-radius: 6px; border: 1px solid var(--border); }
+  .fxopt { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; cursor: pointer; }
+  .fxopt input { flex: 0 0 auto; }
   .phone { width: 340px; max-width: 100%; margin: 0 auto 1.25rem; border-radius: 28px; background: #fff;
            box-shadow: 0 6px 26px rgba(0,0,0,0.28); overflow: hidden; border: 8px solid #111; }
   .phone-screen { max-height: 560px; overflow: auto; }
@@ -218,6 +220,53 @@
   margin: 1.5rem auto; border-radius: 24px; box-shadow: 0 14px 50px rgba(0, 0, 0, 0.28);
 }
 
+/* ===== @fx effects (consumer-wired via bioApplyFx) =====
+   The engine drives --fx-x / --fx-y in [-1,1] from tilt / pointer / idle drift. */
+.bio { --fx-x: 0; --fx-y: 0; }
+
+/* holo — a rainbow foil + a moving glare that sweep as the card tilts. */
+.bio.fx-holo { position: relative; isolation: isolate; }
+.bio.fx-holo::before, .bio.fx-holo::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 6;
+}
+.bio.fx-holo::after {
+  background: repeating-linear-gradient(115deg,
+    hsla(330, 100%, 60%, 0.16) 0%, hsla(50, 100%, 60%, 0.16) 10%, hsla(160, 100%, 55%, 0.16) 20%,
+    hsla(200, 100%, 60%, 0.16) 30%, hsla(280, 100%, 65%, 0.16) 40%, hsla(330, 100%, 60%, 0.16) 50%);
+  background-size: 300% 300%;
+  background-position: calc(50% + var(--fx-x) * 80%) calc(50% + var(--fx-y) * 80%);
+  mix-blend-mode: color-dodge; opacity: 0.55;
+}
+.bio.fx-holo::before {
+  background: radial-gradient(60% 60% at calc(50% + var(--fx-x) * 50%) calc(50% + var(--fx-y) * 50%),
+    rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%);
+  mix-blend-mode: soft-light; opacity: 0.85;
+}
+
+/* tilt — the card pitches/rolls toward the input (best with @card). */
+.bio.fx-tilt {
+  transform: perspective(900px) rotateY(calc(var(--fx-x) * 7deg)) rotateX(calc(var(--fx-y) * -7deg));
+  transform-style: preserve-3d; will-change: transform;
+}
+
+/* shine — a specular highlight glides over featured rows + the avatar. */
+.bio.fx-shine .bio-link.featured { position: relative; overflow: hidden; }
+.bio.fx-shine .bio-link.featured::after, .bio.fx-shine .bio-avatar::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120px circle at calc(50% + var(--fx-x) * 45%) calc(50% + var(--fx-y) * 45%),
+    rgba(255, 255, 255, 0.5), transparent 60%);
+  mix-blend-mode: soft-light; opacity: 0.85;
+}
+
+/* living — the @bg surface drifts/breathes on its own (no input needed). */
+.fx-living-stage { animation: bioFxDrift 16s linear infinite; }
+@keyframes bioFxDrift { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bio.fx-tilt { transform: none; }
+  .fx-living-stage { animation: none; }
+}
+
 /* ============================== print ============================== */
 @media print {
   .bio { max-width: none; }
@@ -288,6 +337,14 @@
       <div class="row"><label for="f-card">Float as card</label>
         <input id="f-card" type="checkbox" style="flex:0 0 auto;align-self:flex-start">
         <span class="hint" style="margin:0;flex:1">@bg floods the page; the content floats as a card (else it fills the surface)</span></div>
+      <div class="row"><label>Effects</label>
+        <div style="flex:1;display:flex;flex-wrap:wrap;gap:.4rem .9rem;font-size:.84rem">
+          <label class="fxopt"><input type="checkbox" id="fx-holo"> Holo foil</label>
+          <label class="fxopt"><input type="checkbox" id="fx-tilt"> 3D tilt</label>
+          <label class="fxopt"><input type="checkbox" id="fx-shine"> Shine</label>
+          <label class="fxopt"><input type="checkbox" id="fx-living"> Living bg</label>
+        </div></div>
+      <p class="hint">Tilt-reactive on phones (tap the card once to allow motion); on desktop they follow the pointer and drift on their own — move your mouse over the preview. Honors “reduce motion.”</p>
       <div class="row"><label for="f-avatar">Avatar emoji</label><input id="f-avatar" type="text" placeholder="🎸 (optional — else initials)" maxlength="4"></div>
       <div class="row"><label for="f-asize">Avatar size</label>
         <select id="f-asize"><option value="md" selected>Medium</option><option value="sm">Small</option><option value="lg">Large</option><option value="xl">Extra large</option></select></div>
@@ -590,6 +647,76 @@ function bioApplyBg(mount, stage, r) {
   }
 }
 
+// @fx — playful, self-contained card effects. The CSS reads two custom props the
+// engine drives: --fx-x / --fx-y in [-1,1]. Input priority: device tilt (gyro, phones)
+// → pointer (hover/drag) → a slow idle drift so the card is visibly alive even on a
+// desktop with no input (so the editor preview works on a computer). prefers-reduced-
+// motion fully wins: a single static sheen, no listeners, no animation. Returns a
+// teardown fn (the editor re-renders on every keystroke, so we MUST unwire the prior
+// engine — otherwise listeners + rAF loops stack).
+const BIO_FX = ["holo", "tilt", "shine", "living"];
+function bioFxEngine(mount) {
+  const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const set = (x, y) => { mount.style.setProperty("--fx-x", x.toFixed(3)); mount.style.setProperty("--fx-y", y.toFixed(3)); };
+  if (reduce) { set(0.22, -0.12); return () => {}; }     // static, tasteful, no motion
+  const clk = typeof performance !== "undefined" ? () => performance.now() : () => Date.now();
+  let cx = 0, cy = 0, tx = 0, ty = 0, last = -9999, raf = 0;
+  const onPointer = (e) => {
+    const r = mount.getBoundingClientRect(); if (!r.width) return;
+    tx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+    ty = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+    last = clk();
+  };
+  const onOrient = (e) => {
+    if (e.gamma == null) return;
+    tx = Math.max(-1, Math.min(1, e.gamma / 35));        // left↔right tilt
+    ty = Math.max(-1, Math.min(1, (e.beta - 45) / 35));  // front↔back (~45° rest)
+    last = clk();
+  };
+  const enableGyro = () => {
+    const E = window.DeviceOrientationEvent;
+    if (E && typeof E.requestPermission === "function") {
+      E.requestPermission().then((s) => { if (s === "granted") window.addEventListener("deviceorientation", onOrient); }).catch(() => {});
+    } else if (E) { window.addEventListener("deviceorientation", onOrient); }
+  };
+  const loop = () => {
+    const t = clk();
+    if (t - last > 1500) { tx = Math.sin(t / 2200) * 0.55; ty = Math.cos(t / 2900) * 0.4; }  // idle ambient drift
+    cx += (tx - cx) * 0.08; cy += (ty - cy) * 0.08;
+    set(cx, cy);
+    raf = requestAnimationFrame(loop);
+  };
+  mount.addEventListener("pointermove", onPointer, { passive: true });
+  const E = window.DeviceOrientationEvent;
+  if (E && typeof E.requestPermission === "function") window.addEventListener("pointerdown", enableGyro, { once: true });  // iOS: needs a gesture
+  else enableGyro();
+  raf = requestAnimationFrame(loop);
+  return () => {
+    cancelAnimationFrame(raf);
+    mount.removeEventListener("pointermove", onPointer);
+    window.removeEventListener("deviceorientation", onOrient);
+    window.removeEventListener("pointerdown", enableGyro);
+  };
+}
+// consumer helper: toggle the @fx classes + (re)wire the tilt engine. Idempotent —
+// tears down any prior engine first. Harness-safe (no-ops without a real DOM).
+function bioApplyFx(mount, stage, r) {
+  if (mount && mount._bioFxStop) { try { mount._bioFxStop(); } catch (e) {} mount._bioFxStop = null; }
+  if (mount && mount.classList) BIO_FX.forEach((f) => mount.classList.remove("fx-" + f));
+  if (stage && stage.classList) stage.classList.remove("fx-living-stage");
+  const fx = r.fx || [];
+  if (!fx.length || !mount || !mount.classList) return;
+  fx.forEach((f) => mount.classList.add("fx-" + f));
+  if (fx.indexOf("living") >= 0 && stage && stage.classList) {
+    stage.classList.add("fx-living-stage");
+    if (r.bg && r.bg.mode === "color" && stage.style) stage.style.backgroundSize = "220% 220%";  // give the gradient room to pan
+  }
+  const tiltsy = fx.indexOf("holo") >= 0 || fx.indexOf("tilt") >= 0 || fx.indexOf("shine") >= 0;
+  if (tiltsy && typeof window !== "undefined" && window.requestAnimationFrame && mount.addEventListener) {
+    mount._bioFxStop = bioFxEngine(mount);
+  }
+}
+
 function renderBioHTML(body, locale, attribution) {
   const L = BIO_LOCALES[locale] || BIO_LOCALES["pt-BR"];
   const { directives: d, blocks } = parseBioBody(body);
@@ -671,6 +798,7 @@ function renderBioHTML(body, locale, attribution) {
     font: d.font || null,   // sans (default) | mono | serif
     bg: bioParseBg(d.bg, d.accent),   // @bg surface (null = none); consumer calls bioApplyBg
     float: !!d.card,                  // @card → float the content as a card on the bg
+    fx: (d.fx || "").toLowerCase().split(/\s+/).filter((x) => BIO_FX.indexOf(x) >= 0),  // @fx effects; consumer calls bioApplyFx
     lang: locale,
   };
 }
@@ -815,6 +943,8 @@ function buildSource() {
   if (font && font !== "sans") dir("font", font);
   dir("bg", val("f-bg"));
   if ($("f-card").checked) s += "@card: on\n";
+  const fx = ["holo", "tilt", "shine", "living"].filter((k) => $("fx-" + k).checked);
+  if (fx.length) s += "@fx: " + fx.join(" ") + "\n";
   dir("avatar", val("f-avatar"));
   const asz = val("f-asize"); if (asz && asz !== "md") dir("avatarsize", asz);
   if ($("f-lock").checked) s += "@lock: 1\n";
@@ -849,6 +979,7 @@ function importSource(src) {
   set("f-locale", lm ? lm[1] : "pt-BR");
   set("f-template", d.template || "minimal"); set("f-accent", d.accent); set("f-font", d.font || "sans");
   set("f-bg", d.bg); $("f-card").checked = !!d.card;
+  { const fxs = new Set((d.fx || "").toLowerCase().split(/\s+/)); ["holo", "tilt", "shine", "living"].forEach((k) => { $("fx-" + k).checked = fxs.has(k); }); }
   set("f-avatar", d.avatar); set("f-asize", d.avatarsize || "md");
   $("f-lock").checked = !!d.lock;
   set("f-tel", d.tel); set("f-wa", d.wa); set("f-email", d.email); set("f-site", d.site); set("f-map", d.map); set("f-social", d.social);
@@ -913,7 +1044,9 @@ function update() {
   if (r.accent) mount.style.setProperty("--bio-accent", r.accent);
   mount.innerHTML = r.html;
   $("accent-sw").style.background = r.accent || getComputedStyle(mount).getPropertyValue("--bio-accent");
-  bioApplyBg(mount, document.querySelector(".phone-screen"), r);   // @bg surface + @card float
+  const stage = document.querySelector(".phone-screen");
+  bioApplyBg(mount, stage, r);   // @bg surface + @card float
+  bioApplyFx(mount, stage, r);   // @fx holo/tilt/shine/living — pointer/idle-driven on desktop
 
   const cap = makeCapsule(src);
   const base = val("f-base") || new URL("../", location.href).href;
@@ -948,6 +1081,7 @@ function clearAll() {
   ["f-name", "f-tagline", "f-note", "f-links", "f-accent", "f-bg", "f-avatar", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-import"].forEach((id) => { $(id).value = ""; });
   $("f-locale").value = "pt-BR"; $("f-template").value = "minimal"; $("f-font").value = "sans"; $("f-asize").value = "md";
   $("f-lock").checked = false; $("f-card").checked = false;
+  ["holo", "tilt", "shine", "living"].forEach((k) => { $("fx-" + k).checked = false; });
   $("import-msg").style.display = "none"; $("lock-warn").style.display = "none";
   clearFace();   // resets the photo + knobs, then calls update() (→ empties the URL too)
 }

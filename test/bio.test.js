@@ -133,6 +133,15 @@ test("@bg: solid/gradient/pattern fill the stage; dark flips fg; @card floats; j
   assert.ok(!/url\(/.test(junk.stageImg) && !/evil/.test(junk.stageBg + junk.stageImg));
 });
 
+test("@fx: applies the named effect classes (combinable), ignoring unknown tokens", () => {
+  const r = renderBio("!bio1+en-US\n@fx: holo tilt shine living bogus\n@card: on\n@bg: #102030\n# Me\n> ig:x");
+  for (const f of ["fx-holo", "fx-tilt", "fx-shine", "fx-living"]) assert.ok(r.classes.has(f), "expected " + f);
+  assert.ok(!r.classes.has("fx-bogus"), "unknown @fx token dropped");
+  // no @fx → no fx-* classes
+  const none = renderBio("!bio1+en-US\n# Me\nig:x");
+  assert.ok(![...none.classes].some((c) => c.startsWith("fx-")), "no effects without @fx");
+});
+
 test("@lock is render-inert (an editor-only honor flag, not a render concern)", () => {
   const r = renderBio("!bio1+en-US\n@lock: 1\n# Mitsuha Miyamizu\nig:mitsuha");
   assert.match(r.html, /<h1 class="bio-name">Mitsuha Miyamizu<\/h1>/);   // renders normally

@@ -226,6 +226,76 @@ function bioApplyBg(mount, stage, r) {
   }
 }
 
+// @fx — playful, self-contained card effects. The CSS reads two custom props the
+// engine drives: --fx-x / --fx-y in [-1,1]. Input priority: device tilt (gyro, phones)
+// → pointer (hover/drag) → a slow idle drift so the card is visibly alive even on a
+// desktop with no input (so the editor preview works on a computer). prefers-reduced-
+// motion fully wins: a single static sheen, no listeners, no animation. Returns a
+// teardown fn (the editor re-renders on every keystroke, so we MUST unwire the prior
+// engine — otherwise listeners + rAF loops stack).
+const BIO_FX = ["holo", "tilt", "shine", "living"];
+function bioFxEngine(mount) {
+  const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const set = (x, y) => { mount.style.setProperty("--fx-x", x.toFixed(3)); mount.style.setProperty("--fx-y", y.toFixed(3)); };
+  if (reduce) { set(0.22, -0.12); return () => {}; }     // static, tasteful, no motion
+  const clk = typeof performance !== "undefined" ? () => performance.now() : () => Date.now();
+  let cx = 0, cy = 0, tx = 0, ty = 0, last = -9999, raf = 0;
+  const onPointer = (e) => {
+    const r = mount.getBoundingClientRect(); if (!r.width) return;
+    tx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+    ty = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+    last = clk();
+  };
+  const onOrient = (e) => {
+    if (e.gamma == null) return;
+    tx = Math.max(-1, Math.min(1, e.gamma / 35));        // left↔right tilt
+    ty = Math.max(-1, Math.min(1, (e.beta - 45) / 35));  // front↔back (~45° rest)
+    last = clk();
+  };
+  const enableGyro = () => {
+    const E = window.DeviceOrientationEvent;
+    if (E && typeof E.requestPermission === "function") {
+      E.requestPermission().then((s) => { if (s === "granted") window.addEventListener("deviceorientation", onOrient); }).catch(() => {});
+    } else if (E) { window.addEventListener("deviceorientation", onOrient); }
+  };
+  const loop = () => {
+    const t = clk();
+    if (t - last > 1500) { tx = Math.sin(t / 2200) * 0.55; ty = Math.cos(t / 2900) * 0.4; }  // idle ambient drift
+    cx += (tx - cx) * 0.08; cy += (ty - cy) * 0.08;
+    set(cx, cy);
+    raf = requestAnimationFrame(loop);
+  };
+  mount.addEventListener("pointermove", onPointer, { passive: true });
+  const E = window.DeviceOrientationEvent;
+  if (E && typeof E.requestPermission === "function") window.addEventListener("pointerdown", enableGyro, { once: true });  // iOS: needs a gesture
+  else enableGyro();
+  raf = requestAnimationFrame(loop);
+  return () => {
+    cancelAnimationFrame(raf);
+    mount.removeEventListener("pointermove", onPointer);
+    window.removeEventListener("deviceorientation", onOrient);
+    window.removeEventListener("pointerdown", enableGyro);
+  };
+}
+// consumer helper: toggle the @fx classes + (re)wire the tilt engine. Idempotent —
+// tears down any prior engine first. Harness-safe (no-ops without a real DOM).
+function bioApplyFx(mount, stage, r) {
+  if (mount && mount._bioFxStop) { try { mount._bioFxStop(); } catch (e) {} mount._bioFxStop = null; }
+  if (mount && mount.classList) BIO_FX.forEach((f) => mount.classList.remove("fx-" + f));
+  if (stage && stage.classList) stage.classList.remove("fx-living-stage");
+  const fx = r.fx || [];
+  if (!fx.length || !mount || !mount.classList) return;
+  fx.forEach((f) => mount.classList.add("fx-" + f));
+  if (fx.indexOf("living") >= 0 && stage && stage.classList) {
+    stage.classList.add("fx-living-stage");
+    if (r.bg && r.bg.mode === "color" && stage.style) stage.style.backgroundSize = "220% 220%";  // give the gradient room to pan
+  }
+  const tiltsy = fx.indexOf("holo") >= 0 || fx.indexOf("tilt") >= 0 || fx.indexOf("shine") >= 0;
+  if (tiltsy && typeof window !== "undefined" && window.requestAnimationFrame && mount.addEventListener) {
+    mount._bioFxStop = bioFxEngine(mount);
+  }
+}
+
 function renderBioHTML(body, locale, attribution) {
   const L = BIO_LOCALES[locale] || BIO_LOCALES["pt-BR"];
   const { directives: d, blocks } = parseBioBody(body);
@@ -307,6 +377,7 @@ function renderBioHTML(body, locale, attribution) {
     font: d.font || null,   // sans (default) | mono | serif
     bg: bioParseBg(d.bg, d.accent),   // @bg surface (null = none); consumer calls bioApplyBg
     float: !!d.card,                  // @card → float the content as a card on the bg
+    fx: (d.fx || "").toLowerCase().split(/\s+/).filter((x) => BIO_FX.indexOf(x) >= 0),  // @fx effects; consumer calls bioApplyFx
     lang: locale,
   };
 }

@@ -159,6 +159,53 @@
   margin: 1.5rem auto; border-radius: 24px; box-shadow: 0 14px 50px rgba(0, 0, 0, 0.28);
 }
 
+/* ===== @fx effects (consumer-wired via bioApplyFx) =====
+   The engine drives --fx-x / --fx-y in [-1,1] from tilt / pointer / idle drift. */
+.bio { --fx-x: 0; --fx-y: 0; }
+
+/* holo — a rainbow foil + a moving glare that sweep as the card tilts. */
+.bio.fx-holo { position: relative; isolation: isolate; }
+.bio.fx-holo::before, .bio.fx-holo::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 6;
+}
+.bio.fx-holo::after {
+  background: repeating-linear-gradient(115deg,
+    hsla(330, 100%, 60%, 0.16) 0%, hsla(50, 100%, 60%, 0.16) 10%, hsla(160, 100%, 55%, 0.16) 20%,
+    hsla(200, 100%, 60%, 0.16) 30%, hsla(280, 100%, 65%, 0.16) 40%, hsla(330, 100%, 60%, 0.16) 50%);
+  background-size: 300% 300%;
+  background-position: calc(50% + var(--fx-x) * 80%) calc(50% + var(--fx-y) * 80%);
+  mix-blend-mode: color-dodge; opacity: 0.55;
+}
+.bio.fx-holo::before {
+  background: radial-gradient(60% 60% at calc(50% + var(--fx-x) * 50%) calc(50% + var(--fx-y) * 50%),
+    rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%);
+  mix-blend-mode: soft-light; opacity: 0.85;
+}
+
+/* tilt — the card pitches/rolls toward the input (best with @card). */
+.bio.fx-tilt {
+  transform: perspective(900px) rotateY(calc(var(--fx-x) * 7deg)) rotateX(calc(var(--fx-y) * -7deg));
+  transform-style: preserve-3d; will-change: transform;
+}
+
+/* shine — a specular highlight glides over featured rows + the avatar. */
+.bio.fx-shine .bio-link.featured { position: relative; overflow: hidden; }
+.bio.fx-shine .bio-link.featured::after, .bio.fx-shine .bio-avatar::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120px circle at calc(50% + var(--fx-x) * 45%) calc(50% + var(--fx-y) * 45%),
+    rgba(255, 255, 255, 0.5), transparent 60%);
+  mix-blend-mode: soft-light; opacity: 0.85;
+}
+
+/* living — the @bg surface drifts/breathes on its own (no input needed). */
+.fx-living-stage { animation: bioFxDrift 16s linear infinite; }
+@keyframes bioFxDrift { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bio.fx-tilt { transform: none; }
+  .fx-living-stage { animation: none; }
+}
+
 /* ============================== print ============================== */
 @media print {
   .bio { max-width: none; }

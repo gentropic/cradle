@@ -56,6 +56,7 @@ A restricted markdown-ish body, in the family of `menu`/`contact`:
 | `@font` | Body font: `sans` (default), `mono`, `serif` (system stacks; no web fonts) |
 | `@bg` | Background surface (§2.4). A hex color, a `#a #b [#c]` gradient (optional leading angle), or a pattern keyword (`dots`/`grid`/`stripes`/`rays`/`noise`). Anything else is ignored. |
 | `@card` | With `@bg`: float the content as a card on the background (`@card: on`). Default fills the surface. |
+| `@fx` | Playful card effects (§2.5), space-separated + combinable: `holo` (tilt-reactive rainbow foil), `tilt` (3D parallax), `shine` (specular sweep on featured rows + avatar), `living` (self-drifting background). Unknown tokens ignored. |
 | `@avatar` | An emoji for the avatar circle (else: initials from the name) |
 | `@face` | A dithered photo avatar (base64 `[depth,side,…pixels]`); overrides `@avatar`. Editor-built; renders as an indexed BMP. |
 | `@avatarsize` | Avatar display size: `sm` · `md` (default) · `lg` · `xl` |
@@ -135,6 +136,27 @@ Two scope modes, chosen by `@card`:
 
 Both are applied by the consumer (bootloader / editor) via a shared `bioApplyBg`, so
 the editor preview is true WYSIWYG.
+
+### 2.5 Effects (`@fx`)
+
+`@fx` adds playful, **purely client-side** effects (no network, no capsule cost beyond
+the keywords). Space-separated and combinable; unknown tokens are dropped:
+
+- `holo` — a holographic rainbow foil + a moving glare that sweep as the card tilts
+  (the trading-card look — apt for a card tapped off an NFC object).
+- `tilt` — a 3D parallax pitch/roll of the card (best paired with `@card`).
+- `shine` — a specular highlight that glides over featured rows and the avatar.
+- `living` — the `@bg` surface drifts/breathes on its own (needs no input).
+
+The effects read two CSS custom properties, `--fx-x` / `--fx-y` (range `[-1, 1]`),
+driven by a small engine the consumer wires (`bioApplyFx`). Input priority: **device
+tilt** (gyroscope, phones) → **pointer** (hover/drag) → a slow **idle drift**, so the
+card is visibly alive on a desktop with no sensor and the editor preview works on a
+computer. iOS requires a tap before the gyroscope is readable (a one-time
+`DeviceOrientationEvent.requestPermission`), so the first touch enables motion; until
+then pointer + drift carry it. **`prefers-reduced-motion` fully wins**: a single static
+sheen, no listeners, no animation. The engine returns a teardown handle and is
+idempotent (the editor re-renders per keystroke, so the prior engine is unwired first).
 
 ## 3. Rendering
 

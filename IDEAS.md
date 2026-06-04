@@ -90,6 +90,21 @@ in 10 years: the GCU "outlives the tooling" promise, and the real edge over a
 hosted Linktree that can pivot or die. **Build + confirm stable before telling
 anyone to inject one.**
 
+## Femto-DSL for animated/interactive backgrounds (a tiny "background language")
+
+`@fx` (shipped: `holo`/`tilt`/`shine`/`living`) is a fixed menu of curated effects.
+The bigger idea is a **minuscule DSL** carried in a directive that drives a generated,
+animated, possibly interactive background — the way `arcr` is a sandboxed DSL for a
+game. Think: a few bytes describing layered gradient/shape generators, a palette, and
+motion bound to the same `--fx-x`/`--fx-y` tilt/pointer inputs the effects engine
+already exposes — so a `bio` (or any renderer) could ship a *unique* living backdrop in
+the capsule, not just pick from a list. Same security stance as `arcr`: the program is
+untrusted **DATA** interpreted by a curated engine (no third-party code), so it stays
+offline + safe. Open questions: grammar (SDF/gradient ops? a Shadertoy-lite?), byte
+budget (must stay QR/implant-scale), and whether the engine is shared across renderers
+or `bio`-specific. **Deferred** — `@fx`'s fixed set covers the common want; revisit if
+"every card should feel one-of-a-kind" becomes the goal.
+
 ## Chiptune-in-a-QR — a non-game arcr-family engine
 
 A renderer whose body is a tiny **tracker/note pattern** that cradle **plays via
