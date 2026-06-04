@@ -225,6 +225,15 @@
       <p class="hint" id="import-msg" style="display:none;color:var(--accent)"></p>
     </div>
 
+    <div class="group" id="lock-warn" style="display:none">
+      <p style="margin:0;font-size:0.85rem;background:#fff7d6;border:1px solid #e6d27a;border-radius:6px;padding:0.6rem 0.75rem">
+        🔒 This bio is marked <strong>do-not-edit</strong> by whoever made it. That's a
+        <strong>courtesy, not security</strong> — the bytes are fully decodable and editable by hand;
+        this only asks you not to.
+        <button class="h-btn" id="lock-edit" type="button" style="margin-top:0.5rem">Edit anyway</button>
+      </p>
+    </div>
+
     <div class="group">
       <h2>Identity</h2>
       <div class="row"><label for="f-locale">Language</label>
@@ -253,6 +262,9 @@
       <div class="row"><label for="f-avatar">Avatar emoji</label><input id="f-avatar" type="text" placeholder="🎸 (optional — else initials)" maxlength="4"></div>
       <div class="row"><label for="f-asize">Avatar size</label>
         <select id="f-asize"><option value="md" selected>Medium</option><option value="sm">Small</option><option value="lg">Large</option><option value="xl">Extra large</option></select></div>
+      <div class="row"><label for="f-lock">Lock</label>
+        <input id="f-lock" type="checkbox" style="flex:0 0 auto;align-self:flex-start">
+        <span class="hint" style="margin:0;flex:1">ask editors not to edit — a courtesy, not security (still decodable by hand)</span></div>
       <div class="row"><label for="f-face">Photo</label>
         <input id="f-face" type="file" accept="image/*" capture="user" style="flex:1;font-size:0.78rem;min-width:0">
         <button class="h-btn" id="face-clear" type="button" style="display:none;flex:0 0 auto">✕</button></div>
@@ -663,6 +675,7 @@ function buildSource() {
   if (font && font !== "sans") dir("font", font);
   dir("avatar", val("f-avatar"));
   const asz = val("f-asize"); if (asz && asz !== "md") dir("avatarsize", asz);
+  if ($("f-lock").checked) s += "@lock: 1\n";
   if (faceB64) s += "@face: " + faceB64 + "\n";
   dir("tel", val("f-tel"));
   dir("wa", val("f-wa"));
@@ -694,6 +707,7 @@ function importSource(src) {
   set("f-locale", lm ? lm[1] : "pt-BR");
   set("f-template", d.template || "minimal"); set("f-accent", d.accent); set("f-font", d.font || "sans");
   set("f-avatar", d.avatar); set("f-asize", d.avatarsize || "md");
+  $("f-lock").checked = !!d.lock;
   set("f-tel", d.tel); set("f-wa", d.wa); set("f-email", d.email); set("f-site", d.site); set("f-map", d.map); set("f-social", d.social);
   faceB64 = d.face || ""; faceImg = null;
   $("face-clear").style.display = faceB64 ? "" : "none"; $("face-knobs").style.display = "none";
@@ -706,20 +720,30 @@ function importSource(src) {
   set("f-name", name); set("f-tagline", tag); set("f-note", notes.join("\n")); set("f-links", links.join("\n"));
 }
 
-// load an existing hub from a pasted link/capsule — a full URL, a #fragment, or a
-// bare q:d.bio_… capsule. Returns true on success.
-function loadFromLink(text) {
+// decode a pasted link/capsule (full URL, #fragment, or bare q:d.bio_…) → bio source, or null
+function decodeFromText(text) {
   text = (text || "").trim();
-  if (!text) return false;
+  if (!text) return null;
   const h = text.lastIndexOf("#");
-  const cap = fragmentDecode(h >= 0 ? text.slice(h + 1) : text);
-  const src = decodeCapsule(cap);
-  if (src && /^!bio1\+/.test(src)) { importSource(src); update(); return true; }
+  const src = decodeCapsule(fragmentDecode(h >= 0 ? text.slice(h + 1) : text));
+  return (src && /^!bio1\+/.test(src)) ? src : null;
+}
+// @lock is an HONOR-SYSTEM flag — the editor declines to open a locked bio and says
+// so plainly. It is NOT security: the bytes are fully decodable and editable by hand,
+// which is exactly why we offer an "Edit anyway" override.
+function isLocked(src) {
+  for (const ln of src.split("\n")) { const t = ln.trim(); if (!t) break; if (/^@lock\s*:/i.test(t)) return true; }
   return false;
 }
+let pendingLockedSrc = null;
+function importGate(src, force) {
+  if (!force && isLocked(src)) { pendingLockedSrc = src; $("lock-warn").style.display = ""; return false; }
+  pendingLockedSrc = null; $("lock-warn").style.display = "none";
+  importSource(src); update(); return true;
+}
 function doImport() {
-  const msg = $("import-msg");
-  if (loadFromLink($("f-import").value)) { $("f-import").value = ""; msg.style.display = "none"; }
+  const src = decodeFromText($("f-import").value), msg = $("import-msg");
+  if (src) { importGate(src); $("f-import").value = ""; msg.style.display = "none"; }
   else { msg.textContent = "Couldn't read a bio capsule there — paste a …/bio/#q:d.bio_… link or a q:d.bio_ capsule."; msg.style.display = ""; }
 }
 
@@ -777,7 +801,8 @@ function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update()
 function clearAll() {
   ["f-name", "f-tagline", "f-note", "f-links", "f-accent", "f-avatar", "f-tel", "f-wa", "f-email", "f-site", "f-map", "f-social", "f-import"].forEach((id) => { $(id).value = ""; });
   $("f-locale").value = "pt-BR"; $("f-template").value = "minimal"; $("f-font").value = "sans"; $("f-asize").value = "md";
-  $("import-msg").style.display = "none";
+  $("f-lock").checked = false;
+  $("import-msg").style.display = "none"; $("lock-warn").style.display = "none";
   clearFace();   // resets the photo + knobs, then calls update() (→ empties the URL too)
 }
 
@@ -787,6 +812,7 @@ document.querySelectorAll("input:not(#f-import), select, textarea").forEach((el)
 });
 $("do-import").addEventListener("click", doImport);
 $("f-import").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doImport(); } });
+$("lock-edit").addEventListener("click", () => { if (pendingLockedSrc) importGate(pendingLockedSrc, true); });
 $("f-face").addEventListener("change", (e) => loadFace(e.target.files && e.target.files[0]));
 $("face-clear").addEventListener("click", clearFace);
 document.querySelectorAll(".fctl").forEach((el) => { el.addEventListener("input", reprocess); el.addEventListener("change", reprocess); });
@@ -801,10 +827,8 @@ $("f-base").value = new URL("../", location.href).href;
 // state lives in the URL fragment (a capsule): restore it if present, else start blank.
 // (the demo is one click away via "Load sample".)
 (function init() {
-  const h = location.hash.slice(1);
-  const src = h ? decodeCapsule(fragmentDecode(h)) : null;
-  if (src && /^!bio1\+/.test(src)) { importSource(src); update(); }
-  else update();
+  const src = decodeFromText(location.hash);
+  if (!src || !importGate(src)) update();   // locked → warning shown; render the (blank) form
 })();
 </script>
 </body>

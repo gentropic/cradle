@@ -57,6 +57,7 @@ A restricted markdown-ish body, in the family of `menu`/`contact`:
 | `@avatar` | An emoji for the avatar circle (else: initials from the name) |
 | `@face` | A dithered photo avatar (base64 `[depth,side,…pixels]`); overrides `@avatar`. Editor-built; renders as an indexed BMP. |
 | `@avatarsize` | Avatar display size: `sm` · `md` (default) · `lg` · `xl` |
+| `@lock` | **Honor-system** "do not edit" flag (`@lock: 1`). The reference editor declines to open a locked bio (with an "Edit anyway" override). **Not security** — the capsule stays fully decodable and editable by hand; renderers ignore it (no lock indicator in the rendered output). |
 | `@tel` | Phone → **Call** action (`tel:`) |
 | `@wa` | WhatsApp → **WhatsApp** action (`https://wa.me/…`) |
 | `@email` | → **Email** action (`mailto:`) |

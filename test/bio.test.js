@@ -74,6 +74,12 @@ test("@face: self-describing [depth,side,…] payload → BMP data URI; malforme
   assert.match(bad.html, /<div class="bio-avatar">MM<\/div>/);
 });
 
+test("@lock is render-inert (an editor-only honor flag, not a render concern)", () => {
+  const r = renderBio("!bio1+en-US\n@lock: 1\n# Mitsuha Miyamizu\nig:mitsuha");
+  assert.match(r.html, /<h1 class="bio-name">Mitsuha Miyamizu<\/h1>/);   // renders normally
+  assert.ok(!/@lock/.test(r.html), "@lock is parsed as a directive, never rendered as content");
+});
+
 test("@avatar overrides initials; @social renders known platforms only; unknown link prefix → note", () => {
   const r = renderBio("!bio1+en-US\n@avatar: 🎸\n@social: ig=taki, bogus=x\n# Taki Tachibana\nnotaplatform: hello\ntg:taki");
   assert.match(r.html, /<div class="bio-avatar">🎸<\/div>/);
