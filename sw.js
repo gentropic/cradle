@@ -21,7 +21,7 @@
 // Bump CACHE_VERSION on any cached-asset change (still belt-and-suspenders for the
 // static set; the bootloader self-updates regardless now).
 
-const CACHE_VERSION = "cradle-v3";
+const CACHE_VERSION = "cradle-v4";   // v4: purge caches a v3 SW may have poisoned with sub-tool HTML
 
 const CORE_ASSETS = [
   "./",
@@ -57,14 +57,15 @@ self.addEventListener("fetch", (event) => {
   // Network-only: relay POSTs (e.g., ntfy.sh), POSTs in general
   if (event.request.method !== "GET") return;
 
-  // Bootloader: NETWORK-FIRST. A navigation, or a direct hit on the root /
-  // index.html, must reflect the latest curated renderers + dictionaries. Fetch
-  // fresh, refresh the cached copy, and fall back to cache only when offline.
-  const isBootloader =
-    event.request.mode === "navigate" ||
-    url.pathname.endsWith("/index.html") ||
-    url.pathname.endsWith("/cradle/") ||
-    url.pathname === "/";
+  // Bootloader: NETWORK-FIRST — fetch fresh, refresh the cached copy, fall back to
+  // cache only when offline (the bootloader must reflect the latest renderers + dicts).
+  // CRUCIAL: match ONLY this SW's own scope root / index.html, NOT the sub-tool editors
+  // (bio/, contact/, doorbell/, arcr/) that share this scope but aren't this app — a
+  // bare endsWith("/index.html") matched /cradle/bio/index.html and cached IT under the
+  // bootloader key ("./index.html" → /cradle/index.html), poisoning the offline copy.
+  const scope = new URL("./", self.location.href).pathname;   // "/cradle/" for /cradle/sw.js
+  const isBootloader = url.origin === self.location.origin &&
+    (url.pathname === scope || url.pathname === scope + "index.html");
   if (isBootloader) {
     event.respondWith(
       fetch(event.request)

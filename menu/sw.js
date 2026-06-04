@@ -9,7 +9,7 @@
 //
 // Bump CACHE_VERSION on any cached-asset change.
 
-const CACHE_VERSION = "cradle-menu-v2";
+const CACHE_VERSION = "cradle-menu-v3";
 
 const CORE_ASSETS = [
   "./",
@@ -43,11 +43,11 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
 
-  // Editor shell: network-first (cache fallback offline) so it self-updates.
-  const isShell =
-    event.request.mode === "navigate" ||
-    url.pathname.endsWith("/index.html") ||
-    url.pathname.endsWith("/menu/");
+  // Editor shell: network-first (cache fallback offline) so it self-updates. Match only
+  // this SW's own scope root / index.html (not any other index.html that could share scope).
+  const scope = new URL("./", self.location.href).pathname;   // "/cradle/menu/"
+  const isShell = url.origin === self.location.origin &&
+    (url.pathname === scope || url.pathname === scope + "index.html");
   if (isShell) {
     event.respondWith(
       fetch(event.request)
