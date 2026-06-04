@@ -48,14 +48,20 @@
           line-height: 1.1; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--fg); cursor: pointer; }
   .chip:hover { border-color: var(--fg-muted); }
   .chip.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .chip.toggle { padding: 0.4rem 0.7rem; font-size: 0.84rem; }
+  .chip.toggle.on { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: none; }
+  .chip .ic { font-size: 1rem; line-height: 1; }
   .chip .dots { display: inline-flex; }
   .chip .dot { width: 0.72rem; height: 0.72rem; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }
   .chip .dots .dot + .dot { margin-left: -0.16rem; }
   .seg { display: inline-flex; flex: 1; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-  .seg button { flex: 1; font: inherit; font-size: 0.78rem; border: 0; border-right: 1px solid var(--border);
-                background: var(--bg); color: var(--fg); padding: 0.35rem 0.3rem; cursor: pointer; }
+  .seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+                font: inherit; font-size: 0.78rem; border: 0; border-right: 1px solid var(--border);
+                background: var(--bg); color: var(--fg); padding: 0.4rem 0.3rem; cursor: pointer; }
   .seg button:last-child { border-right: 0; }
+  .seg button:hover { background: var(--panel); }
   .seg button.on { background: var(--accent); color: #fff; }
+  .seg button svg { display: block; }
   .cpick { flex: 0 0 auto !important; width: 2.2rem !important; height: 1.95rem; padding: 2px; cursor: pointer;
            border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
   .cpick::-webkit-color-swatch { border: none; border-radius: 4px; }
@@ -382,23 +388,24 @@
       <div class="row"><label for="f-bg" class="adv-lbl">advanced @bg</label>
         <input id="f-bg" type="text" placeholder="#faf0e6 · 135 #ff5e5e #ffd86b · dots/grid/stripes/rays/noise"></div>
 
-      <div class="row"><label for="f-card">Float as card</label>
-        <input id="f-card" type="checkbox" style="flex:0 0 auto;align-self:flex-start">
-        <span class="hint" style="margin:0;flex:1">@bg floods the page; the content floats as a card (else it fills the surface)</span></div>
-      <div class="row"><label>Effects</label>
-        <div style="flex:1;display:flex;flex-wrap:wrap;gap:.4rem .9rem;font-size:.84rem">
-          <label class="fxopt"><input type="checkbox" id="fx-holo"> Holo foil</label>
-          <label class="fxopt"><input type="checkbox" id="fx-tilt"> 3D tilt</label>
-          <label class="fxopt"><input type="checkbox" id="fx-shine"> Shine</label>
-          <label class="fxopt"><input type="checkbox" id="fx-living"> Living bg</label>
-        </div></div>
-      <p class="hint">Tilt-reactive on phones (tap the card once to allow motion); on desktop they follow the pointer and drift on their own — move your mouse over the preview. Honors “reduce motion.”</p>
+      <div class="row"><label>Surface</label>
+        <div class="seg" id="card-mode">
+          <button type="button" data-card="fill"><svg width="15" height="11" viewBox="0 0 15 11" aria-hidden="true"><rect width="15" height="11" rx="2" fill="currentColor"/></svg> Fill</button>
+          <button type="button" data-card="card"><svg width="15" height="11" viewBox="0 0 15 11" aria-hidden="true"><rect width="15" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="3.3" y="2.4" width="8.4" height="6.2" rx="1.4" fill="currentColor"/></svg> Float card</button>
+        </div>
+        <input id="f-card" type="checkbox" hidden></div>
+      <p class="hint"><strong>Fill</strong> — @bg is the surface, edge-to-edge. <strong>Float card</strong> — @bg floods the page and the content floats on it.</p>
+
+      <div class="row"><label>Effects</label><div class="chips" id="fx-chips"></div></div>
+      <input id="fx-holo" type="checkbox" hidden><input id="fx-tilt" type="checkbox" hidden><input id="fx-shine" type="checkbox" hidden><input id="fx-living" type="checkbox" hidden>
+      <p class="hint">Tap to toggle. Tilt-reactive on phones (tap the card once to allow motion); on desktop they follow your pointer over the preview. Honors “reduce motion.”</p>
       <div class="row"><label for="f-avatar">Avatar emoji</label><input id="f-avatar" type="text" placeholder="🎸 (optional — else initials)" maxlength="4"></div>
       <div class="row"><label for="f-asize">Avatar size</label>
         <select id="f-asize"><option value="md" selected>Medium</option><option value="sm">Small</option><option value="lg">Large</option><option value="xl">Extra large</option></select></div>
-      <div class="row"><label for="f-lock">Lock</label>
-        <input id="f-lock" type="checkbox" style="flex:0 0 auto;align-self:flex-start">
-        <span class="hint" style="margin:0;flex:1">ask editors not to edit — a courtesy, not security (still decodable by hand)</span></div>
+      <div class="row"><label>Lock</label>
+        <button type="button" class="chip toggle" id="lock-toggle"><span class="ic">🔒</span> Do-not-edit</button>
+        <input id="f-lock" type="checkbox" hidden>
+        <span class="hint" style="margin:0;flex:1">a courtesy, not security — still decodable by hand</span></div>
       <div class="row"><label for="f-face">Photo</label>
         <input id="f-face" type="file" accept="image/*" capture="user" style="flex:1;font-size:0.78rem;min-width:0">
         <button class="h-btn" id="face-clear" type="button" style="display:none;flex:0 0 auto">✕</button></div>
@@ -1093,6 +1100,12 @@ const TEMPLATES = [
 ];
 const ACCENTS = ["", "#e0533b", "#f0a35e", "#e8b84b", "#3fa66a", "#2f8fd6", "#7c5cff", "#d6457f", "#111111"];
 const BGPATTERNS = ["dots", "grid", "stripes", "rays", "noise"];
+const FX = [
+  { id: "holo",   icon: "🌈", label: "Holo foil", tip: "A rainbow foil + glare that sweep as the card tilts" },
+  { id: "tilt",   icon: "🎴", label: "3D tilt",   tip: "The card pitches/rolls toward the tilt or pointer" },
+  { id: "shine",  icon: "✨", label: "Shine",     tip: "A specular highlight glides over featured rows + the avatar" },
+  { id: "living", icon: "🌊", label: "Living bg", tip: "The background drifts/breathes on its own (no input needed)" },
+];
 const LOOKS = {
   Twilight:  { template: "dark", accent: "#f0a35e", font: "serif", bg: "160 #221a3a #b34a78 #f0a35e", card: true,  fx: ["holo", "tilt", "living"] },
   Brutalist: { template: "brutal", accent: "", font: "mono", bg: "", card: false, fx: [] },
@@ -1132,6 +1145,17 @@ function buildStyleUI() {
   }));
   ["bg-c1", "bg-g1", "bg-g2", "bg-g3", "bg-g3on", "bg-angle"].forEach((id) => $(id).addEventListener("input", () => { composeBg(); update(); }));
   $("f-accent-pick").addEventListener("input", () => { $("f-accent").value = $("f-accent-pick").value; update(); });
+  // surface (fill / float card) segmented control → hidden f-card checkbox
+  $("card-mode").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { $("f-card").checked = b.dataset.card === "card"; update(); }));
+  // effects → pressable toggle chips → hidden fx-* checkboxes
+  const fxc = $("fx-chips"); fxc.innerHTML = "";
+  for (const f of FX) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip toggle"; b.dataset.fx = f.id; b.title = f.tip;
+    b.innerHTML = '<span class="ic">' + f.icon + "</span>" + f.label;
+    b.addEventListener("click", () => { const c = $("fx-" + f.id); c.checked = !c.checked; update(); }); fxc.appendChild(b);
+  }
+  // lock → pressable toggle
+  $("lock-toggle").addEventListener("click", () => { $("f-lock").checked = !$("f-lock").checked; update(); });
 }
 function composeBg() {
   let v = "";
@@ -1170,6 +1194,11 @@ function syncStyleUI() {
   document.querySelectorAll(".bg-pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === m));
   $("bg-pat").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.p === pat));
   $("bg-angle-v").textContent = $("bg-angle").value + "°";
+  // surface segment, effect toggles, lock toggle reflect the hidden fields
+  const isCard = $("f-card").checked;
+  $("card-mode").querySelectorAll("button").forEach((b) => b.classList.toggle("on", (b.dataset.card === "card") === isCard));
+  $("fx-chips").querySelectorAll("button").forEach((b) => b.classList.toggle("on", $("fx-" + b.dataset.fx).checked));
+  $("lock-toggle").classList.toggle("on", $("f-lock").checked);
 }
 
 function update() {
