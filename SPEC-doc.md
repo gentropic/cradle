@@ -9,10 +9,10 @@
 
 `doc` encodes a **self-contained rich-text document** — a note, report, recipe,
 itinerary, how-to, or an agent's formatted output — as a capsule. cradle renders it
-as a clean, themed article. The body is **Markdown plus a small directive header**;
-the renderer **generates** the HTML from a parsed syntax tree. It is the suite's
-general-purpose "here is some formatted text" renderer, complementing the
-artifact-specific ones (`menu`, `contact`, `bio`).
+as a clean, themed article. The body is **Markdown with an optional YAML frontmatter
+header** (parsed by `@gcu/yaml`, a strict/safe subset); the renderer **generates** the
+HTML from a parsed syntax tree. It is the suite's general-purpose "here is some formatted
+text" renderer, complementing the artifact-specific ones (`menu`, `contact`, `bio`).
 
 The headline use case: **an agent (or a human) hands someone a document as a link**,
 with no file to host or attach — the recipient opens it and sees a designed,
@@ -44,23 +44,56 @@ attribution line); it does not affect the body grammar. Dispatch is per `SPEC-cr
 
 ## 2. Body
 
-The body is, in order: an optional **directive header** (lines beginning `@`),
-then a blank line, then the **Markdown content**. A body with no `@` lines is all
-content. Directive parsing stops at the first non-`@` line.
+The body is, in order: an optional **YAML frontmatter** block (§2.1), then the
+**Markdown content** (§2.2). A body whose first line is not `---` has no frontmatter and
+is all content.
 
-### 2.1 Directives
+> **Header convention across the stack.** `doc` uses **YAML frontmatter** because it *is*
+> Markdown, and frontmatter is Markdown's native metadata idiom — what every agent and
+> Markdown tool already expects. The *typed-artifact* renderers (`bio`/`menu`/`contact`/
+> `arcr`) keep their `@directive` headers; they aren't Markdown. Rule of thumb:
+> **Markdown-bodied renderers → frontmatter; typed-artifact renderers → `@directives`.**
 
-| Directive | Meaning |
-|---|---|
-| `@title` | Document title — rendered as the page header (and `<title>`/`document.title`). |
-| `@theme` | Visual theme: `paper` (default), `article`, `terminal`, `dark`. Reuses the Switchboard token layer. |
-| `@accent` | CSS color (hex); overrides the theme accent. Validated like `bio`'s `@accent`. |
-| `@font` | Body font: `serif` (default for `doc`), `sans`, `mono` (system stacks; no web fonts). |
-| `@toc` | `on` → auto table of contents built from the headings; `off` (default). |
-| `@author` · `@date` | Optional byline metadata, rendered under the title. `@date` is displayed verbatim. |
-| `@images` | Image policy (§3.4): `inline` (default — data: only) · `external` (allow `https:` images; **breaks offline + leaks the viewer's IP**, so it is opt-in and surfaced). |
+### 2.1 Frontmatter (YAML via `@gcu/yaml`)
 
-Only present directives render. Unknown directives are ignored (additive evolution).
+Metadata is a YAML 1.2 map fenced by `---` lines and parsed by **`@gcu/yaml`** — the
+GCU-owned strict, auditable subset (no implicit typing, no plain string scalars, no
+anchors / aliases / global tags, so billion-laughs and `!!`-tag deserialization are
+excluded *by construction*). The fence is recognized **only when `---` is the very first
+line of the body** — otherwise a leading `---` is a Markdown thematic break (§2.2). Per
+the subset, **string values MUST be quoted**; `true`/`false`/`null`/numbers are bare:
+
+```yaml
+---
+title: "Field notes, Itomori"
+theme: "paper"
+accent: "#9b8cff"
+font: "serif"
+toc: true
+author: "Mitsuha Miyamizu"
+date: "2026-06-05"
+tags: ["itomori", "fieldwork"]
+images: "inline"
+---
+```
+
+| Key | Type | Meaning |
+|---|---|---|
+| `title` | string | Document title — page header + `document.title`. |
+| `theme` | string | `paper` (default) · `article` · `terminal` · `dark`. Reuses the Switchboard token layer. |
+| `accent` | string | Hex color; overrides the theme accent. |
+| `font` | string | `serif` (default for `doc`) · `sans` · `mono` (system stacks; no web fonts). |
+| `toc` | bool | `true` → auto table of contents built from the headings (default `false`). |
+| `author` · `date` | string | Optional byline; `date` displayed verbatim. |
+| `tags` | list of strings | Optional topic tags → a small label row (frontmatter's richer shape earns its keep here). |
+| `images` | string | Image policy (§3.4): `inline` (default — `data:` only) · `external` (allow `https:` images; **breaks offline + leaks the viewer's IP**, opt-in + surfaced). |
+
+**Unknown keys are ignored** (additive evolution). **Safe parse ≠ safe use:** `@gcu/yaml`
+guarantees the *parse* cannot RCE or DoS, but every *value* remains untrusted DATA. The
+renderer MUST still validate semantically — `accent` is a hex color (never piped into
+CSS), `theme`/`font`/`images` are checked against their allowlists, unknown values fall
+back to the default — and MUST escape every string into the output per §3. YAML hands over
+a safe key/value tree; it does not make the values trustworthy.
 
 ### 2.2 Content grammar (the allowed Markdown)
 
@@ -115,10 +148,10 @@ target a new context, and the renderer SHOULD make the destination visible (anti
 
 ### 3.4 Images
 
-Default (`@images: inline`): only **`data:image/png`, `data:image/jpeg`,
+Default (`images: inline`): only **`data:image/png`, `data:image/jpeg`,
 `data:image/gif`, `data:image/webp`** are allowed. **`data:image/svg+xml` is forbidden**
 — SVG can carry script (`<script>`, `foreignObject`) and is an XSS vector. External
-(`http(s):`) image `src` is allowed **only** under `@images: external`, which the
+(`http(s):`) image `src` is allowed **only** under `images: external`, which the
 renderer MUST treat as an explicit opt-out of the offline + no-leak guarantee and SHOULD
 indicate to the viewer. Inline images are byte-heavy (§5) — keep them small (e.g. a
 dithered thumbnail à la `bio`'s `@face`) or prefer text.
@@ -133,7 +166,7 @@ harness-guarded). No author script runs, ever.
 
 ## 4. Rendering
 
-The renderer emits a `.doc` article: the `@title` header (+ optional byline), an
+The renderer emits a `.doc` article: the `title` header (+ optional byline + tags), an
 optional TOC, then the compiled content, then the cradle attribution. Pure
 (same input → same output) and styled entirely by the theme/accent/font system, so it is
 offline and self-contained (modulo opt-in external images). No network and no script for
@@ -157,22 +190,26 @@ inline.
 
 A conforming `doc` renderer:
 
-- MUST dispatch on `!doc1+` and parse the directive header + Markdown body per §2.
+- MUST dispatch on `!doc1+` and parse the optional YAML frontmatter + Markdown body per §2.
+- MUST parse frontmatter with a strict, safe YAML subset (`@gcu/yaml` or equivalent: no
+  anchors / aliases / global tags / implicit typing); MUST NOT use a permissive YAML loader.
+- MUST treat frontmatter *values* as untrusted — validate semantically + escape (safe
+  parse ≠ safe use, §2.1).
 - MUST generate HTML from a parsed syntax tree, escaping all text (§3.1); MUST NOT
   blocklist-sanitize an HTML string.
 - MUST disable raw HTML in the parser; MUST render embedded HTML as escaped text (§3.2).
 - MUST NOT run author-supplied script or apply author-supplied CSS.
 - MUST restrict link `href` to the §3.3 scheme allowlist.
 - MUST restrict images to raster `data:` by default; MUST reject `data:image/svg+xml`;
-  MUST gate external images behind `@images: external` (§3.4).
+  MUST gate external images behind `images: external` (§3.4).
 - MUST be safe to render with **adversarial** body content, not only cooperative content.
 - SHOULD pass a security review before shipping, and SHOULD mark/show external link and
   image destinations.
 
 ## 7. Versioning & stability
 
-Additive changes (new directives, themes, allowed node types) are non-breaking and need
-no version bump — decoders ignore unknown directives, and unknown nodes degrade to text.
+Additive changes (new frontmatter keys, themes, allowed node types) are non-breaking and
+need no version bump — decoders ignore unknown keys, and unknown nodes degrade to text.
 **Loosening the security allowlist is NOT additive** — any change that lets more markup,
 schemes, or resource loads through MUST be reviewed as a security change, never slipped in
 as "just another node type." Breaking changes bump the magic-line version (`!doc2+…`); the
@@ -180,10 +217,21 @@ as "just another node type." Breaking changes bump the magic-line version (`!doc
 
 ## 8. Open questions (to settle before/while implementing)
 
+- **Header — decided.** YAML frontmatter via `@gcu/yaml` (not `@directives`), because
+  `doc` is Markdown and frontmatter is its native idiom; the strict subset removes the
+  YAML safety/dependency objections. The typed-artifact renderers keep `@directives` (§2).
 - **Scope ceiling.** This spec is the sanitized-Markdown design. A heavier
   sandboxed-`<iframe srcdoc>` + strict-CSP route would admit more (inline CSS, richer
   layout) behind a real browser boundary — but it is a *different* trust model, far easier
   to get fatally wrong, and closer to `dd`. Decision: stay with generate-from-AST.
+- **Bootloader weight + packaging.** `doc` carries a Markdown→AST compiler *and* the YAML
+  parser — materially heavier than the other renderers. Decide whether `doc` is inlined
+  into the single-file bootloader like the rest, or becomes the first **separately-cached**
+  renderer (SPEC-cradle §6.B), so its weight doesn't tax every cradle cold-start. Leaning
+  separately-cached, but it's a real architectural call.
+- **Markdown engine.** Pick/port a small, dependency-free CommonMark+GFM parser that emits
+  an AST we walk (not an HTML-string emitter) — the §3.1 "generate, never sanitize"
+  requirement constrains the choice. Reuse across the GCU stack if a sibling already has one.
 - **Highlighting.** Code blocks ship unhighlighted (styling + language label only) to
   avoid bundling a highlighter; a curated, scriptless, build-time tokenizer could come
   later. Confirm "no highlighter v1."
@@ -194,9 +242,15 @@ as "just another node type." Breaking changes bump the magic-line version (`!doc
 
 ## Changelog
 
+- **v0.2** (2026-06-05) — Header is **YAML frontmatter via `@gcu/yaml`** (the strict,
+  auditable subset), not `@directives`: `doc` is Markdown, so frontmatter is its native
+  idiom, and the subset excludes anchors/aliases/global-tags/implicit-typing — the safety
+  + dependency objections to YAML don't apply. Recorded the **frontmatter-for-markdown /
+  directives-for-typed-artifacts** rule (§2), the **safe-parse-≠-safe-use** caveat (§2.1,
+  §6), and added `tags`. Parked the bootloader-weight/packaging + Markdown-engine choices
+  in §8. §3 security model unchanged.
 - **v0.1** (2026-06-05) — Initial draft. Establishes `!doc1+<locale>` dispatch, the
-  directive header + CommonMark-subset body (§2), and the normative **generate-not-
-  sanitize** security model (§3: no raw HTML, link scheme allowlist, raster-`data:`-only
-  images with SVG forbidden, curated-only interactivity). Positions `doc` as the
-  general-purpose document renderer and draws the `dd` boundary for arbitrary interactive
-  HTML. Render-only to start; editor + dictionary deferred.
+  header + CommonMark-subset body (§2), and the normative **generate-not-sanitize**
+  security model (§3: no raw HTML, link scheme allowlist, raster-`data:`-only images with
+  SVG forbidden, curated-only interactivity). Positions `doc` as the general-purpose
+  document renderer and draws the `dd` boundary for arbitrary interactive HTML.
