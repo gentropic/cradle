@@ -369,7 +369,7 @@ primary tooling → the agent kit (§6), GUI editor deferred.
   idiom, and the subset excludes anchors/aliases/global-tags/implicit-typing — the safety
   + dependency objections to YAML don't apply. Recorded the **frontmatter-for-markdown /
   directives-for-typed-artifacts** rule (§2), the **safe-parse-≠-safe-use** caveat (§2.1,
-  §6), and added `tags`. Parked the bootloader-weight/packaging + Markdown-engine choices
+  §7), and added `tags`. Parked the bootloader-weight/packaging + Markdown-engine choices
   in §8. §3 security model unchanged.
 - **v0.1** (2026-06-05) — Initial draft. Establishes `!doc1+<locale>` dispatch, the
   header + CommonMark-subset body (§2), and the normative **generate-not-sanitize**
