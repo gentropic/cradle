@@ -358,9 +358,13 @@ as "just another node type." Breaking changes bump the magic-line version (`!doc
 
 ## 10. Open questions (to settle before/while implementing)
 
-- **Markdown engine (the headline build decision).** Pick/port a small, dependency-free,
-  **linear-time** CommonMark+GFM parser that exposes an **AST we walk** (not an HTML-string
-  emitter), so §3.1 "generate, never sanitize" holds. No GCU sibling qualifies (§8). 
+- **Markdown engine — DECIDED + in place.** **markdown-it 14.1.0** (+ `-footnote`/`-sub`/
+  `-sup`/`-mark`), vendored inline in `ext/doc/vendor/` (like pako; MIT). Run with
+  `html: false` so raw HTML is escaped by construction, then a safety layer of renderer-rule
+  overrides (`ext/doc/renderer.js`): a strict link-scheme allowlist (`validateLink` +
+  `link_open`) and a raster-`data:`-only image policy (`image` rule). Proven inert against an
+  adversarial suite in `test/doc.test.js`. The renderer is dependency-injected (the
+  `@gcu/docview` pattern) so one module serves the browser, Node tests, and the agent kit.
 - **Separately-cached load mechanism.** `/cradle/doc/` is decided (§5.1); confirm *how* the
   bootloader runs it — dynamic `import()` of a renderer module (keeps the dispatcher URL) vs
   a sub-page handed the fragment (simpler isolation, but the SW-scope lesson applies). The
@@ -375,6 +379,16 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v0.5** (2026-06-05) — **Engine decided + Phase-1 build.** Markdown engine =
+  **markdown-it 14** (+ footnote/sub/sup/mark), vendored inline (`ext/doc/vendor/`, MIT),
+  `html: false`. Built `ext/doc/renderer.js` — a DI renderer (`createDocRenderer`) with the
+  safety layer (strict link-scheme allowlist + raster-`data:`-only images via renderer-rule
+  overrides), frontmatter split + validated meta (allowlist fallback, hex accent, the §3.7
+  body cap), and the `.doc` article scaffold. `test/doc.test.js` (7 tests): adversarial
+  inertness, link/image policy, feature rendering, frontmatter validation, DoS cap. Remaining:
+  wire `@gcu/yaml` (a flat parser stands in), TOC/anchors/numbered headings/footnote+code
+  decoration (reuse `@gcu/docview`), `templates.css` themes, `/cradle/doc/` packaging +
+  bootloader dispatch, the agent kit (SKILL.md + author/validate scripts), `/security-review`.
 - **v0.4** (2026-06-05) — **Content set locked** (§2.2). Promoted into the allowed
   Markdown: **footnotes** (refs + defs → static superscript links + a back-linked notes
   section), **superscript/subscript** (`x^2^`/`H~2~O`), **highlight** (`==mark==`),
