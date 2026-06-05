@@ -21,7 +21,7 @@
 // Bump CACHE_VERSION on any cached-asset change (still belt-and-suspenders for the
 // static set; the bootloader self-updates regardless now).
 
-const CACHE_VERSION = "cradle-v4";   // v4: purge caches a v3 SW may have poisoned with sub-tool HTML
+const CACHE_VERSION = "cradle-v5";   // v5: doc/ runtime-caching added; v4 purged any v3-poisoned caches
 
 const CORE_ASSETS = [
   "./",
@@ -81,13 +81,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Everything else: CACHE-FIRST. Static assets (manifest, icons) are version-gated;
-  // runtime capsule resolutions (gh:, zenodo:, …) aren't in CORE_ASSETS, so they
-  // simply fall through to the network with default semantics.
+  // Everything else: CACHE-FIRST. Static assets (manifest, icons) are version-gated.
+  // The separately-cached `doc/` engine is RUNTIME-cached on first fetch (so it's offline
+  // after the first doc render, without pre-caching its ~130 KB into every cold-start).
+  // Runtime capsule resolutions (gh:, zenodo:, …) aren't in CORE_ASSETS and fall through.
+  const isDocEngine = url.origin === self.location.origin && url.pathname.includes("/doc/");
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).catch(() => {
+      return fetch(event.request).then((res) => {
+        if (isDocEngine && res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_VERSION).then((c) => c.put(event.request, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() => {
         // Re-throw the fetch failure (becomes a network error visible to the
         // renderer; appropriate for e.g. a doorbell POST that couldn't go through).
         throw new Error("offline and not cached: " + url);

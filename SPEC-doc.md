@@ -387,6 +387,17 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v0.8** (2026-06-05) — **Phase 4: packaging + dispatch.** `doc` is wired into cradle as
+  the first **separately-cached** renderer. The bootloader stays the dispatcher (it already
+  decodes the capsule + parses the magic line) and, on `!doc1+`, **lazy-loads the curated
+  first-party engine from `/cradle/doc/`** (the vendored markdown-it + `renderer.js` +
+  `templates.css`, injected as `<script>`/`<link>`) and hands it the decoded body —
+  `html: false` stays, the engine never taxes a non-doc cold-start. `build.js` assembles
+  `doc/` verbatim from the `ext/doc/` sources (drift-guarded by `--check`); the SW
+  (cradle-v5) **runtime-caches `/cradle/doc/*`** on first fetch so docs render offline after
+  one online load. Verified end-to-end: a real `inline:deflate:` doc capsule resolves through
+  the bootloader's own `resolveCapsule`/`parseMagicLine` → `format: doc` → renders. Renderer
+  count 5 → 6.
 - **v0.7** (2026-06-05) — **Phase 3: themes.** `ext/doc/templates.css` — a `.doc`-scoped,
   legibility-first stylesheet on a `--doc-*` semantic layer: five themes (paper/article/
   terminal/dark/book), the `font`/`density`/`width` knobs, full element styling (headings +

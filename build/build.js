@@ -12,7 +12,8 @@ const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(ROOT, f), "utf8");
-const write = (f, s) => fs.writeFileSync(path.join(ROOT, f), s);
+const safeRead = (f) => { try { return read(f); } catch { return null; } };   // null for not-yet-existing targets
+const write = (f, s) => { const p = path.join(ROOT, f); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, s); };
 
 const dicts = { ...require("../ext/menu/dict.js"), ...require("../ext/arcr/dict.js"), ...require("../ext/contact/dict.js"), ...require("../ext/bio/dict.js") };
 const { generateArcrRenderer } = require("./lib/arcr-renderer.js");
@@ -108,7 +109,16 @@ function build() {
     out[f] = inlineBetween(get(f), "@build:bio-templates:start", "@build:bio-templates:end", bioTemplatesSrc, "bio-templates");
   }
 
-  const stale = Object.keys(out).filter((f) => out[f] !== read(f));
+  // doc: the first SEPARATELY-CACHED renderer. Its engine isn't inlined into the bootloader;
+  // it lives under doc/ (served at /cradle/doc/), copied verbatim from the ext/doc/ sources,
+  // and the bootloader lazy-loads it on !doc1+ dispatch. Copied (not marker-inlined) so the
+  // heavy markdown-it vendor doesn't bloat the single-file bootloader.
+  const docFiles = ["renderer.js", "templates.css",
+    "vendor/markdown-it.min.js", "vendor/markdown-it-footnote.min.js", "vendor/markdown-it-sub.min.js",
+    "vendor/markdown-it-sup.min.js", "vendor/markdown-it-mark.min.js"];
+  for (const f of docFiles) out["doc/" + f] = read("ext/doc/" + f);
+
+  const stale = Object.keys(out).filter((f) => out[f] !== safeRead(f));
   if (CHECK) {
     if (stale.length) { console.error("build out of date — run `npm run build`. stale: " + stale.join(", ")); process.exit(1); }
     console.log("build: up to date"); return;

@@ -1,0 +1,220 @@
+/* doc — the `doc` renderer's visuals. SINGLE SOURCE for how a cradle document looks.
+   Scoped to a `.doc` root so the bootloader render, the preview, and any future editor
+   are pixel-identical. Legibility-first (SPEC-doc §4.1): good measure, contrast, type
+   scale. A semantic --doc-* layer sits on the Switchboard tokens; themes override only
+   the palette, the width/density/font knobs only the measure/scale/family. No web fonts. */
+
+.doc {
+  /* palette (theme-overridable) */
+  --doc-bg: #ffffff;
+  --doc-fg: #1c1f24;
+  --doc-muted: #5c636e;
+  --doc-faint: #8b929c;
+  --doc-accent: #2f6fb0;
+  --doc-rule: rgba(0, 0, 0, 0.12);
+  --doc-code-bg: #f3f4f6;
+  --doc-code-fg: #1c1f24;
+  --doc-mark: #fff3a3;
+  --doc-callout-bg: rgba(0, 0, 0, 0.035);
+  /* type (knob-overridable) */
+  --doc-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, Cambria, "Times New Roman", serif;
+  --doc-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --doc-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", "Roboto Mono", Consolas, monospace;
+  --doc-font: var(--doc-serif);
+  --doc-size: 1.02rem;
+  --doc-leading: 1.65;
+  --doc-gap: 1.05em;        /* block spacing */
+  --doc-measure: 68ch;      /* reading width */
+
+  box-sizing: border-box;
+  max-width: var(--doc-measure);
+  margin: 0 auto;
+  padding: 2.4rem 1.4rem 4rem;
+  background: var(--doc-bg);
+  color: var(--doc-fg);
+  font: var(--doc-size) / var(--doc-leading) var(--doc-font);
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  word-wrap: break-word;
+}
+.doc * { box-sizing: border-box; }
+
+/* ---- knobs: font / width / density ---- */
+.doc.font-serif { --doc-font: var(--doc-serif); }
+.doc.font-sans  { --doc-font: var(--doc-sans); }
+.doc.font-mono  { --doc-font: var(--doc-mono); }
+.doc.width-narrow { --doc-measure: 54ch; }
+.doc.width-normal { --doc-measure: 68ch; }
+.doc.width-wide   { --doc-measure: 86ch; }
+.doc.density-compact     { --doc-size: 0.94rem; --doc-leading: 1.5;  --doc-gap: 0.85em; }
+.doc.density-comfortable { --doc-size: 1.02rem; --doc-leading: 1.65; --doc-gap: 1.05em; }
+.doc.density-relaxed     { --doc-size: 1.1rem;  --doc-leading: 1.8;  --doc-gap: 1.3em; }
+
+/* ---- header / byline / tags ---- */
+.doc-head { margin: 0 0 1.8rem; }
+.doc-title { font-size: 2.1em; line-height: 1.15; letter-spacing: -0.015em; margin: 0 0 0.35rem; }
+.doc-byline { color: var(--doc-muted); font-size: 0.86em; margin: 0; }
+.doc-tags { margin: 0.7rem 0 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.doc-tag { font: 600 0.7em var(--doc-mono); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--doc-accent); border: 1px solid var(--doc-rule); border-radius: 999px; padding: 0.15em 0.6em; }
+
+/* ---- table of contents ---- */
+.doc:not(.has-toc) .doc-toc { display: none; }
+.doc-toc { margin: 0 0 2rem; padding: 0.9rem 1.1rem; border: 1px solid var(--doc-rule);
+  border-radius: 10px; background: var(--doc-callout-bg); font-size: 0.92em; }
+.doc-toc::before { content: "Contents"; display: block; font: 700 0.72em var(--doc-mono);
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--doc-faint); margin-bottom: 0.5rem; }
+.doc-toc ol { list-style: none; margin: 0; padding: 0; }
+.doc-toc li { margin: 0.18em 0; }
+.doc-toc .toc-l2 { padding-left: 0; }
+.doc-toc .toc-l3 { padding-left: 1.1rem; }
+.doc-toc .toc-l4 { padding-left: 2.2rem; }
+.doc-toc a { color: var(--doc-fg); text-decoration: none; }
+.doc-toc a:hover { color: var(--doc-accent); text-decoration: underline; }
+
+/* ---- body typography ---- */
+.doc-body > * { margin: 0 0 var(--doc-gap); }
+.doc-body > :last-child { margin-bottom: 0; }
+.doc-body h1, .doc-body h2, .doc-body h3, .doc-body h4, .doc-body h5, .doc-body h6 {
+  line-height: 1.25; letter-spacing: -0.01em; margin: 1.8em 0 0.6em; scroll-margin-top: 1rem; }
+.doc-body h1 { font-size: 1.7em; }
+.doc-body h2 { font-size: 1.4em; padding-bottom: 0.2em; border-bottom: 1px solid var(--doc-rule); }
+.doc-body h3 { font-size: 1.18em; }
+.doc-body h4 { font-size: 1.02em; }
+.doc-body h5, .doc-body h6 { font-size: 0.92em; color: var(--doc-muted); }
+.doc-body a { color: var(--doc-accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.doc-body strong { font-weight: 700; }
+.doc-body ul, .doc-body ol { padding-left: 1.5em; }
+.doc-body li { margin: 0.3em 0; }
+.doc-body li > ul, .doc-body li > ol { margin: 0.3em 0; }
+.doc-body li input[type="checkbox"] { margin-right: 0.4em; }
+.doc-body hr { border: 0; border-top: 1px solid var(--doc-rule); margin: 2em 0; }
+.doc-body img { max-width: 100%; height: auto; border-radius: 6px; }
+.doc-body mark { background: var(--doc-mark); color: inherit; padding: 0 0.15em; border-radius: 2px; }
+.doc-body sub, .doc-body sup { line-height: 0; }
+
+/* blockquotes */
+.doc-body blockquote { margin-left: 0; padding: 0.2em 0 0.2em 1.1em; border-left: 3px solid var(--doc-accent);
+  color: var(--doc-muted); }
+.doc-body blockquote > :last-child { margin-bottom: 0; }
+
+/* code */
+.doc-body code { font: 0.88em var(--doc-mono); background: var(--doc-code-bg); color: var(--doc-code-fg);
+  padding: 0.12em 0.36em; border-radius: 4px; }
+.doc-body pre { background: var(--doc-code-bg); color: var(--doc-code-fg); border: 1px solid var(--doc-rule);
+  border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.86em; line-height: 1.5; }
+.doc-body pre code { background: none; padding: 0; font-size: 1em; }
+/* syntax-highlight token classes (populated when @gcu/docview's tokenizer is wired) */
+.doc .tok-kw { color: var(--doc-accent); font-weight: 600; }
+.doc .tok-str { color: #1a7f37; }
+.doc .tok-num { color: #b35900; }
+.doc .tok-com { color: var(--doc-faint); font-style: italic; }
+
+/* tables */
+.doc-body table { border-collapse: collapse; width: 100%; font-size: 0.94em; display: block; overflow-x: auto; }
+.doc-body th, .doc-body td { border: 1px solid var(--doc-rule); padding: 0.45em 0.7em; text-align: left; }
+.doc-body th { background: var(--doc-callout-bg); font-weight: 700; }
+
+/* callouts / admonitions (GFM alerts: > [!NOTE] etc. — markdown-it-footnote-style markup
+   varies; these style the common `blockquote.callout` / `.markdown-alert` shapes) */
+.doc-body .callout, .doc-body .markdown-alert { border-left-width: 4px; border-left-style: solid;
+  background: var(--doc-callout-bg); padding: 0.7em 1em; border-radius: 0 8px 8px 0; }
+
+/* collapsibles */
+.doc-body details { border: 1px solid var(--doc-rule); border-radius: 8px; padding: 0.4em 0.9em; }
+.doc-body summary { cursor: pointer; font-weight: 600; }
+
+/* footnotes */
+.doc-body .footnotes { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--doc-rule);
+  font-size: 0.88em; color: var(--doc-muted); }
+.doc-body .footnotes ol { padding-left: 1.4em; }
+.doc-body .footnote-ref a, .doc-body .footnote-backref { color: var(--doc-accent); text-decoration: none; }
+
+/* attribution (the honest "inert, not authentic" footer) */
+.doc-attribution { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--doc-rule);
+  font-size: 0.74em; color: var(--doc-faint); }
+
+/* ---- numbered headings (CSS counters; SPEC-doc §2.1 `numbered`) ---- */
+.doc.numbered { counter-reset: h2; }
+.doc.numbered .doc-body h2 { counter-reset: h3; }
+.doc.numbered .doc-body h3 { counter-reset: h4; }
+.doc.numbered .doc-body h2::before { counter-increment: h2; content: counter(h2) ". "; color: var(--doc-faint); }
+.doc.numbered .doc-body h3::before { counter-increment: h3; content: counter(h2) "." counter(h3) " "; color: var(--doc-faint); }
+.doc.numbered .doc-body h4::before { counter-increment: h4; content: counter(h2) "." counter(h3) "." counter(h4) " "; color: var(--doc-faint); }
+
+/* ============================== themes ============================== */
+
+/* paper — warm printed page, serif (the default + this baseline made cosy) */
+.doc.theme-paper { --doc-bg: #faf8f3; --doc-fg: #221d16; --doc-muted: #6b6052; --doc-faint: #a8a090;
+  --doc-accent: #9a6a3c; --doc-rule: rgba(80, 60, 30, 0.16);
+  --doc-code-bg: #f0ece2; --doc-code-fg: #2a2218; --doc-mark: #ffe9a8; --doc-callout-bg: rgba(120, 90, 40, 0.05); }
+
+/* article — clean white, sans, bloggy */
+.doc.theme-article { --doc-bg: #ffffff; --doc-fg: #1a1d22; --doc-muted: #586069; --doc-faint: #8b929c;
+  --doc-accent: #2f6fb0; --doc-rule: rgba(0, 0, 0, 0.1); --doc-code-bg: #f4f5f7; --doc-mark: #fff3a3;
+  --doc-font: var(--doc-sans); }
+
+/* terminal — dark, mono, phosphor accent */
+.doc.theme-terminal { --doc-bg: #0d1117; --doc-fg: #c9d1d9; --doc-muted: #8b949e; --doc-faint: #6e7681;
+  --doc-accent: #3fb950; --doc-rule: rgba(255, 255, 255, 0.12); --doc-code-bg: #161b22; --doc-code-fg: #c9d1d9;
+  --doc-mark: #5a4a00; --doc-callout-bg: rgba(255, 255, 255, 0.04); --doc-font: var(--doc-mono); }
+.doc.theme-terminal .tok-str { color: #7ee787; }
+.doc.theme-terminal .tok-num { color: #79c0ff; }
+
+/* dark — comfortable dark reading (not a terminal), soft blue accent */
+.doc.theme-dark { --doc-bg: #16181d; --doc-fg: #e6e8eb; --doc-muted: #a0a6b0; --doc-faint: #6b727d;
+  --doc-accent: #7aa2e3; --doc-rule: rgba(255, 255, 255, 0.13); --doc-code-bg: #20242b; --doc-code-fg: #e6e8eb;
+  --doc-mark: #5a5320; --doc-callout-bg: rgba(255, 255, 255, 0.04); }
+
+/* book — cream, classic serif, a touch of old-print formality */
+.doc.theme-book { --doc-bg: #f6f1e7; --doc-fg: #2b2620; --doc-muted: #6a6052; --doc-faint: #9c9078;
+  --doc-accent: #7a5230; --doc-rule: rgba(70, 55, 30, 0.18); --doc-code-bg: #efe8da; --doc-code-fg: #2b2620;
+  --doc-mark: #f1e3b0; --doc-callout-bg: rgba(100, 80, 40, 0.06); }
+.doc.theme-book .doc-title { font-variant: small-caps; letter-spacing: 0.01em; }
+
+/* heading deep-link anchors (hover affordance, mainly desktop) */
+.doc-body :where(h1, h2, h3, h4, h5, h6) .doc-anchor {
+  opacity: 0; margin-left: 0.35em; color: var(--doc-faint); font-weight: 400;
+  text-decoration: none; transition: opacity 0.12s; }
+.doc-body :where(h1, h2, h3, h4, h5, h6):hover .doc-anchor, .doc-anchor:focus-visible { opacity: 1; }
+.doc-anchor:hover { color: var(--doc-accent); }
+.doc.numbered .doc-body :where(h2, h3, h4) .doc-anchor { font-weight: 400; }
+
+/* ---- desktop: keep the reading measure, but float the TOC into a sticky sidebar so the
+   horizontal space is used (the docs-site layout). Body prose never goes full-width — line
+   length drives readability. Single column (current behaviour) below the breakpoint. ---- */
+@media screen and (min-width: 64rem) {
+  .doc.has-toc {
+    max-width: 66rem;
+    display: grid;
+    grid-template-columns: 14rem minmax(0, var(--doc-measure));
+    grid-template-areas: "toc head" "toc body" "toc foot";
+    column-gap: 3.2rem;
+    align-items: start;
+    justify-content: center;
+  }
+  .doc.has-toc > .doc-head { grid-area: head; }
+  .doc.has-toc > .doc-body { grid-area: body; }
+  .doc.has-toc > .doc-attribution { grid-area: foot; }
+  .doc.has-toc > .doc-toc {
+    grid-area: toc; position: sticky; top: 1.5rem; align-self: start;
+    max-height: calc(100vh - 3rem); overflow-y: auto;
+    margin: 0; padding: 0.2rem 0.4rem 0.2rem 0; background: none; border: none; border-radius: 0;
+    font-size: 0.86em;
+  }
+  .doc.has-toc > .doc-toc::before { margin-bottom: 0.7rem; }
+}
+
+/* ============================== print ============================== */
+@media print {
+  .doc { max-width: none; color: #000; background: #fff; padding: 0; font-size: 11pt; }
+  .doc-toc, .doc-attribution { break-inside: avoid; }
+  .doc-body h1, .doc-body h2, .doc-body h3 { break-after: avoid; }
+  .doc-body pre, .doc-body blockquote, .doc-body table, .doc-body figure { break-inside: avoid; }
+  .doc-body a { color: #000; text-decoration: underline; }
+  .doc-anchor { display: none; }
+  @page { margin: 18mm; }
+}
+
+@media (prefers-reduced-motion: reduce) { .doc * { scroll-behavior: auto; } }
+.doc :focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; border-radius: 2px; }

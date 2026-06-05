@@ -2389,6 +2389,37 @@ function loop(t){ const dt=Math.min(0.05,(t-last)/1000||0); last=t; update(dt); 
 // @build:arcr-renderer:end
 
 // ============================================================
+// doc: a SEPARATELY-CACHED renderer (SPEC-doc §5.1). Its engine (markdown-it + the doc
+// renderer + CSS) is heavy, so it is NOT inlined here — the bootloader stays the dispatcher
+// (it has already decoded the capsule + parsed the magic line), and lazy-loads the curated
+// first-party engine from /cradle/doc/ only when a !doc1+ capsule is dispatched, handing it
+// the decoded body. The SW runtime-caches /cradle/doc/* on first load → offline thereafter.
+// ============================================================
+let docEnginePromise = null;
+function loadDocScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("EDOC-LOAD: " + src)); document.head.appendChild(s); });
+}
+function loadDocEngine() {
+  if (docEnginePromise) return docEnginePromise;
+  const base = new URL("doc/", location.href).href;          // /cradle/doc/
+  const link = document.createElement("link"); link.rel = "stylesheet"; link.href = base + "templates.css"; document.head.appendChild(link);
+  const scripts = ["vendor/markdown-it.min.js", "vendor/markdown-it-footnote.min.js", "vendor/markdown-it-sub.min.js",
+    "vendor/markdown-it-sup.min.js", "vendor/markdown-it-mark.min.js", "renderer.js"];
+  docEnginePromise = scripts.reduce((p, s) => p.then(() => loadDocScript(base + s)), Promise.resolve());
+  return docEnginePromise;
+}
+async function docRenderer(header, body, ctx) {
+  await loadDocEngine();
+  const g = globalThis;
+  const renderDoc = g.createDocRenderer({ markdownit: g.markdownit, plugins: [g.markdownitFootnote, g.markdownitSub, g.markdownitSup, g.markdownitMark] });
+  const r = renderDoc(new TextDecoder("utf-8").decode(body), { locale: header.params });
+  ctx.mount.innerHTML = r.html;
+  document.documentElement.lang = r.lang || header.params || "en-US";
+  if (r.title) document.title = r.title + " · cradle";
+  try { document.body.style.minHeight = "100vh"; } catch (e) {}
+}
+
+// ============================================================
 // Renderer registry
 // ============================================================
 const RENDERERS = {
@@ -2397,6 +2428,7 @@ const RENDERERS = {
   contact:  contactRenderer,
   bio:      bioRenderer,
   arcr:     arcrRenderer,
+  doc:      docRenderer,
 };
 
 // ============================================================
