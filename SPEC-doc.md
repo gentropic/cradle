@@ -69,7 +69,10 @@ title: "Field notes, Itomori"
 theme: "paper"
 accent: "#9b8cff"
 font: "serif"
+density: "comfortable"
+width: "normal"
 toc: true
+numbered: false
 author: "Mitsuha Miyamizu"
 date: "2026-06-05"
 tags: ["itomori", "fieldwork"]
@@ -77,16 +80,27 @@ images: "inline"
 ---
 ```
 
+The styling keys are a **curated, closed set** (§4.1): each selects among tested,
+legible presets the renderer fully controls — never arbitrary CSS. Content/meta keys:
+
 | Key | Type | Meaning |
 |---|---|---|
 | `title` | string | Document title — page header + `document.title`. |
-| `theme` | string | `paper` (default) · `article` · `terminal` · `dark`. Reuses the Switchboard token layer. |
-| `accent` | string | Hex color; overrides the theme accent. |
-| `font` | string | `serif` (default for `doc`) · `sans` · `mono` (system stacks; no web fonts). |
-| `toc` | bool | `true` → auto table of contents built from the headings (default `false`). |
 | `author` · `date` | string | Optional byline; `date` displayed verbatim. |
 | `tags` | list of strings | Optional topic tags → a small label row (frontmatter's richer shape earns its keep here). |
+| `toc` | bool | `true` → auto table of contents built from the headings (default `false`). |
+| `numbered` | bool | `true` → numbered headings (1, 1.1, 1.2 …), for reports (default `false`). |
 | `images` | string | Image policy (§3.4): `inline` (default — `data:` only) · `external` (allow `https:` images; **breaks offline + leaks the viewer's IP**, opt-in + surfaced). |
+
+Styling keys (the curated subset, §4.1):
+
+| Key | Values | Meaning |
+|---|---|---|
+| `theme` | `paper` (default) · `article` · `terminal` · `dark` · `book` | Palette + overall look (Switchboard tokens). |
+| `accent` | hex color | One accent (links, headings, rules, code). Validated; never piped into CSS. |
+| `font` | `serif` (default) · `sans` · `mono` | Body family (system stacks; no web fonts). |
+| `density` | `comfortable` (default) · `compact` · `relaxed` | Type scale + spacing. |
+| `width` | `normal` (~68ch, default) · `narrow` · `wide` | Reading measure (column width). |
 
 **Unknown keys are ignored** (additive evolution). **Safe parse ≠ safe use:** `@gcu/yaml`
 guarantees the *parse* cannot RCE or DoS, but every *value* remains untrusted DATA. The
@@ -164,6 +178,30 @@ optional **copy-code buttons** attached by the consumer to fenced code blocks (t
 pattern as `bio`'s `bioCopyHandler` — a `data-*` hook the bootloader/editor wires once;
 harness-guarded). No author script runs, ever.
 
+### 3.6 Trust model — inert, not authentic
+
+cradle guarantees a `doc` **cannot attack the reader**: no script runs, nothing is
+exfiltrated, the page is offline-self-contained (modulo opt-in external images). It does
+**not** guarantee **who wrote it** — anyone can craft a `!doc1+` capsule, so a doc can be
+styled to *look* official and phish by content. The safety promise is **"inert, not
+authentic."** Therefore the renderer MUST NOT imply authorship it cannot verify (no
+"verified"/"official" chrome), SHOULD make external link destinations visible (§3.3), and
+SHOULD render an honest "this is a cradle document; its contents are only as trustworthy
+as whoever sent you the link" framing in its attribution. Real provenance needs an
+integrity layer at the capsule tier (signatures via `@gcu/crypto`, key distribution
+out-of-band) — roadmapped, not assumed; when it lands, `doc` MAY surface *verified*
+authorship, and only then.
+
+### 3.7 Resource limits (DoS)
+
+§3.1–3.5 stop *injection*; this stops *exhaustion*. A capsule is adversarial, so the
+renderer MUST bound its work: a **maximum decoded body size** (the capsule layer also caps
+inflate output — no decompression bombs), a **maximum block-nesting depth** (lists/
+blockquotes/tables — reject or truncate beyond it), and a parser that is **linear-time** in
+input (no catastrophic backtracking — an independent reason the regex/blacklist markdown
+renderers of the wider stack are unfit here, §"reuse map"). Exceeding a limit fails closed
+(a bounded error render), never hangs the tab.
+
 ## 4. Rendering
 
 The renderer emits a `.doc` article: the `title` header (+ optional byline + tags), an
@@ -176,6 +214,24 @@ Themes set their palette via `--doc-*` props on a `.doc` root (Switchboard `--sw
 a `--doc-*` semantic layer), so — as with `menu`/`bio` — a future editor's preview can be
 pixel-identical to the bootloader render by sharing one stylesheet.
 
+The output SHOULD be **semantic + accessible**: correct heading hierarchy, `lang` (and
+`dir="rtl"` for RTL locales) from the magic-line locale, image `alt` carried through, and
+a real **`@media print`** stylesheet (`doc` is the suite's most print-/PDF-worthy
+renderer).
+
+### 4.1 Styling subset — the curated knobs
+
+Authors get a **small, closed set** of styling parameters (the §2.1 styling table:
+`theme`, `accent`, `font`, `density`, `width`, plus `toc`/`numbered`), and **nothing
+else** — no author CSS, no `style=`, no web-font URLs, no free-form colors beyond the one
+`accent`. This is deliberate and is the same model as `bio`'s templates+accent: each knob
+**selects among presets the renderer owns and has tested for legibility**, so a `doc`
+cannot be made unreadable or be used to smuggle layout/scripted CSS tricks. The design
+priority for every theme/preset is **readability** (measure, contrast, type scale) — a
+document's job is to be read. Unknown values fall back to the default (§2.1). Adding a knob
+or a preset is additive; *widening* what a knob accepts (e.g. arbitrary CSS for `accent`)
+is a security change (§9), never a casual one.
+
 ## 5. Size & transport
 
 `doc` is **link-scale, not (necessarily) QR-scale.** A short note fits a QR; a real
@@ -186,7 +242,49 @@ optionally with a `doc` dictionary); large ones MAY use a **reference scheme**
 producer makes, not a default. Markdown compresses well; a multi-page doc is a few KB
 inline.
 
-## 6. Conformance
+### 5.1 Packaging & dispatch (separately-cached)
+
+`doc` carries a Markdown→AST engine + the YAML parser — materially heavier than the
+inlined renderers. It is therefore the suite's first **separately-cached** renderer
+(SPEC-cradle §6.B): it lives in its own folder at **`/cradle/doc/`** rather than inlined in
+the single-file bootloader, so its weight does not tax every cradle cold-start. The base
+bootloader (`/cradle/`), on dispatching `!doc1+`, **loads the `doc` renderer from
+`/cradle/doc/` as a first-party, same-origin module** and mounts it — so the
+no-third-party-code guarantee is intact (it is cradle's *own* curated asset, lazy-loaded,
+not remote code). The service worker pre-caches `/cradle/doc/` so that — per the offline
+guarantee — once cradle has loaded online, `doc` capsules render offline thereafter. (Exact
+load mechanism — dynamic `import()` of a renderer module vs. a sub-page the dispatcher
+hands the fragment to — is an implementation choice; §8.)
+
+## 6. Authoring — the `/cradle/doc/` agent kit
+
+`doc`'s primary author is an **agent**, so `/cradle/doc/` is not just the renderer — it is
+a self-contained **authoring + preflight kit** an agent can fetch and run, with no install:
+
+- **`renderer.js`** (+ `templates.css`) — the curated render engine (also what the
+  bootloader loads, §5.1). Single-sourced from `ext/doc/`.
+- **`SKILL.md`** — agent-facing instructions (a Claude-Code-style skill, but plain enough
+  for any agent): what `doc` is, the magic line, the frontmatter schema + the **strict
+  YAML quoting rule**, the allowed Markdown subset and what is silently dropped (so the
+  agent doesn't author dead constructs), the security/trust constraints, the size budget,
+  and worked examples. An agent reads this to learn to produce `doc` capsules correctly.
+- **`author.py` / `author.mjs`** — dependency-free producers: take a Markdown-with-
+  frontmatter file (or stdin) and emit the `!doc1+` capsule **and** the share URL (the full
+  deflate[+dict]→base45→fragment-escape pipeline per `SPEC-capsule.md`). Both languages so
+  an agent uses whichever its sandbox has; stdlib only (`zlib`, base64/base45).
+- **`validate.py` / `validate.mjs`** — **preflight**: parse the body, check the frontmatter
+  conforms to the strict YAML subset, flag any Markdown the renderer will drop (raw HTML,
+  disallowed link schemes, `data:image/svg+xml`, external images without `images:
+  external`), and confirm size/limits (§3.7). Returns pass/fail + diagnostics, so an agent
+  catches a doc that would render inert or wrong **before** sending it.
+
+This makes `doc` agent-native and self-documenting, and generalizes: any cradle format
+could ship a `/<format>/` kit, but `doc` — authored by agents by design — is the first that
+must. (The producer/validator logic is shared with capsule's reference code in
+`CAPSULES.md`; keep them in sync.) A human GUI editor (`doc/editor.html`) is secondary and
+deferred — the agent kit is the priority tooling.
+
+## 7. Conformance
 
 A conforming `doc` renderer:
 
@@ -206,7 +304,29 @@ A conforming `doc` renderer:
 - SHOULD pass a security review before shipping, and SHOULD mark/show external link and
   image destinations.
 
-## 7. Versioning & stability
+## 8. Reuse map (GCU stack)
+
+A `doc` renderer is mostly *assembly* of existing GCU `ext/` modules — but only where the
+sibling's threat model is **≥** `doc`'s (an adversarial capsule). The asymmetry matters:
+
+- ✅ **`@gcu/yaml`** — frontmatter parse. Stricter/safer than needed; reuse (§2.1).
+- ✅ **`@gcu/docview`** — post-render decoration: heading anchors, scroll-spy TOC, and a
+  **scriptless regex syntax highlighter** (js/py/json/sh/html). Operates on
+  already-safe output → reuse (resolves the highlighter question, §8 open list). `slugify`
+  comes from here too.
+- ✅ **`@gcu/switchboard`** — design tokens (already cradle's layer); ✅ **`@gcu/qr`** — a
+  dependency-free QR for the agent kit / future editor (vs CDN qrcodejs); ✅ **`@gcu/katex`**
+  — math, *later*, opt-in (KaTeX pre-renders to static HTML/MathML → safe output).
+- ❌ **the stack's Markdown renderer** (`auditable/src/js/markdown.js`) — **do NOT reuse.**
+  It is a regex, HTML-string, **blacklist-sanitizing** renderer that **passes raw HTML
+  through** — by its own comment, "appropriate for content the user has already chosen to
+  trust." That is the inverse of `doc`'s threat model (adversarial capsule, promised safe),
+  and it is exactly the architecture §3.1 forbids. `doc` needs its **own** AST-based,
+  raw-HTML-off, linear-time engine.
+
+**Principle:** reuse a sibling only when its threat model is at least as strict as yours.
+
+## 9. Versioning & stability
 
 Additive changes (new frontmatter keys, themes, allowed node types) are non-breaking and
 need no version bump — decoders ignore unknown keys, and unknown nodes degrade to text.
@@ -215,33 +335,35 @@ schemes, or resource loads through MUST be reviewed as a security change, never 
 as "just another node type." Breaking changes bump the magic-line version (`!doc2+…`); the
 `!doc1+` renderer is kept forever.
 
-## 8. Open questions (to settle before/while implementing)
+## 10. Open questions (to settle before/while implementing)
 
-- **Header — decided.** YAML frontmatter via `@gcu/yaml` (not `@directives`), because
-  `doc` is Markdown and frontmatter is its native idiom; the strict subset removes the
-  YAML safety/dependency objections. The typed-artifact renderers keep `@directives` (§2).
-- **Scope ceiling.** This spec is the sanitized-Markdown design. A heavier
-  sandboxed-`<iframe srcdoc>` + strict-CSP route would admit more (inline CSS, richer
-  layout) behind a real browser boundary — but it is a *different* trust model, far easier
-  to get fatally wrong, and closer to `dd`. Decision: stay with generate-from-AST.
-- **Bootloader weight + packaging.** `doc` carries a Markdown→AST compiler *and* the YAML
-  parser — materially heavier than the other renderers. Decide whether `doc` is inlined
-  into the single-file bootloader like the rest, or becomes the first **separately-cached**
-  renderer (SPEC-cradle §6.B), so its weight doesn't tax every cradle cold-start. Leaning
-  separately-cached, but it's a real architectural call.
-- **Markdown engine.** Pick/port a small, dependency-free CommonMark+GFM parser that emits
-  an AST we walk (not an HTML-string emitter) — the §3.1 "generate, never sanitize"
-  requirement constrains the choice. Reuse across the GCU stack if a sibling already has one.
-- **Highlighting.** Code blocks ship unhighlighted (styling + language label only) to
-  avoid bundling a highlighter; a curated, scriptless, build-time tokenizer could come
-  later. Confirm "no highlighter v1."
-- **Image default.** Inline-data-only (offline-pure) is the proposed default, external
-  opt-in. Confirm.
-- **Tooling.** Start render-only (an agent emits the body directly); a `doc/` editor +
-  a `doc` deflate dictionary can follow, like `bio`'s.
+- **Markdown engine (the headline build decision).** Pick/port a small, dependency-free,
+  **linear-time** CommonMark+GFM parser that exposes an **AST we walk** (not an HTML-string
+  emitter), so §3.1 "generate, never sanitize" holds. No GCU sibling qualifies (§8). 
+- **Separately-cached load mechanism.** `/cradle/doc/` is decided (§5.1); confirm *how* the
+  bootloader runs it — dynamic `import()` of a renderer module (keeps the dispatcher URL) vs
+  a sub-page handed the fragment (simpler isolation, but the SW-scope lesson applies).
+- **Image default.** Inline-`data:`-only (offline-pure) by default, external opt-in (§3.4) —
+  confirm.
+- **Math.** Defer to a later opt-in via `@gcu/katex` (pre-rendered, safe). Confirm "no math
+  in v1."
+
+*Resolved since v0.2:* header → YAML frontmatter (§2); packaging → separately-cached
+`/cradle/doc/` (§5.1); highlighting → reuse `@gcu/docview`'s scriptless tokenizer (§8);
+primary tooling → the agent kit (§6), GUI editor deferred.
 
 ## Changelog
 
+- **v0.3** (2026-06-05) — `doc` is the first **separately-cached** renderer at
+  `/cradle/doc/`, dispatched by the bootloader as a first-party same-origin module (§5.1).
+  Added the **agent authoring kit** (§6: renderer + `SKILL.md` + dependency-free
+  `author`/`validate` scripts in py + mjs — `doc` is agent-native), a **Trust model**
+  ("inert, not authentic", §3.6) and **Resource limits** (§3.7) to the security model, the
+  **curated styling subset** (§2.1 + §4.1: `theme`/`accent`/`font`/`density`/`width` +
+  `numbered`), accessibility/print SHOULDs (§4), and a **Reuse map** (§8) recording that
+  `@gcu/yaml`/`docview` are reusable but the stack's Markdown renderer is **not** (wrong
+  threat model). Open list trimmed to the Markdown-engine + load-mechanism + image/math
+  calls.
 - **v0.2** (2026-06-05) — Header is **YAML frontmatter via `@gcu/yaml`** (the strict,
   auditable subset), not `@directives`: `doc` is Markdown, so frontmatter is its native
   idiom, and the subset excludes anchors/aliases/global-tags/implicit-typing — the safety
