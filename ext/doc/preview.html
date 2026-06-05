@@ -1,0 +1,54 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>doc preview — cradle</title><link rel=stylesheet href=templates.css><style>body{margin:0;background:#d7d7db;font:14px -apple-system,Segoe UI,Roboto,sans-serif}.bar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;padding:.6rem 1rem;background:#fff;border-bottom:1px solid #ccc}.bar label{display:inline-flex;align-items:center;gap:.3rem;font-size:.82rem;color:#444}.bar select,.bar input{font:inherit;font-size:.82rem}.stage{padding:2rem 1rem;display:flex;justify-content:center}.stage>.doc{box-shadow:0 6px 30px rgba(0,0,0,.16);border-radius:6px}</style></head><body><div class=bar><strong style="margin-right:.5rem">doc preview</strong><label>theme <select id=c-theme><option>paper<option>article<option>terminal<option>dark<option>book</select></label><label>font <select id=c-font><option>serif<option>sans<option>mono</select></label><label>density <select id=c-density><option>comfortable<option>compact<option>relaxed</select></label><label>width <select id=c-width><option>normal<option>narrow<option>wide</select></label><label>accent <input type=color id=c-accent value="#9a6a3c"></label><label><input type=checkbox id=c-numbered> numbered</label><label><input type=checkbox id=c-toc checked> toc</label></div><div class=stage><article class="doc theme-paper font-serif density-comfortable width-normal has-toc" style="--doc-accent:#9a6a3c"><header class="doc-head"><h1 class="doc-title">Itomori Caldera — field notes</h1><p class="doc-byline">Mitsuha Miyamizu · 2026-06-05</p><p class="doc-tags"><span class="doc-tag">geology</span><span class="doc-tag">fieldwork</span><span class="doc-tag">itomori</span></p></header><nav class="doc-toc" aria-label="Contents"><ol><li class="toc-l2"><a href="#setting">Setting</a></li><li class="toc-l2"><a href="#methods">Methods</a></li><li class="toc-l2"><a href="#results">Results</a></li></ol></nav><div class="doc-body"><p>A short abstract with <strong>bold</strong>, <em>italic</em>, <code>inline code</code>, a <a href="https://example.org" rel="noopener noreferrer nofollow" target="_blank">link</a>, <mark>a highlight</mark>, and notation like H<sub>2</sub>O and a<sup>2</sup>+b<sup>2</sup>.</p>
+<h2 id="setting">Setting</h2>
+<p>Itomori sits in a <a href="#methods">post-impact</a> depression. Key markers<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup>:</p>
+<ul>
+<li>Tephra layer (~1200 yr BP)</li>
+<li>A shocked-quartz horizon</li>
+<li>Lacustrine infill</li>
+</ul>
+<blockquote>
+<p>A caldera lake records the comet's arrival in laminated mud.</p>
+</blockquote>
+<h2 id="methods">Methods</h2>
+<p>We logged the section and sampled at 5 cm intervals.</p>
+<table>
+<thead>
+<tr>
+<th>Unit</th>
+<th>Thickness (m)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Topsoil</td>
+<td>0.4</td>
+<td>modern</td>
+</tr>
+<tr>
+<td>Tephra</td>
+<td>0.1</td>
+<td>glass shards</td>
+</tr>
+<tr>
+<td>Lacustrine</td>
+<td>3.2</td>
+<td>varved</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-python">def varve_count(core):
+    return sum(1 for layer in core if layer.is_annual)
+</code></pre>
+<h2 id="results">Results</h2>
+<p>The varve chronology agrees with the tephra date.<sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup></p>
+<hr class="footnotes-sep">
+<section class="footnotes">
+<ol class="footnotes-list">
+<li id="fn1" class="footnote-item"><p>Field season 2026, GCU. <a href="#fnref1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn2" class="footnote-item"><p>Within two sigma. <a href="#fnref2" class="footnote-backref">↩︎</a></p>
+</li>
+</ol>
+</section>
+</div><footer class="doc-attribution">a cradle document — its contents are only as trustworthy as whoever sent you the link</footer></article></div><script>var el=document.querySelector(".stage>.doc");function v(n){return document.getElementById("c-"+n).value}function apply(){el.className="doc theme-"+v("theme")+" font-"+v("font")+" density-"+v("density")+" width-"+v("width")+(document.getElementById("c-numbered").checked?" numbered":"")+(document.getElementById("c-toc").checked?" has-toc":"");el.style.setProperty("--doc-accent",document.getElementById("c-accent").value)}document.querySelectorAll(".bar select,.bar input").forEach(function(c){c.addEventListener("input",apply)});apply();</script></body></html>

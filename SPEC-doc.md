@@ -387,6 +387,14 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v0.7** (2026-06-05) — **Phase 3: themes.** `ext/doc/templates.css` — a `.doc`-scoped,
+  legibility-first stylesheet on a `--doc-*` semantic layer: five themes (paper/article/
+  terminal/dark/book), the `font`/`density`/`width` knobs, full element styling (headings +
+  anchors, lists, blockquotes, inline+block code with `.tok-*` hooks, tables, footnotes, TOC
+  nav, tags/byline/attribution, mark/sup/sub), **numbered headings via CSS counters**, a
+  `@media print` sheet, and a11y focus styles. Added `ext/doc/sample.md` + `ext/doc/
+  preview.html` — a self-contained preview (links the CSS) with a live theme/density/width/
+  accent/numbered/toc switcher, so a real rendered doc is now viewable. Suite still 70.
 - **v0.6** (2026-06-05) — **Phase 2: decoration.** Headings now get stable, unique,
   deep-linkable ids (so `[x](#slug)` cross-refs resolve and the TOC can link them); `toc:
   true` builds a `<nav class="doc-toc">` contents list (markers stripped from labels). Threads
