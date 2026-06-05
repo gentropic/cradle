@@ -109,6 +109,14 @@ CSS), `theme`/`font`/`images` are checked against their allowlists, unknown valu
 back to the default — and MUST escape every string into the output per §3. YAML hands over
 a safe key/value tree; it does not make the values trustworthy.
 
+**Runtime vs. authoring parse.** `doc` frontmatter is *flat* (scalars + a `tags` list), so
+the **render-time** parser is a small, lenient flat reader — *liberal* in what it accepts so
+a stray quirk never blanks a document, and safe because every value is re-validated against
+the allowlists above. The **strict `@gcu/yaml` conformance check** (which *rejects*
+non-subset input — bare scalars, `yes`/`no`, tags) runs in the agent kit's `validate` script
+(§6, authoring-time), where being strict catches problems before a capsule is sent. Liberal
+at render, strict at authoring.
+
 ### 2.2 Content grammar (the allowed Markdown)
 
 The prose is **CommonMark** with a curated set of GFM/Pandoc extensions. The renderer
@@ -379,6 +387,13 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v0.6** (2026-06-05) — **Phase 2: decoration.** Headings now get stable, unique,
+  deep-linkable ids (so `[x](#slug)` cross-refs resolve and the TOC can link them); `toc:
+  true` builds a `<nav class="doc-toc">` contents list (markers stripped from labels). Threads
+  one `env` through parse→render so the footnote plugin's halves agree. Recorded the
+  **runtime-lenient / authoring-strict** frontmatter split (§2.1): a small flat reader at
+  render (liberal, then allowlist-validated), the strict `@gcu/yaml` check in the kit's
+  `validate` script. `test/doc.test.js` 7 → 9 (anchors/dedup/cross-ref, TOC). Suite 68 → 70.
 - **v0.5** (2026-06-05) — **Engine decided + Phase-1 build.** Markdown engine =
   **markdown-it 14** (+ footnote/sub/sup/mark), vendored inline (`ext/doc/vendor/`, MIT),
   `html: false`. Built `ext/doc/renderer.js` — a DI renderer (`createDocRenderer`) with the

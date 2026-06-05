@@ -10,10 +10,15 @@
 // runs in the browser (`/cradle/doc/`), the Node test harness, and the agent kit without a
 // module-system fight. See `vendor/README.md`.
 //
-// STATUS: v0 — content pipeline + safety layer + frontmatter/meta + the `.doc` article
-// scaffold. TODO (later phases): wire `@gcu/yaml` for frontmatter (a minimal flat parser
-// stands in for now), heading anchors + TOC + numbered headings + footnote/code decoration
-// (reuse @gcu/docview), and the theme stylesheet (`templates.css`).
+// FRONTMATTER PARSING: at *render* time this uses a lenient flat reader (be liberal in what
+// you accept so a quirk never blanks a document) — safe because every value is then
+// re-validated against the allowlists ("safe parse ≠ safe use"). The *strict* `@gcu/yaml`
+// conformance check belongs in the agent kit's `validate` script (Node/ESM, authoring-time),
+// not in the browser runtime; doc frontmatter is flat, so the runtime needs no full YAML.
+//
+// STATUS: v1 — content pipeline + safety layer + frontmatter/meta + heading anchors + TOC +
+// the `.doc` article scaffold. TODO (later phases): code highlighting + footnote/numbered-
+// heading polish (reuse @gcu/docview), `templates.css` themes, `/cradle/doc/` packaging.
 
 const DOC_LINK_SCHEMES = /^(https?|mailto|tel):/i;          // allowed for <a href>
 const DOC_IMG_DATA = /^data:image\/(png|jpe?g|gif|webp);/i;  // allowed inline image data (NB: svg excluded)
@@ -101,7 +106,20 @@ function docMarkdownIt(markdownit, mdPlugins, images) {
   return md;
 }
 
-function docAssemble(meta, contentHtml, locale) {
+// heading slug: lowercase, drop markdown markers + non-word chars, hyphenate. Bounded.
+function docSlug(s) {
+  return String(s).toLowerCase().replace(/<[^>]*>/g, "").replace(/[*_`~]/g, "")
+    .replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 64) || "section";
+}
+// strip markdown emphasis/code markers + collapse links to their text, for TOC labels
+function docPlain(s) { return String(s).replace(/[*_`~]/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1"); }
+function docBuildToc(headings) {
+  if (!headings.length) return "";
+  const items = headings.map((h) => `<li class="toc-l${h.level}"><a href="#${docEscAttr(h.slug)}">${docEscText(docPlain(h.text))}</a></li>`).join("");
+  return `<nav class="doc-toc" aria-label="Contents"><ol>${items}</ol></nav>`;
+}
+
+function docAssemble(meta, contentHtml, tocHtml, locale) {
   const L = DOC_LOCALES[locale] || DOC_LOCALES["en-US"];
   const cls = ["doc", "theme-" + meta.theme, "font-" + meta.font, "density-" + meta.density, "width-" + meta.width];
   if (meta.toc) cls.push("has-toc");
@@ -114,7 +132,7 @@ function docAssemble(meta, contentHtml, locale) {
   if (meta.tags.length) head.push(`<p class="doc-tags">${meta.tags.map((t) => `<span class="doc-tag">${docEscText(t)}</span>`).join("")}</p>`);
   const header = head.length ? `<header class="doc-head">${head.join("")}</header>` : "";
   return {
-    html: `<article class="${cls.join(" ")}"${style}>${header}<div class="doc-body">${contentHtml}</div>` +
+    html: `<article class="${cls.join(" ")}"${style}>${header}${tocHtml || ""}<div class="doc-body">${contentHtml}</div>` +
           `<footer class="doc-attribution">${docEscText(L.via)}</footer></article>`,
     title: meta.title || "",
     theme: meta.theme, font: meta.font, density: meta.density, width: meta.width,
@@ -134,8 +152,23 @@ function createDocRenderer(deps) {
     if (split.fm) { try { parsed = yamlParse ? yamlParse(split.fm) : docFallbackYaml(split.fm); } catch (e) { parsed = {}; } }
     const meta = docValidateMeta(parsed || {});
     const md = docMarkdownIt(markdownit, plugins, meta.images);
-    const contentHtml = md.render(split.md);
-    return docAssemble(meta, contentHtml, opts.locale || deps.locale || "en-US");
+    // parse → assign unique heading ids (deep-linkable + TOC) → render (one `env` so the
+    // footnote plugin's parse/render halves agree).
+    const env = {};
+    const tokens = md.parse(split.md, env);
+    const headings = [], used = Object.create(null);
+    for (let i = 0; i < tokens.length; i++) {
+      if (tokens[i].type !== "heading_open") continue;
+      const inline = tokens[i + 1] && tokens[i + 1].type === "inline" ? tokens[i + 1].content : "";
+      let base = docSlug(inline), slug = base, n = 1;
+      while (used[slug]) slug = base + "-" + (++n);
+      used[slug] = 1;
+      tokens[i].attrSet("id", slug);
+      headings.push({ level: +tokens[i].tag.slice(1), text: inline, slug });
+    }
+    const contentHtml = md.renderer.render(tokens, md.options, env);
+    const tocHtml = meta.toc ? docBuildToc(headings) : "";
+    return docAssemble(meta, contentHtml, tocHtml, opts.locale || deps.locale || "en-US");
   };
 }
 
