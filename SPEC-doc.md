@@ -111,20 +111,41 @@ a safe key/value tree; it does not make the values trustworthy.
 
 ### 2.2 Content grammar (the allowed Markdown)
 
-The prose is **CommonMark** with a curated set of GFM extensions. The renderer parses
-it to a syntax tree and emits HTML for the node types below — nothing else.
+The prose is **CommonMark** with a curated set of GFM/Pandoc extensions. The renderer
+parses it to a syntax tree and emits HTML for the node types below — nothing else. The set
+is chosen so an agent can write a *real report* (structure, sources, asides, notation)
+while every feature stays static, scriptless, and offline.
 
-**Block:** headings (`#`–`######`), paragraphs, bullet/ordered lists (nested),
-task-list items (`- [ ]` → a **disabled** checkbox, never interactive), blockquotes,
-fenced & indented code blocks (with an optional language label — *no* executable
-highlighter; styling only), thematic breaks (`---`), GFM pipe tables, and **callouts**
-(`> [!NOTE]` / `[!WARNING]` / `[!TIP]` GFM-style alerts → a styled admonition block).
+**Block:** headings `#`–`######` (each gets a stable anchor id → deep-linkable, and feeds
+the `toc`); paragraphs; bullet / ordered lists (nested); task-list items (`- [ ]` → a
+**disabled** checkbox, never interactive); blockquotes; fenced & indented code blocks (with
+an optional language label and **scriptless** syntax highlighting via the reused
+`@gcu/docview` tokenizer, §8); thematic breaks (`---`); GFM pipe tables; **callouts**
+(`> [!NOTE]` / `[!WARNING]` / `[!TIP]` → styled admonitions); **collapsibles** (a
+`> [!DETAILS] Summary` callout → a native scriptless `<details>/<summary>`); and
+**footnote definitions** (`[^id]: …`).
 
-**Inline:** emphasis, strong, strikethrough, inline code, links, images, hard line
-breaks.
+**Inline:** emphasis, strong, strikethrough, inline code, links, **autolinks** (a bare
+`https://…` becomes a link), images, hard line breaks, **footnote references** (`[^id]` →
+a superscript link to the notes section + a back-link), **superscript / subscript**
+(`x^2^`, `H~2~O` — useful for scientific/chemical notation), and **highlight** (`==text==`
+→ `<mark>`).
 
-**Collapsibles:** a `> [!DETAILS] Summary` callout (or `<details>`-equivalent block
-syntax) compiles to a native scriptless `<details>/<summary>`.
+**Cross-references** are free: `[see Methods](#methods)` resolves against the heading
+anchors above (`#` fragments are allowed, §3.3).
+
+**Footnotes** compile to pure static HTML (superscript anchor links + a `<section class=
+"footnotes">` with `↩` back-links), numbered in order of *reference*; a reference with no
+definition renders as literal text; anchor ids are namespaced so they can't collide with
+heading anchors.
+
+**Math is deferred (v2, opt-in).** `$…$` / `$$…$$` would need KaTeX; since `doc` is
+separately-cached (§5.1), the plan is a `math: true` frontmatter opt-in that **lazy-loads
+`@gcu/katex` only for docs that use it** (KaTeX pre-renders to static HTML/MathML — safe
+output), so non-math docs carry zero weight. Not in v1. **Diagrams** (Mermaid &c.) are
+*never* a renderer feature — they run JS; the author-side path is to pre-render a diagram to
+a raster `data:` image (§3.4) and embed that (the `author` kit MAY help). A `mermaid` code
+block just renders as code.
 
 Anything outside this set — including any **raw HTML** the author embeds — is **not**
 rendered as markup; see §3.
@@ -342,18 +363,27 @@ as "just another node type." Breaking changes bump the magic-line version (`!doc
   emitter), so §3.1 "generate, never sanitize" holds. No GCU sibling qualifies (§8). 
 - **Separately-cached load mechanism.** `/cradle/doc/` is decided (§5.1); confirm *how* the
   bootloader runs it — dynamic `import()` of a renderer module (keeps the dispatcher URL) vs
-  a sub-page handed the fragment (simpler isolation, but the SW-scope lesson applies).
-- **Image default.** Inline-`data:`-only (offline-pure) by default, external opt-in (§3.4) —
-  confirm.
-- **Math.** Defer to a later opt-in via `@gcu/katex` (pre-rendered, safe). Confirm "no math
-  in v1."
+  a sub-page handed the fragment (simpler isolation, but the SW-scope lesson applies). The
+  Markdown engine is the only true blocker; this is a refinement.
 
 *Resolved since v0.2:* header → YAML frontmatter (§2); packaging → separately-cached
 `/cradle/doc/` (§5.1); highlighting → reuse `@gcu/docview`'s scriptless tokenizer (§8);
-primary tooling → the agent kit (§6), GUI editor deferred.
+primary tooling → the agent kit (§6); **content set locked** (§2.2: CommonMark+GFM +
+footnotes + sup/sub + mark + autolinks + cross-refs; math deferred to a v2 lazy-loaded
+`math:` opt-in; diagrams = author-side raster images, never a renderer feature); image
+default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v0.4** (2026-06-05) — **Content set locked** (§2.2). Promoted into the allowed
+  Markdown: **footnotes** (refs + defs → static superscript links + a back-linked notes
+  section), **superscript/subscript** (`x^2^`/`H~2~O`), **highlight** (`==mark==`),
+  **autolinks**, and deep-linkable **heading anchors + `#` cross-references**. Corrected the
+  code-block note — syntax highlighting **is** available (scriptless, reusing
+  `@gcu/docview`'s tokenizer). **Math** settled as a **v2 lazy-loaded `math:` opt-in** via
+  `@gcu/katex` (domain-relevant for GCU, but zero weight for non-math docs since `doc` is
+  separately-cached); **diagrams** are author-side raster images, never a renderer feature.
+  The Markdown engine pick is now the only true blocker.
 - **v0.3** (2026-06-05) — `doc` is the first **separately-cached** renderer at
   `/cradle/doc/`, dispatched by the bootloader as a first-party same-origin module (§5.1).
   Added the **agent authoring kit** (§6: renderer + `SKILL.md` + dependency-free
