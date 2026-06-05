@@ -96,6 +96,15 @@ function docMarkdownIt(markdownit, mdPlugins, images) {
     if (/^https?:/i.test(href)) { tokens[idx].attrSet("rel", "noopener noreferrer nofollow"); tokens[idx].attrSet("target", "_blank"); }
     return baseLinkOpen(tokens, idx, opts, env, self);
   };
+  // Headings: append a subtle, deep-linkable anchor (`#`) after the text — a desktop
+  // hover affordance for copying the section link. The id was set on the open token before
+  // render (see renderDoc); read it from the matching open at idx-2.
+  md.renderer.rules.heading_close = (tokens, idx, opts, env, self) => {
+    const open = tokens[idx - 2];
+    const id = open && open.type === "heading_open" ? open.attrGet("id") : "";
+    const anchor = id ? ` <a class="doc-anchor" href="#${docEscAttr(id)}" aria-label="Link to this section">#</a>` : "";
+    return anchor + self.renderToken(tokens, idx, opts);
+  };
   // Images: raster data: always; https only under `images: external`; otherwise drop to alt text.
   md.renderer.rules.image = (tokens, idx, opts, env, self) => {
     const t = tokens[idx], src = String(t.attrGet("src") || "").trim();

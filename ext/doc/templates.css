@@ -172,6 +172,39 @@
   --doc-mark: #f1e3b0; --doc-callout-bg: rgba(100, 80, 40, 0.06); }
 .doc.theme-book .doc-title { font-variant: small-caps; letter-spacing: 0.01em; }
 
+/* heading deep-link anchors (hover affordance, mainly desktop) */
+.doc-body :where(h1, h2, h3, h4, h5, h6) .doc-anchor {
+  opacity: 0; margin-left: 0.35em; color: var(--doc-faint); font-weight: 400;
+  text-decoration: none; transition: opacity 0.12s; }
+.doc-body :where(h1, h2, h3, h4, h5, h6):hover .doc-anchor, .doc-anchor:focus-visible { opacity: 1; }
+.doc-anchor:hover { color: var(--doc-accent); }
+.doc.numbered .doc-body :where(h2, h3, h4) .doc-anchor { font-weight: 400; }
+
+/* ---- desktop: keep the reading measure, but float the TOC into a sticky sidebar so the
+   horizontal space is used (the docs-site layout). Body prose never goes full-width — line
+   length drives readability. Single column (current behaviour) below the breakpoint. ---- */
+@media screen and (min-width: 64rem) {
+  .doc.has-toc {
+    max-width: 66rem;
+    display: grid;
+    grid-template-columns: 14rem minmax(0, var(--doc-measure));
+    grid-template-areas: "toc head" "toc body" "toc foot";
+    column-gap: 3.2rem;
+    align-items: start;
+    justify-content: center;
+  }
+  .doc.has-toc > .doc-head { grid-area: head; }
+  .doc.has-toc > .doc-body { grid-area: body; }
+  .doc.has-toc > .doc-attribution { grid-area: foot; }
+  .doc.has-toc > .doc-toc {
+    grid-area: toc; position: sticky; top: 1.5rem; align-self: start;
+    max-height: calc(100vh - 3rem); overflow-y: auto;
+    margin: 0; padding: 0.2rem 0.4rem 0.2rem 0; background: none; border: none; border-radius: 0;
+    font-size: 0.86em;
+  }
+  .doc.has-toc > .doc-toc::before { margin-bottom: 0.7rem; }
+}
+
 /* ============================== print ============================== */
 @media print {
   .doc { max-width: none; color: #000; background: #fff; padding: 0; font-size: 11pt; }
@@ -179,6 +212,7 @@
   .doc-body h1, .doc-body h2, .doc-body h3 { break-after: avoid; }
   .doc-body pre, .doc-body blockquote, .doc-body table, .doc-body figure { break-inside: avoid; }
   .doc-body a { color: #000; text-decoration: underline; }
+  .doc-anchor { display: none; }
   @page { margin: 18mm; }
 }
 

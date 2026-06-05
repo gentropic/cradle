@@ -392,7 +392,10 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
   terminal/dark/book), the `font`/`density`/`width` knobs, full element styling (headings +
   anchors, lists, blockquotes, inline+block code with `.tok-*` hooks, tables, footnotes, TOC
   nav, tags/byline/attribution, mark/sup/sub), **numbered headings via CSS counters**, a
-  `@media print` sheet, and a11y focus styles. Added `ext/doc/sample.md` + `ext/doc/
+  `@media print` sheet, and a11y focus styles. **Desktop layout:** at ≥64rem the body keeps
+  its reading measure (line length drives readability) while the TOC floats into a **sticky
+  sidebar** (the docs-site pattern — uses the horizontal space instead of a phone-width strip
+  in a void); headings gain hover **deep-link anchors** (`#`). Added `ext/doc/sample.md` + `ext/doc/
   preview.html` — a self-contained preview (links the CSS) with a live theme/density/width/
   accent/numbered/toc switcher, so a real rendered doc is now viewable. Suite still 70.
 - **v0.6** (2026-06-05) — **Phase 2: decoration.** Headings now get stable, unique,

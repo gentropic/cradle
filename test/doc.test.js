@@ -79,7 +79,7 @@ test("frontmatter → validated meta (allowlist fallback, hex accent, tags, bool
 });
 
 test("no frontmatter → all content; a bare leading --- is a thematic break, not frontmatter", () => {
-  assert.match(renderDoc("# Just content\n\ntext").html, /<h1 id="just-content">Just content<\/h1>/);
+  assert.match(renderDoc("# Just content\n\ntext").html, /<h1 id="just-content">Just content /);
   // "---\ntext" with no closing fence is NOT frontmatter; "---" alone becomes <hr>
   const r = renderDoc("---\n\ntext after a rule").html;
   assert.ok(/<hr>/.test(r) || /text after a rule/.test(r));
@@ -88,9 +88,9 @@ test("no frontmatter → all content; a bare leading --- is a thematic break, no
 
 test("headings get stable, unique, deep-linkable ids; cross-refs resolve", () => {
   const r = renderDoc("## Methods\n\ntext\n\n## Results\n\n## Methods\n\nsee [above](#methods)").html;
-  assert.match(r, /<h2 id="methods">Methods<\/h2>/);
-  assert.match(r, /<h2 id="results">Results<\/h2>/);
-  assert.match(r, /<h2 id="methods-2">Methods<\/h2>/, "duplicate heading deduped");
+  assert.match(r, /<h2 id="methods">Methods <a class="doc-anchor" href="#methods"[^>]*>#<\/a><\/h2>/);
+  assert.match(r, /<h2 id="results">Results /);
+  assert.match(r, /<h2 id="methods-2">Methods /, "duplicate heading deduped");
   assert.match(r, /<a href="#methods"[^>]*>above<\/a>/, "in-page cross-reference survives");
 });
 
