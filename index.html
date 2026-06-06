@@ -2496,6 +2496,10 @@ function renderLanding(root) {
         <div class="tool-emoji">🔗</div>
         <p class="tool-name">Bio</p>
         <p class="tool-desc">A "link in bio" hub — crams into a QR or an NFC tag.</p></a>
+      <a class="tool-card" href="#inline:deflate:bZFNbtswEIX3PMWrvSjgSDbSpXfZBUGLAvlZBS1Ek6OIFTUjkKMIBoSgh-gJe5JWUrzLgsAQb36-mffJi7u-Ii6fHkxZlkaDRjpi89iEjJBh4ZL1keDFbYw21M1qb3tKG6PijqhtzLTUmi0-KjPmBmMj62foiLXAbuek6xPlTB6BVaANIQZudzucZcCvISukJyaPv7__gAV1iFTMQab0SqmAZY-gGCW1GVLXMTBB2NFl-MzCWW2M5PfGbLe4lRFBP2d01pMxNwz7QqwYU1DK-GZT62XkpXUaOC9Y1WHtd_DiDhXaoFBBF1hhF2bE0BJ03l2Y9ni0p0i5QC2iLEr5-ef1jwKVE0_Vys2iVoPwWnr79uXtO2yMSMSe0t6YCV_tmRIm3MkJk5nKslyemeBsn4dImKOUAq2Yp_O8wqKv609IZP0qqn0p3puvOV4cppX5YgtqSZ1VTMbMwEfcL_n_HTid0b2fppwvHrRB1WgXj4v71cUiO2gjCdml0GsGvVKaz7g3_wA">
+        <div class="tool-emoji">📄</div>
+        <p class="tool-name">Doc</p>
+        <p class="tool-desc">A rich document as a link — open this live demo. Agents mint them with the <code>/doc</code> kit.</p></a>
     </div>
 
     <h2>How it works</h2>
@@ -2554,6 +2558,9 @@ if (document.readyState === "loading") {
 } else {
   main();
 }
+// re-render when the fragment changes (so in-page capsule links — e.g. the landing's doc
+// demo — render without a full reload, and Back returns to the landing).
+window.addEventListener("hashchange", main);
 
 // Service worker registration (silent failure if SW not supported / not served from same origin)
 if ("serviceWorker" in navigator) {
