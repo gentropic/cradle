@@ -103,6 +103,30 @@ test("@toc builds a contents nav from the headings (off by default)", () => {
   assert.ok(!/doc-toc/.test(renderDoc("# x\n\n## y").html), "no toc unless requested");
 });
 
+test("agent kit: author round-trips through the capsule scheme; validate catches + passes", async () => {
+  const zlib = require("node:zlib");
+  const { makeDocCapsule, makeDocUrl } = await import("../doc/author.mjs");
+  const { validateDoc } = await import("../doc/validate.mjs");
+  const content = '---\ntitle: "Hi"\ntheme: "dark"\ntoc: true\n---\n# Hi\n\ntext, a [link](https://x.com), H~2~O.';
+  // capsule round-trips to !doc1+<locale>\n<body>
+  const cap = makeDocCapsule(content, { locale: "en-US" });
+  assert.ok(cap.startsWith("inline:deflate:"));
+  const b64 = cap.slice("inline:deflate:".length).replace(/-/g, "+").replace(/_/g, "/");
+  assert.strictEqual(zlib.inflateRawSync(Buffer.from(b64, "base64")).toString(), "!doc1+en-US\n" + content);
+  assert.match(makeDocUrl(content, { base: "https://gentropic.org/cradle/" }), /^https:\/\/gentropic\.org\/cradle\/#inline:deflate:/);
+  // validate: clean content has no errors
+  assert.strictEqual(validateDoc(content).findings.filter((f) => f.level === "error").length, 0);
+  // validate: catches the strict-subset violations + the dropped-markdown warnings
+  const bad = validateDoc('---\ntitle: Unquoted\ntoc: yes\n---\n<b>x</b> [y](ftp://z) ![s](data:image/svg+xml,a)');
+  const errs = bad.findings.filter((f) => f.level === "error").map((f) => f.msg).join(" | ");
+  assert.match(errs, /MUST be quoted/);          // unquoted title
+  assert.match(errs, /ambiguous boolean/);       // toc: yes
+  const warns = bad.findings.filter((f) => f.level === "warn").map((f) => f.msg).join(" | ");
+  assert.match(warns, /raw HTML/);
+  assert.match(warns, /scheme dropped/);
+  assert.match(warns, /SVG data: image forbidden/);
+});
+
 test("oversized body is capped (DoS guard), still renders", () => {
   const big = "a ".repeat(200000);   // ~400KB > 256KB cap
   const out = renderDoc(big).html;

@@ -387,6 +387,17 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v0.9** (2026-06-05) — **Phase 5: the agent kit** (§6) — `doc` is now agent-native.
+  `/cradle/doc/` ships, stdlib-only and dependency-free: **`author.{mjs,py}`** (Markdown +
+  frontmatter → `!doc1+` capsule → share URL: raw-deflate → `inline:deflate:base64url`) and
+  **`validate.{mjs,py}`** (preflight — strict-YAML-subset frontmatter conformance: unquoted
+  strings + `yes`/`no` booleans are errors; plus Markdown lints: raw HTML, non-allowlisted
+  link schemes, SVG/external images; plus the size cap). Node and Python authors both
+  round-trip (not byte-identical — zlib versions — but both valid); the two validators agree.
+  **`SKILL.md`** teaches an agent the loop (write → validate → author), the frontmatter
+  schema + quoting rule, the allowed Markdown + what's dropped, and the "inert, not
+  authentic" trust stance. Guarded by `test/doc.test.js` (author round-trip + validate
+  catches/passes). Suite 70 → 71. Remaining: Phase 6 — `/security-review` + a landing card.
 - **v0.8** (2026-06-05) — **Phase 4: packaging + dispatch.** `doc` is wired into cradle as
   the first **separately-cached** renderer. The bootloader stays the dispatcher (it already
   decodes the capsule + parses the magic line) and, on `!doc1+`, **lazy-loads the curated
