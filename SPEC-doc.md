@@ -387,6 +387,14 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v1.1** (2026-06-05) — **Editor + agent dock.** A human GUI editor shipped at
+  `doc/index.html` (was deferred): a split Markdown-source ↔ live-preview view that reuses
+  the *exact* engine the bootloader lazy-loads (`doc/renderer.js` + `templates.css`) → true
+  WYSIWYG, with a copy-link/Open footer. The share link is built browser-natively via
+  `CompressionStream("deflate-raw")` → base64url (no pako vendor); verified the editor's
+  encoding round-trips through the bootloader's resolver. Landing: the **Doc** card now opens
+  the editor (was a demo capsule), and a new **For agents** card docks the `cradle-doc`
+  `SKILL.md`. Docs are link-scale, so the editor has no QR by design.
 - **v1.0** (2026-06-05) — **Phase 6: security review + landing — `doc` is shippable.** An
   adversarial security review found **zero injection/XSS** — the §3 "generate, never
   sanitize" contract held against every payload (scheme bypasses incl. case/tab/newline/

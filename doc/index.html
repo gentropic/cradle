@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>doc editor · cradle</title>
+<!-- the EXACT engine the bootloader lazy-loads, so the preview is true WYSIWYG -->
+<link rel="stylesheet" href="templates.css">
+<style>
+  :root { --bg:#fff; --fg:#1a1a1a; --muted:#666; --faint:#999; --border:rgba(0,0,0,.14); --panel:#f6f7f8; --accent:#3b6ea5; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; }
+  body { font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; color:var(--fg); display:flex; flex-direction:column; height:100vh; }
+  header { display:flex; align-items:center; gap:.6rem; padding:.55rem 1rem; border-bottom:1px solid var(--border); background:var(--bg); flex:0 0 auto; }
+  header h1 { font-size:1rem; margin:0; font-weight:600; }
+  header .sp { flex:1; }
+  .hbtn { font:inherit; font-size:.84rem; background:none; border:1px solid var(--border); border-radius:6px; padding:.3rem .65rem; cursor:pointer; color:var(--fg); text-decoration:none; }
+  .hbtn:hover { border-color:var(--fg); }
+  select.loc { font:inherit; font-size:.82rem; padding:.25rem .3rem; border:1px solid var(--border); border-radius:6px; }
+  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:0; }
+  @media (max-width:760px){ .split { grid-template-columns:1fr; grid-template-rows:1fr 1fr; } }
+  .pane { min-width:0; min-height:0; display:flex; flex-direction:column; }
+  .pane.src { border-right:1px solid var(--border); }
+  @media (max-width:760px){ .pane.src { border-right:0; border-bottom:1px solid var(--border); } }
+  #src { flex:1; width:100%; border:0; resize:none; padding:1rem 1.1rem; outline:none;
+         font:13px/1.6 ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace; color:var(--fg); tab-size:2; }
+  .preview-wrap { flex:1; overflow:auto; background:#e8e8ec; }
+  .preview-wrap > .doc { background:var(--doc-bg,#fff); box-shadow:0 2px 18px rgba(0,0,0,.12); margin:1.2rem auto; }
+  footer.share { flex:0 0 auto; border-top:1px solid var(--border); padding:.5rem 1rem; background:var(--panel);
+                 display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+  footer .url { flex:1 1 12rem; min-width:0; font:12px ui-monospace,monospace; color:var(--muted);
+                white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  footer .meta { font-size:.74rem; color:var(--faint); white-space:nowrap; }
+  footer .agents { font-size:.78rem; color:var(--muted); }
+  footer .agents a { color:var(--accent); }
+  .warn { font-size:.74rem; color:#b35; }
+</style>
+</head>
+<body>
+<header>
+  <h1>doc · <span style="color:var(--muted);font-weight:400">cradle</span></h1>
+  <span class="sp"></span>
+  <select class="loc" id="loc" title="document locale"><option>en-US</option><option>pt-BR</option></select>
+  <button class="hbtn" id="sample" type="button">Sample</button>
+  <button class="hbtn" id="clear" type="button">Clear</button>
+  <a class="hbtn" href="../" title="cradle home">↩ cradle</a>
+</header>
+
+<div class="split">
+  <div class="pane src"><textarea id="src" spellcheck="false" placeholder="# Title&#10;&#10;Write Markdown — optional ---YAML--- frontmatter on top. See SKILL.md for the schema."></textarea></div>
+  <div class="pane"><div class="preview-wrap"><div id="preview"></div></div></div>
+</div>
+
+<footer class="share">
+  <button class="hbtn" id="copy" type="button">Copy link</button>
+  <a class="hbtn" id="open" target="_blank" rel="noopener">Open ↗</a>
+  <span class="url" id="url"></span>
+  <span class="meta" id="meta"></span>
+  <span class="warn" id="warn"></span>
+  <span class="sp"></span>
+  <span class="agents">🤖 Authoring by agent? → <a href="SKILL.md">SKILL.md</a></span>
+</footer>
+
+<script src="vendor/markdown-it.min.js"></script>
+<script src="vendor/markdown-it-footnote.min.js"></script>
+<script src="vendor/markdown-it-sub.min.js"></script>
+<script src="vendor/markdown-it-sup.min.js"></script>
+<script src="vendor/markdown-it-mark.min.js"></script>
+<script src="renderer.js"></script>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const g = window;
+const renderDoc = g.createDocRenderer({ markdownit: g.markdownit, plugins: [g.markdownitFootnote, g.markdownitSub, g.markdownitSup, g.markdownitMark] });
+g.bindDocAnchors($("preview"));   // footnote/anchor/TOC links scroll within the preview (don't navigate)
+
+const SAMPLE = [
+  '---', 'title: "Field notes, Itomori"', 'theme: "paper"', 'toc: true',
+  'author: "Mitsuha Miyamizu"', 'date: "2026-06-05"', 'tags: ["geology", "fieldwork"]', '---', '',
+  'A short abstract with **bold**, *italic*, a [link](https://example.org), ==a highlight==, and H~2~O.', '',
+  '## Setting', '', 'Itomori sits in a [post-impact](#methods) depression. Key markers[^1]:', '',
+  '- Tephra layer', '- A shocked-quartz horizon', '- Lacustrine infill', '',
+  "> A caldera lake records the comet's arrival in laminated mud.", '',
+  '## Methods', '', 'We logged the section and sampled at 5 cm intervals.', '',
+  '| Unit | Thickness (m) | Notes |', '|---|---|---|', '| Tephra | 0.1 | glass shards |', '| Lacustrine | 3.2 | varved |', '',
+  '## Results', '', 'The varve chronology agrees with the tephra date.', '',
+  '[^1]: Field season 2026, GCU.', '',
+].join("\n");
+
+// raw-deflate + base64url, browser-native (matches the capsule scheme; no pako needed)
+async function deflateRaw(bytes) {
+  const cs = new CompressionStream("deflate-raw");
+  const w = cs.writable.getWriter(); w.write(bytes); w.close();
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+function b64url(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+let lastURL = "", seq = 0;
+async function update() {
+  const src = $("src").value, locale = $("loc").value;
+  try {
+    const r = renderDoc(src, { locale });
+    $("preview").innerHTML = r.html;
+    document.title = (r.title || "doc") + " · cradle editor";
+  } catch (e) { $("preview").innerHTML = '<p style="padding:1rem;color:#b35">render error: ' + (e && e.message) + "</p>"; }
+  const mine = ++seq;
+  try {
+    const payload = "!doc1+" + locale + "\n" + src;
+    const cap = "inline:deflate:" + b64url(await deflateRaw(new TextEncoder().encode(payload)));
+    if (mine !== seq) return;   // a newer keystroke already ran
+    lastURL = new URL("../", location.href).href + "#" + cap;
+    $("url").textContent = lastURL; $("open").href = lastURL;
+    $("meta").textContent = "capsule " + cap.length + " B · URL " + lastURL.length + " B";
+    $("warn").textContent = "";
+  } catch (e) { $("warn").textContent = "(link needs a modern browser: " + (e && e.message) + ")"; }
+}
+
+$("src").addEventListener("input", update);
+$("loc").addEventListener("change", update);
+$("sample").addEventListener("click", () => { $("src").value = SAMPLE; update(); });
+$("clear").addEventListener("click", () => { $("src").value = ""; update(); });
+$("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(lastURL); $("copy").textContent = "Copied ✓"; setTimeout(() => $("copy").textContent = "Copy link", 1200); } catch (e) {}
+});
+
+$("src").value = SAMPLE;
+update();
+</script>
+</body>
+</html>
