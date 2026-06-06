@@ -11,6 +11,7 @@ The stack is composed of three layered specifications, each addressing one conce
 │  SPEC-arcr.md         arcade micro-game format          │
 │  SPEC-contact.md      vCard-hub payload format          │
 │  SPEC-bio.md          link-hub payload format           │
+│  SPEC-doc.md          rich-document format              │
 │  SPEC-lostfound.md    (planned)                         │
 ├─────────────────────────────────────────────────────────┤
 │  SPEC-cradle.md         dispatch · renderer registry      │  application layer
