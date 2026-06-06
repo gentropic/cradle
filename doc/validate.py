@@ -73,7 +73,9 @@ def validate_doc(content):
         if fenced:
             continue
         t = re.sub(r"`[^`]*`", "", line)
-        if re.search(r"<[a-zA-Z!/][^>]*>", t):
+        # raw HTML -> text, BUT exempt CommonMark autolinks (<https://...>, <mailto:...>, <user@host>)
+        t_html = re.sub(r"<[^>\s@]+@[^>\s]+>", "", re.sub(r"<(https?|mailto|tel):[^>\s]+>", "", t, flags=re.I))
+        if re.search(r"<[a-zA-Z!/][^>]*>", t_html):
             add("warn", "L%d: raw HTML renders as TEXT -- doc has no HTML passthrough" % (i + 1))
         for m in re.finditer(r"!\[[^\]]*\]\(([^)\s]+)", t):
             src = m.group(1)
@@ -85,9 +87,10 @@ def validate_doc(content):
                 add("warn", "L%d: only raster data: images (png/jpeg/gif/webp) allowed" % (i + 1))
         for m in re.finditer(r"\]\(([^)\s]+)", re.sub(r"!\[[^\]]*\]\([^)]*\)", "", t)):
             href = m.group(1)
-            if href.startswith("#") or LINK_OK.match(href) or not re.match(r"^[a-z][a-z0-9+.-]*:", href, re.I):
+            sch = re.match(r"^[a-z][a-z0-9+.-]*:", href, re.I)
+            if href.startswith("#") or LINK_OK.match(href) or not sch:
                 continue
-            add("warn", "L%d: link scheme dropped -> %s (only https/http/mailto/tel)" % (i + 1, href))
+            add("warn", "L%d: link scheme dropped -> %s (only https/http/mailto/tel)" % (i + 1, sch.group(0)))
 
     if len(content) > MAX_BYTES:
         add("error", "body is %d B -- exceeds the 256 KB cap (would be truncated)" % len(content))

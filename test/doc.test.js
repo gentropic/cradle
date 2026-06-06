@@ -95,6 +95,22 @@ test("headings get stable, unique, deep-linkable ids; cross-refs resolve", () =>
   assert.match(r, /<a href="#methods"[^>]*>above<\/a>/, "in-page cross-reference survives");
 });
 
+test("explicit heading ids: trailing {#slug} is used verbatim, stripped from text, cross-ref resolves", () => {
+  const r = renderDoc("## Typography {#typo}\n\nsee [fonts](#typo)").html;
+  assert.match(r, /<h2 id="typo">Typography <a class="doc-anchor"/, "explicit id used verbatim");
+  assert.ok(!/typo-typo|typography-typography/.test(r), "no double-slug corruption");
+  assert.ok(!/\{#typo\}/.test(r), "{#…} not shown in rendered text");
+  assert.match(r, /<a href="#typo"[^>]*>fonts<\/a>/, "cross-reference resolves to the explicit id");
+});
+
+test("explicit heading id is inert against attribute injection (only [A-Za-z][\\w-]* honored)", () => {
+  // a malformed/adversarial brace tail is NOT a valid {#id}, so it falls back to the auto-slug;
+  // the angle-bracket payload is escaped to inert text (html:false), never a live tag/handler
+  const r = renderDoc('## Evil {#a"><img src=x onerror=alert(1)>}\n').html;
+  assert.ok(!LIVE(r), "rendered output is inert (no live tag or on*= handler)");
+  assert.match(r, /<h2 id="[a-z][\w-]*"/, "id falls back to a safe auto-slug, not the adversarial brace tail");
+});
+
 test("duplicate headings dedup in LINEAR time — no O(N²) tab-hang (§3.7 DoS)", { timeout: 5000 }, () => {
   const N = 20000;                                  // ~100 KB of "# d\n\n" — quadratic dedup would take tens of seconds
   const html = renderDoc("# d\n\n".repeat(N)).html;
@@ -133,6 +149,24 @@ test("agent kit: author round-trips through the capsule scheme; validate catches
   assert.match(warns, /raw HTML/);
   assert.match(warns, /scheme dropped/);
   assert.match(warns, /SVG data: image forbidden/);
+});
+
+test("validate: CommonMark autolinks are NOT flagged as raw HTML; real raw HTML still is", async () => {
+  const { validateDoc } = await import("../doc/validate.mjs");
+  const auto = validateDoc("See <https://gentropic.org/cradle/> and mail <a@b.co> or <tel:+15551234>.");
+  assert.ok(!auto.findings.some((f) => /raw HTML/.test(f.msg)), "autolinks (URL/email/tel) not mistaken for raw HTML");
+  const dropped = validateDoc("scheme <ftp://x/y> is dropped");
+  assert.ok(dropped.findings.some((f) => /raw HTML/.test(f.msg)), "non-allowlisted angle-bracket scheme is not exempted");
+  const real = validateDoc("a <div>box</div> here");
+  assert.ok(real.findings.some((f) => /raw HTML/.test(f.msg)), "actual raw HTML still warned");
+});
+
+test("validate: dropped-scheme warning reports the scheme, not the paren-truncated URL", async () => {
+  const { validateDoc } = await import("../doc/validate.mjs");
+  const r = validateDoc("[x](javascript:alert(1))");
+  const w = r.findings.find((f) => /scheme dropped/.test(f.msg));
+  assert.ok(w && /→ javascript: /.test(w.msg), "shows the scheme token");
+  assert.ok(w && !/alert\(1/.test(w.msg), "does not show the truncated href");
 });
 
 test("oversized body is capped (DoS guard), still renders", () => {

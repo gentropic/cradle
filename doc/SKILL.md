@@ -30,7 +30,9 @@ the encoding is small enough to do inline; see **Mint the link yourself** at the
    Fix any `ERROR`. `warn`s are fine but tell you what gets dropped.
 3. **Author** the link:
    `node author.mjs mydoc.md --base https://gentropic.org/cradle/`  ·  or  ·  `python author.py mydoc.md`
-   It prints the share URL. (Node and Python produce equivalent links; use whichever you have.)
+   It prints the share URL. (Node and Python both work; their links **decode to the same
+   document** but may differ byte-for-byte — Node's and CPython's zlib pick different, equally
+   valid DEFLATE encodings. Either link renders identically.)
 
 ## Frontmatter (YAML, strict subset — quote your strings)
 
@@ -63,6 +65,14 @@ Standard CommonMark + GFM, plus: **footnotes** (`text[^1]` … `[^1]: note`),
 **superscript/subscript** (`x^2^`, `H~2~O`), **highlight** (`==mark==`), tables, task
 lists, autolinks, and `#`-anchored cross-references to headings (`[see Methods](#methods)`).
 Headings get deep-link anchors automatically; `toc: true` builds a contents nav.
+
+**Heading anchors.** To link to a heading, you need its slug. Either:
+- **Set it explicitly** with a trailing `{#my-id}` on the heading — `## Typography {#typo}`
+  links from `[…](#typo)`. The `{#…}` is stripped from the visible text; the id is used
+  verbatim (must start with a letter; `[A-Za-z][\w-]*`, 64-char cap).
+- **Or rely on the auto-slug** from the heading text: lowercase → strip emphasis/code
+  markers (`*_`` ~`) → drop anything outside `[\w\s-]` → trim → spaces→`-` → cap at 64
+  chars. Collisions get `-2`, `-3`, … suffixes. So `## Field Methods` → `#field-methods`.
 
 ## What gets dropped (the validator warns you)
 

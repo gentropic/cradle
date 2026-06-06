@@ -188,8 +188,17 @@ function createDocRenderer(deps) {
     const headings = [], used = Object.create(null), counts = Object.create(null);
     for (let i = 0; i < tokens.length; i++) {
       if (tokens[i].type !== "heading_open") continue;
-      const inline = tokens[i + 1] && tokens[i + 1].type === "inline" ? tokens[i + 1].content : "";
-      const base = docSlug(inline);
+      const inlineTok = tokens[i + 1] && tokens[i + 1].type === "inline" ? tokens[i + 1] : null;
+      let text = inlineTok ? inlineTok.content : "", explicit = null;
+      // explicit heading id: a trailing `{#slug}` (pandoc/kramdown/MkDocs convention) → use it
+      // verbatim as the id and strip it from the displayed text + TOC. Restricted to safe slug
+      // chars by the regex, so it cannot break the id/href attribute or inject.
+      const last = inlineTok && inlineTok.children && inlineTok.children.length ? inlineTok.children[inlineTok.children.length - 1] : null;
+      if (last && last.type === "text") {
+        const m = last.content.match(/\s*\{#([A-Za-z][\w-]*)\}\s*$/);
+        if (m) { explicit = m[1].slice(0, 64); last.content = last.content.slice(0, m.index); text = text.replace(/\s*\{#[A-Za-z][\w-]*\}\s*$/, ""); }
+      }
+      const base = explicit || docSlug(text);
       let slug = base;
       // dedup in O(1) amortized: remember the last suffix used per base so duplicate headings
       // don't re-walk base-2..base-k each time (an O(N²) tab-hang on adversarial all-same-slug
@@ -197,7 +206,7 @@ function createDocRenderer(deps) {
       if (used[slug]) { let n = counts[base] || 1; do { n += 1; slug = base + "-" + n; } while (used[slug]); counts[base] = n; }
       used[slug] = 1;
       tokens[i].attrSet("id", slug);
-      headings.push({ level: +tokens[i].tag.slice(1), text: inline, slug });
+      headings.push({ level: +tokens[i].tag.slice(1), text, slug });
     }
     const contentHtml = md.renderer.render(tokens, md.options, env);
     const tocHtml = meta.toc ? docBuildToc(headings) : "";

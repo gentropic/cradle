@@ -1,6 +1,6 @@
 # SPEC-doc — the `doc` body format (a self-contained rich document)
 
-> Status: draft v0.1 · License: CC0 · Part of the `@gcu/cradle` stack
+> Status: v1.2 · License: CC0 · Part of the `@gcu/cradle` stack
 > (`SPEC-capsule.md` = transport, `SPEC-cradle.md` = dispatch). This document
 > defines the **body grammar** for one renderer; transport/encoding are delegated
 > to capsule.
@@ -140,7 +140,12 @@ a superscript link to the notes section + a back-link), **superscript / subscrip
 → `<mark>`).
 
 **Cross-references** are free: `[see Methods](#methods)` resolves against the heading
-anchors above (`#` fragments are allowed, §3.3).
+anchors above (`#` fragments are allowed, §3.3). Each heading's id is either **explicit** —
+a trailing `{#slug}` (pandoc/kramdown/MkDocs convention), used verbatim, stripped from the
+displayed text, constrained to `[A-Za-z][\w-]*` and 64 chars (a malformed brace tail is not
+honored and falls back to the auto-slug, so it can never break the id attribute) — or
+**auto-slugged** from the heading text: lowercase, strip emphasis/code markers and any char
+outside `[\w\s-]`, spaces→`-`, 64-char cap, with `-2`/`-3`/… suffixes on collision.
 
 **Footnotes** compile to pure static HTML (superscript anchor links + a `<section class=
 "footnotes">` with `↩` back-links), numbered in order of *reference*; a reference with no
@@ -387,6 +392,16 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v1.2** (2026-06-05) — **Explicit heading ids + validator polish** (from an end-to-end
+  exercise report). Headings now accept a trailing `{#slug}` (§2.2 cross-refs) — used verbatim
+  (constrained to `[A-Za-z][\w-]*`, 64 chars, adversarial tails fall back to the auto-slug),
+  fixing the bug where `## H {#id}` rendered the braces literally and double-slugged the id.
+  The slug rule is now documented (here + `SKILL.md`). `validate.{mjs,py}`: CommonMark
+  autolinks (`<https://…>`, `<a@b.co>`, `<tel:…>`) are no longer false-flagged as raw HTML,
+  and the dropped-scheme warning reports the scheme (`javascript:`) instead of a paren-
+  truncated href. `SKILL.md` reworded: Node/Python authors "decode to the same document"
+  (their DEFLATE bytes legitimately differ). `test/doc.test.js` +4 (explicit id + injection
+  inertness; autolink-not-flagged; scheme-not-truncated); suite 72 → 76.
 - **v1.1** (2026-06-05) — **Editor + agent dock.** A human GUI editor shipped at
   `doc/index.html` (was deferred): a split Markdown-source ↔ live-preview view that reuses
   the *exact* engine the bootloader lazy-loads (`doc/renderer.js` + `templates.css`) → true

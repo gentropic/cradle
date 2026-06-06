@@ -55,7 +55,9 @@ export function validateDoc(content) {
     if (/^\s*```/.test(line)) { fenced = !fenced; return; }
     if (fenced) return;
     const t = line.replace(/`[^`]*`/g, "");   // ignore inline code
-    if (/<[a-zA-Z!/][^>]*>/.test(t)) add("warn", `L${i + 1}: raw HTML renders as TEXT — doc has no HTML passthrough`);
+    // raw HTML → text, BUT exempt CommonMark autolinks (<https://…>, <mailto:…>, <user@host>) — those are real links, not raw HTML
+    const tHtml = t.replace(/<(https?|mailto|tel):[^>\s]+>/gi, "").replace(/<[^>\s@]+@[^>\s]+>/g, "");
+    if (/<[a-zA-Z!/][^>]*>/.test(tHtml)) add("warn", `L${i + 1}: raw HTML renders as TEXT — doc has no HTML passthrough`);
     for (const m of t.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)) {
       const src = m[1];
       if (/^data:image\/svg\+xml/i.test(src)) add("warn", `L${i + 1}: SVG data: image forbidden (XSS) → dropped`);
@@ -63,9 +65,9 @@ export function validateDoc(content) {
       else if (/^data:/i.test(src) && !/^data:image\/(png|jpe?g|gif|webp)/i.test(src)) add("warn", `L${i + 1}: only raster data: images (png/jpeg/gif/webp) allowed`);
     }
     for (const m of t.replace(/!\[[^\]]*\]\([^)]*\)/g, "").matchAll(/\]\(([^)\s]+)/g)) {
-      const href = m[1];
-      if (href.startsWith("#") || LINK_OK.test(href) || !/^[a-z][a-z0-9+.-]*:/i.test(href)) continue;
-      add("warn", `L${i + 1}: link scheme dropped → ${href} (only https/http/mailto/tel)`);
+      const href = m[1], sch = href.match(/^[a-z][a-z0-9+.-]*:/i);
+      if (href.startsWith("#") || LINK_OK.test(href) || !sch) continue;
+      add("warn", `L${i + 1}: link scheme dropped → ${sch[0]} (only https/http/mailto/tel)`);   // show the scheme, not the (possibly paren-truncated) URL
     }
   });
 
