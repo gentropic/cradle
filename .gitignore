@@ -27,3 +27,7 @@ yarn-error.log*
 
 # Agent context — never committed (kept local only)
 CLAUDE.md
+
+# Python bytecode cache (from doc/ kit scripts)
+__pycache__/
+*.pyc
