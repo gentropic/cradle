@@ -21,7 +21,7 @@
 // heading polish (reuse @gcu/docview), `templates.css` themes, `/cradle/doc/` packaging.
 
 const DOC_LINK_SCHEMES = /^(https?|mailto|tel):/i;          // allowed for <a href>
-const DOC_IMG_DATA = /^data:image\/(png|jpe?g|gif|webp);/i;  // allowed inline image data (NB: svg excluded)
+const DOC_IMG_DATA = /^data:image\/(png|jpe?g|gif|webp)[;,]/i;  // allowed inline image data — `;base64,…` or `,<url-encoded>` (NB: svg excluded)
 const DOC_HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 const DOC_ALLOW = {
   theme: { paper: 1, article: 1, terminal: 1, dark: 1, book: 1 },
@@ -149,6 +149,26 @@ function docAssemble(meta, contentHtml, tocHtml, locale) {
   };
 }
 
+// In-page anchor links (footnotes + their back-links, heading anchors, the TOC,
+// cross-references) are `#…` fragments — but the whole doc capsule lives in the URL
+// fragment, so letting them navigate would CLOBBER the capsule (and trip the bootloader's
+// hashchange re-render → error). Intercept them and scroll via JS instead, leaving
+// location.hash untouched. The consumer attaches this once after mounting.
+function bindDocAnchors(mount) {
+  if (!mount || !mount.addEventListener) return;
+  mount.addEventListener("click", (e) => {
+    const a = e.target && e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || !mount.contains(a)) return;
+    const id = decodeURIComponent((a.getAttribute("href") || "#").slice(1));
+    if (!id) return;
+    e.preventDefault();   // do NOT let it become location.hash (that holds the capsule)
+    let target = null;
+    try { target = mount.querySelector('[id="' + id.replace(/["\\]/g, "\\$&") + '"]'); } catch (err) {}
+    if (!target && mount.ownerDocument) target = mount.ownerDocument.getElementById(id);
+    if (target && target.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 // createDocRenderer({ markdownit, plugins?, yamlParse?, locale? }) → renderDoc(body, opts) → { html, ... }
 function createDocRenderer(deps) {
   const markdownit = deps.markdownit, plugins = deps.plugins || [], yamlParse = deps.yamlParse || null;
@@ -165,12 +185,16 @@ function createDocRenderer(deps) {
     // footnote plugin's parse/render halves agree).
     const env = {};
     const tokens = md.parse(split.md, env);
-    const headings = [], used = Object.create(null);
+    const headings = [], used = Object.create(null), counts = Object.create(null);
     for (let i = 0; i < tokens.length; i++) {
       if (tokens[i].type !== "heading_open") continue;
       const inline = tokens[i + 1] && tokens[i + 1].type === "inline" ? tokens[i + 1].content : "";
-      let base = docSlug(inline), slug = base, n = 1;
-      while (used[slug]) slug = base + "-" + (++n);
+      const base = docSlug(inline);
+      let slug = base;
+      // dedup in O(1) amortized: remember the last suffix used per base so duplicate headings
+      // don't re-walk base-2..base-k each time (an O(N²) tab-hang on adversarial all-same-slug
+      // bodies — SPEC-doc §3.7). The inner loop only spins on the rare distinct-base collision.
+      if (used[slug]) { let n = counts[base] || 1; do { n += 1; slug = base + "-" + n; } while (used[slug]); counts[base] = n; }
       used[slug] = 1;
       tokens[i].attrSet("id", slug);
       headings.push({ level: +tokens[i].tag.slice(1), text: inline, slug });
@@ -181,5 +205,5 @@ function createDocRenderer(deps) {
   };
 }
 
-if (typeof module !== "undefined" && module.exports) module.exports = { createDocRenderer };       // Node (tests, agent kit)
-else if (typeof globalThis !== "undefined") globalThis.createDocRenderer = createDocRenderer;        // browser <script> (the bootloader lazy-loads this)
+if (typeof module !== "undefined" && module.exports) module.exports = { createDocRenderer, bindDocAnchors };   // Node (tests, agent kit)
+else if (typeof globalThis !== "undefined") { globalThis.createDocRenderer = createDocRenderer; globalThis.bindDocAnchors = bindDocAnchors; }   // browser <script> (the bootloader lazy-loads this)

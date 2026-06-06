@@ -2414,6 +2414,7 @@ async function docRenderer(header, body, ctx) {
   const renderDoc = g.createDocRenderer({ markdownit: g.markdownit, plugins: [g.markdownitFootnote, g.markdownitSub, g.markdownitSup, g.markdownitMark] });
   const r = renderDoc(new TextDecoder("utf-8").decode(body), { locale: header.params });
   ctx.mount.innerHTML = r.html;
+  if (g.bindDocAnchors) g.bindDocAnchors(ctx.mount);   // footnotes/TOC/heading/cross-ref links scroll via JS, not fragment nav (the fragment holds the capsule)
   document.documentElement.lang = r.lang || header.params || "en-US";
   if (r.title) document.title = r.title + " · cradle";
   try { document.body.style.minHeight = "100vh"; } catch (e) {}
@@ -2558,9 +2559,15 @@ if (document.readyState === "loading") {
 } else {
   main();
 }
-// re-render when the fragment changes (so in-page capsule links — e.g. the landing's doc
-// demo — render without a full reload, and Back returns to the landing).
-window.addEventListener("hashchange", main);
+// re-render when the fragment changes to a CAPSULE (so in-page capsule links — e.g. the
+// landing's doc demo — render without a full reload, and Back returns to the landing).
+// Guard: ignore bare in-page anchors (#fn1, #methods — no scheme colon) so a stray one
+// can't replace a rendered doc with an error. (doc anchors are handled by JS scroll, but
+// belt-and-suspenders.)
+window.addEventListener("hashchange", () => {
+  const h = location.hash.slice(1);
+  if (!h || fragmentDecode(h).includes(":")) main();
+});
 
 // Service worker registration (silent failure if SW not supported / not served from same origin)
 if ("serviceWorker" in navigator) {

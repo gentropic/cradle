@@ -387,6 +387,19 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v1.0** (2026-06-05) — **Phase 6: security review + landing — `doc` is shippable.** An
+  adversarial security review found **zero injection/XSS** — the §3 "generate, never
+  sanitize" contract held against every payload (scheme bypasses incl. case/tab/newline/
+  control/NBSP/protocol-relative/`data:text/html`, SVG-data images, attribute breakout,
+  frontmatter CSS/HTML injection, slug/anchor/TOC injection, mutation-XSS). Fixed the one
+  real finding: an **O(N²) heading-id dedup** that hung the tab ~80 s on a duplicate-heading
+  body (§3.7 DoS) → now linear (40 k headings: 80 s → 0.11 s); plus the image `data:` nit
+  (allow the `,<url-encoded>` form, not just `;base64,`). Also fixed the **footnote/anchor ×
+  capsule-in-fragment collision**: in-page `#` links (footnotes + back-links, heading
+  anchors, TOC, cross-refs) now **scroll via JS** (`bindDocAnchors`) instead of fragment
+  navigation, so they can't clobber the capsule that lives in the URL fragment; the
+  `hashchange` re-render is guarded to capsule-only. Landing gets a **Doc card** (a live demo
+  capsule, since `doc` is agent-authored). Suite 71 → 72.
 - **v0.9** (2026-06-05) — **Phase 5: the agent kit** (§6) — `doc` is now agent-native.
   `/cradle/doc/` ships, stdlib-only and dependency-free: **`author.{mjs,py}`** (Markdown +
   frontmatter → `!doc1+` capsule → share URL: raw-deflate → `inline:deflate:base64url`) and

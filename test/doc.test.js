@@ -48,6 +48,7 @@ test("links: only https/http/mailto/tel survive; external links hardened; data: 
 test("images: raster data: kept; svg data: dropped; external dropped unless images:external", () => {
   const png = "![pic](data:image/png;base64,iVBORw0KGgo)";
   assert.match(renderDoc("# x\n\n" + png).html, /<img[^>]+src="data:image\/png;base64,iVBORw0KGgo"/);
+  assert.match(renderDoc("![p](data:image/png,abc)").html, /<img[^>]+src="data:image\/png,abc"/);   // comma form (non-base64) allowed
   assert.ok(!/<img/.test(renderDoc("![s](data:image/svg+xml;base64,PHN2Zz4=)").html), "svg data image dropped");
   assert.ok(!/<img/.test(renderDoc("![e](https://ex.com/a.png)").html), "external image dropped by default");
   assert.match(renderDoc("---\nimages: \"external\"\n---\n![e](https://ex.com/a.png)").html, /<img[^>]+src="https:\/\/ex\.com\/a\.png"/);
@@ -92,6 +93,13 @@ test("headings get stable, unique, deep-linkable ids; cross-refs resolve", () =>
   assert.match(r, /<h2 id="results">Results /);
   assert.match(r, /<h2 id="methods-2">Methods /, "duplicate heading deduped");
   assert.match(r, /<a href="#methods"[^>]*>above<\/a>/, "in-page cross-reference survives");
+});
+
+test("duplicate headings dedup in LINEAR time — no O(N²) tab-hang (§3.7 DoS)", { timeout: 5000 }, () => {
+  const N = 20000;                                  // ~100 KB of "# d\n\n" — quadratic dedup would take tens of seconds
+  const html = renderDoc("# d\n\n".repeat(N)).html;
+  assert.match(html, /id="d-2"/);
+  assert.match(html, new RegExp('id="d-' + N + '"'));   // the N-th duplicate still got a unique suffix
 });
 
 test("@toc builds a contents nav from the headings (off by default)", () => {
