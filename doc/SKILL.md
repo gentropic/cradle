@@ -6,9 +6,21 @@ description: Author a self-contained rich document (a note, report, recipe, how-
 # Authoring a cradle `doc`
 
 A `doc` capsule is a whole Markdown document compressed into a **shareable link**. You
-write Markdown (with optional YAML frontmatter), run two small stdlib-only scripts in this
-folder, and get a URL. Send the URL; the recipient opens it and `cradle` renders the
-document — no backend, no attachment, works offline after first open.
+write Markdown (with optional YAML frontmatter), turn it into a URL, and send it; the
+recipient opens it and `cradle` renders the document — no backend, no attachment, works
+offline after first open.
+
+## Get the kit (or skip it — see "Mint the link yourself")
+
+This file lives at `https://gentropic.org/cradle/doc/SKILL.md`. Two tiny **stdlib-only**
+helper scripts live beside it (no install, no dependencies) — fetch whichever your runtime
+has **into one directory** (`validate` imports `author`, so keep them together):
+
+- https://gentropic.org/cradle/doc/author.mjs   ·   https://gentropic.org/cradle/doc/author.py    — Markdown → share URL
+- https://gentropic.org/cradle/doc/validate.mjs ·   https://gentropic.org/cradle/doc/validate.py  — preflight checks
+
+If you **can't** run subprocesses (or would rather not fetch anything), skip the scripts —
+the encoding is small enough to do inline; see **Mint the link yourself** at the bottom.
 
 ## The loop
 
@@ -76,3 +88,34 @@ sent the link.
 
 A `doc` is a *link*, not a QR sticker — long documents are fine. Keep inline images small
 (they bloat the link). The validator prints the capsule size.
+
+## Mint the link yourself (no scripts)
+
+The capsule is small to build by hand — prepend the magic line, raw-DEFLATE the UTF-8,
+base64**url**-encode (drop `=` padding). base64url needs no fragment escaping.
+
+```
+payload = "!doc1+" + locale + "\n" + <your whole document: frontmatter + markdown>
+capsule = "inline:deflate:" + base64url( rawDeflate( utf8(payload) ) )
+url     = "https://gentropic.org/cradle/#" + capsule
+```
+
+One-liners (after building `payload` and `locale`):
+
+```js
+// Node
+import { deflateRawSync } from "node:zlib";
+const capsule = "inline:deflate:" + deflateRawSync(Buffer.from(payload, "utf8"))
+  .toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+```
+```python
+# Python
+import zlib, base64
+co = zlib.compressobj(9, zlib.DEFLATED, -zlib.MAX_WBITS)   # raw deflate (no header)
+capsule = "inline:deflate:" + base64.urlsafe_b64encode(co.compress(payload.encode()) + co.flush()).decode().rstrip("=")
+```
+
+`locale` is a BCP-47 tag for the UI strings (e.g. `en-US`, `pt-BR`) — it does **not** affect
+the body. Validate by hand against the rules above: quote frontmatter strings, only
+https/http/mailto/tel links, raster `data:` images only, no raw HTML.
+
