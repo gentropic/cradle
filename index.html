@@ -818,6 +818,24 @@
 }
 .recipe.tmpl-kitchen .recipe-title { font-weight: 800; }
 .recipe.tmpl-kitchen .step { padding: 0.95rem 0; }
+
+/* ---- print: an ink-friendly recipe card (fridge / cookbook) ---- */
+@media print {
+  /* dark/warm templates → dark ink on white paper; accent (headings/tags) stays colored */
+  .recipe {
+    max-width: 100% !important; padding: 0 !important;
+    --recipe-bg: #fff; --recipe-fg: #1a1a1a; --recipe-muted: #555; --recipe-faint: #888;
+    --recipe-rule: rgba(0, 0, 0, 0.2); --recipe-panel: #f0f0f0;
+    background: #fff !important; color: #1a1a1a !important;
+  }
+  /* drop the interactive chrome; keep the content (and the tappable check boxes — handy on paper) */
+  .recipe-actions, .serves-mults, .serves-btn, .recipe-tray, .recipe-socials { display: none !important; }
+  .recipe-serves { border: none !important; padding: 0 !important; }
+  .serves-n { border: none !important; width: auto !important; padding: 0 !important; background: none !important; -webkit-appearance: none; appearance: none; font-weight: 700; }
+  .recipe-timer { border: none !important; background: none !important; color: inherit !important; padding: 0 !important; animation: none !important; }
+  .ing, .step { break-inside: avoid; }
+  .recipe-section { break-after: avoid; }
+}
   /* @build:recipe-templates:end */
 
   .error { padding: 1.25rem; background: #fee; border: 1px solid #fcc;
