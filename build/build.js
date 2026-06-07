@@ -81,6 +81,13 @@ function build() {
   // single-source the factory's 50-game library from the arcr engine (was a manual dup)
   out["arcr/factory.html"] = injectConst(get("arcr/factory.html"), "LIBRARY", arcrLibrary(get("arcr/index.html")));
 
+  // shared safe-inline text core (escapeHtml + renderInline) -> bootloader + every editor.
+  // The substrate the field-shaped renderers use for text; carries the link-scheme allowlist.
+  const inlineSrc = read("ext/shared/inline.js");
+  for (const f of ["index.html", "menu/index.html", "bio/index.html", "contact/index.html"]) {
+    out[f] = inlineBetween(get(f), "@build:inline:start", "@build:inline:end", inlineSrc, "inline-core");
+  }
+
   // shared menu renderer -> bootloader + editor (single source)
   const menuRendererSrc = read("ext/menu/renderer.js");
   for (const f of ["index.html", "menu/index.html"]) {
