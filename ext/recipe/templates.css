@@ -104,9 +104,48 @@
 }
 .recipe-timer:hover { background: var(--recipe-panel); }
 .recipe-timer.running { background: var(--recipe-accent); color: #fff; }
-.recipe-timer.done { border-color: var(--recipe-faint); color: var(--recipe-faint); animation: recipe-flash 0.5s ease 3; }
-@keyframes recipe-flash { 50% { background: var(--recipe-accent); color: #fff; } }
-@media (prefers-reduced-motion: reduce) { .recipe-timer.done { animation: none; } }
+.recipe-timer.running::after { content: ""; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: currentColor; animation: recipe-pulse 1s ease infinite; }
+.recipe-timer.ringing { background: var(--recipe-accent); color: #fff; animation: recipe-pulse 0.6s ease infinite; }
+@keyframes recipe-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .recipe-timer.running::after, .recipe-timer.ringing { animation: none; } }
+
+/* ---- timer tray: a bottom sheet of live timers ---- */
+.recipe-tray {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  padding: 0.6rem; padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  background: rgba(12, 10, 8, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  animation: recipe-tray-in 0.22s ease;
+}
+@keyframes recipe-tray-in { from { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) { .recipe-tray { animation: none; } }
+.recipe-tcard {
+  width: 100%; max-width: 34rem; margin: 0 auto;
+  background: var(--recipe-bg); color: var(--recipe-fg); border: 1px solid var(--recipe-rule);
+  border-radius: 16px; padding: 0.7rem 0.95rem; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+.tc-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.tc-info { min-width: 0; }
+.tc-step { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--recipe-accent); }
+.tc-label { font-size: 0.92rem; color: var(--recipe-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tc-clock { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; flex: 0 0 auto; }
+.tc-bottom { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin-top: 0.55rem; }
+.tc-total { font-size: 0.74rem; color: var(--recipe-faint); white-space: nowrap; }
+.tc-actions { display: flex; gap: 0.4rem; }
+.tc-btn {
+  font: inherit; font-size: 0.82rem; padding: 0.4rem 0.85rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--recipe-rule); background: var(--recipe-panel); color: var(--recipe-fg);
+}
+.tc-btn:hover { border-color: var(--recipe-accent); }
+.tc-dismiss { padding: 0.4rem 0.7rem; }
+.tc-dismiss.confirm { border-color: #c0392b; color: #c0392b; background: transparent; }
+.tc-stop { background: var(--recipe-accent); color: #fff; border-color: var(--recipe-accent); font-weight: 600; }
+.recipe-tcard.paused { opacity: 0.8; }
+.recipe-tcard.paused .tc-clock { color: var(--recipe-faint); }
+.recipe-tcard.ringing { border-color: var(--recipe-accent); animation: recipe-ring 0.8s ease infinite; }
+.recipe-tcard.ringing .tc-clock { color: var(--recipe-accent); font-size: 1.5rem; }
+@keyframes recipe-ring { 0%, 100% { box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); } 50% { box-shadow: 0 0 0 3px var(--recipe-accent), 0 6px 24px rgba(0, 0, 0, 0.35); } }
+@media (prefers-reduced-motion: reduce) { .recipe-tcard.ringing { animation: none; } }
 
 /* ---- footer ---- */
 .recipe-foot { margin-top: 2rem; padding-top: 1.1rem; border-top: 1px solid var(--recipe-rule); font-size: 0.85rem; color: var(--recipe-muted); }

@@ -117,6 +117,56 @@ test("step links go through the shared allowlist: https kept, javascript dropped
   assert.ok(/<a href="https:\/\/e\.com"/.test(linky) && !/recipe-timer/.test(linky), "[dur](url) stays a link");
 });
 
+// minimal functional DOM node (enough to drive recipeAttach's timer tray headlessly):
+// querySelector synthesizes a stable child per selector, so makeCard/updateCard agree.
+function fakeEl(tag) {
+  const n = { tagName: tag, className: "", textContent: "", hidden: false, _ev: {}, _attr: {}, _qs: {}, _kids: [], parentNode: null };
+  n.classList = { s: new Set(), add(...c) { c.forEach((x) => n.classList.s.add(x)); }, remove(...c) { c.forEach((x) => n.classList.s.delete(x)); },
+    toggle(x, f) { const h = n.classList.s.has(x), o = f === undefined ? !h : f; o ? n.classList.s.add(x) : n.classList.s.delete(x); return o; }, contains(x) { return n.classList.s.has(x); } };
+  Object.defineProperty(n, "innerHTML", { set() {}, get() { return ""; } });
+  n.appendChild = (c) => { n._kids.push(c); c.parentNode = n; return c; };
+  n.remove = () => { if (n.parentNode) { const i = n.parentNode._kids.indexOf(n); if (i >= 0) n.parentNode._kids.splice(i, 1); } };
+  n.addEventListener = (t, f) => { (n._ev[t] = n._ev[t] || []).push(f); };
+  n.fire = (t, e) => { (n._ev[t] || []).forEach((f) => f(e || {})); };
+  n.getAttribute = (k) => (k in n._attr ? n._attr[k] : null);
+  n.setAttribute = (k, v) => { n._attr[k] = String(v); };
+  n.querySelector = (s) => n._qs[s] || (n._qs[s] = fakeEl("div"));
+  n.querySelectorAll = () => n._qsa || [];
+  n.closest = () => null;
+  return n;
+}
+
+test("timer tray: tapping a chip opens a card (step + total + clock); dismiss takes two taps", () => {
+  const SI = global.setInterval, CI = global.clearInterval, ST = global.setTimeout;
+  global.setInterval = () => 0; global.clearInterval = () => {}; global.setTimeout = () => 0;   // no real timers/audio in the test
+  try {
+    const mount = fakeEl("div"); mount.ownerDocument = { createElement: fakeEl };
+    const step = fakeEl("div"); step.querySelector(".step-body").textContent = "Stir until thick ⏱ 10:00";
+    mount._qsa = [step];                                  // querySelectorAll(".recipe-steps .step")
+    const chip = fakeEl("button"); chip.setAttribute("data-sec", "600"); chip.classList.add("recipe-timer");
+    chip.closest = (s) => (s.indexOf("button") >= 0 ? chip : s === ".step" ? step : null);
+
+    R.recipeAttach(mount, "en-US");
+    mount.fire("click", { target: chip });                // tap the timer chip
+
+    const tray = mount._kids.find((k) => k.className === "recipe-tray");
+    assert.ok(tray, "a tray sheet opened");
+    const card = tray._kids[0];
+    assert.strictEqual(card.querySelector(".tc-step").textContent, "Step 1", "shows which step");
+    assert.strictEqual(card.querySelector(".tc-total").textContent, "total 10:00", "keeps the original total visible");
+    assert.strictEqual(card.querySelector(".tc-clock").textContent, "10:00");
+    assert.strictEqual(card.querySelector(".tc-label").textContent, "Stir until thick", "step text, timer token stripped");
+    assert.ok(chip.classList.contains("running"), "chip reflects the live timer");
+
+    const dismiss = card.querySelector(".tc-dismiss");
+    dismiss.fire("click");
+    assert.ok(mount._kids.find((k) => k.className === "recipe-tray"), "one tap arms but does not remove (destructive → confirm)");
+    dismiss.fire("click");
+    assert.ok(!mount._kids.find((k) => k.className === "recipe-tray"), "second tap removes the timer + hides the tray");
+    assert.ok(!chip.classList.contains("running"), "chip cleared on removal");
+  } finally { global.setInterval = SI; global.clearInterval = CI; global.setTimeout = ST; }
+});
+
 test("editor emits the !recipe1+ magic line and the q:d.recipe_ capsule prefix", () => {
   const editor = require("fs").readFileSync(path.join(__dirname, "..", "recipe", "index.html"), "utf8");
   assert.match(editor, /"!recipe1\+"/, "editor builds a !recipe1+ source");

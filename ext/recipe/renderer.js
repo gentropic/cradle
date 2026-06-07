@@ -15,11 +15,16 @@
 const RECIPE_LOCALES = {
   "pt-BR": { decimal: ",", servesPrefix: "Rende", servesSuffix: "porções", makesPrefix: "Rende",
              prepLabel: "preparo", cookLabel: "cozimento", cookmode: "Modo cozinha",
-             timerDone: "Pronto!", source: "Receita original", reset: "1×" },
+             timerDone: "Tempo!", source: "Receita original", reset: "1×",
+             step: "Passo", totalWord: "total", pause: "Pausar", resume: "Retomar", stop: "Parar", removeConfirm: "Remover?" },
   "en-US": { decimal: ".", servesPrefix: "Serves", servesSuffix: "", makesPrefix: "Makes",
              prepLabel: "prep", cookLabel: "cook", cookmode: "Cook mode",
-             timerDone: "Done!", source: "Original recipe", reset: "1×" },
+             timerDone: "Time's up!", source: "Original recipe", reset: "1×",
+             step: "Step", totalWord: "total", pause: "Pause", resume: "Resume", stop: "Stop", removeConfirm: "Remove?" },
 };
+// cleanup fns from prior recipeAttach calls — lets the editor's per-keystroke re-render stop
+// stale timer intervals/alarms (the bootloader attaches once, so this stays a no-op there).
+const RECIPE_LIVE = [];
 const RECIPE_TEMPLATES = { card: 1, paper: 1, dark: 1, warm: 1, kitchen: 1 };
 const RECIPE_VULGAR = { "½": .5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": .25, "¾": .75, "⅕": .2, "⅖": .4, "⅗": .6, "⅘": .8, "⅙": 1 / 6, "⅚": 5 / 6, "⅛": .125, "⅜": .375, "⅝": .625, "⅞": .875 };
 // tiny social map (text links only — recipe footers are light); prefix=handle
@@ -217,14 +222,19 @@ function renderRecipeHTML(body, locale, attribution) {
   };
 }
 
-// ---- client behavior: scaler / timers / cook-mode / check-off (no-op headless) ----
+// ---- client behavior: scaler / timer tray / cook-mode / check-off (no-op headless) ----
 function recipeAttach(mount, locale) {
   if (!mount || !mount.querySelectorAll || !mount.addEventListener) return;
   const L = RECIPE_LOCALES[locale] || RECIPE_LOCALES["pt-BR"];
+  const doc = mount.ownerDocument || (typeof document !== "undefined" ? document : null);
+  if (!doc) return;
+  // stop any timers/alarms left running by a previous attach (editor re-render)
+  while (RECIPE_LIVE.length) { try { RECIPE_LIVE.pop()(); } catch (e) {} }
+
+  // ---- serving scaler ----
   const servesEl = mount.querySelector(".recipe-serves");
   const base = servesEl ? parseInt(servesEl.getAttribute("data-base"), 10) : 0;
   let target = base;
-
   function rescale() {
     if (!(base >= 1)) return;
     const factor = target / base;
@@ -240,42 +250,148 @@ function recipeAttach(mount, locale) {
     }
   }
 
-  let wakeLock = null;
+  // ---- cook mode (own wake lock) ----
+  let cookWake = null;
   async function toggleCook(btn) {
     const on = mount.classList.toggle("cook");
     if (btn) btn.classList.toggle("on", on);
     try {
-      if (on && mount.ownerDocument && mount.ownerDocument.defaultView && navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen");
-      else if (wakeLock) { wakeLock.release(); wakeLock = null; }
+      if (on && navigator.wakeLock) cookWake = await navigator.wakeLock.request("screen");
+      else if (cookWake) { cookWake.release(); cookWake = null; }
     } catch (e) { /* unsupported / denied — cook mode still styles */ }
   }
 
-  function startTimer(btn) {
-    if (btn._iv) return;                                   // already running
-    let left = parseInt(btn.getAttribute("data-sec"), 10);
-    const clock = btn.querySelector(".t-clock");
-    btn.classList.add("running");
-    const tick = () => {
-      left -= 1;
-      if (left <= 0) {
-        clearInterval(btn._iv); btn._iv = null;
-        btn.classList.remove("running"); btn.classList.add("done");
-        if (clock) clock.textContent = L.timerDone;
-        try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
-        try {
-          const AC = window.AudioContext || window.webkitAudioContext;
-          if (AC) { const a = new AC(), o = a.createOscillator(), g = a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value = 880; g.gain.value = 0.08; o.start(); o.stop(a.currentTime + 0.4); }
-        } catch (e) {}
-        return;
-      }
-      if (clock) clock.textContent = recipeClock(left);
-    };
-    btn._iv = setInterval(tick, 1000);
+  // ---- timer tray: a bottom sheet of live timers (scaler-independent) ----
+  const timers = [];
+  let tray = null, ticker = null, alarmIv = null, audioCtx = null, timerWake = null, seq = 0;
+
+  function ensureTray() {
+    if (!tray) { tray = doc.createElement("div"); tray.className = "recipe-tray"; mount.appendChild(tray); }
+    return tray;
   }
+  function maybeHideTray() { if (tray && !timers.length && tray.remove) { tray.remove(); tray = null; } }
+  function primeAudio() {                                   // create/resume during the tap gesture (autoplay policy)
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC && !audioCtx) audioCtx = new AC();
+      if (audioCtx && audioCtx.state === "suspended" && audioCtx.resume) audioCtx.resume();
+    } catch (e) {}
+  }
+  function beep() {
+    try {
+      if (audioCtx) {
+        const now = audioCtx.currentTime || 0;
+        for (let i = 0; i < 2; i++) {
+          const o = audioCtx.createOscillator(), g = audioCtx.createGain(), off = i * 0.18;
+          o.type = "sine"; o.frequency.value = i ? 1100 : 880; o.connect(g); g.connect(audioCtx.destination);
+          g.gain.setValueAtTime(0.0001, now + off); g.gain.exponentialRampToValueAtTime(0.13, now + off + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + off + 0.15);
+          o.start(now + off); o.stop(now + off + 0.18);
+        }
+      }
+    } catch (e) {}
+    try { if (navigator.vibrate) navigator.vibrate([160, 90, 160]); } catch (e) {}
+  }
+  function syncAlarm() {
+    const ringing = timers.some((t) => t.state === "ringing");
+    if (ringing && !alarmIv) { beep(); alarmIv = setInterval(beep, 1300); }
+    else if (!ringing && alarmIv) { clearInterval(alarmIv); alarmIv = null; }
+  }
+  function syncTicker() {
+    const running = timers.some((t) => t.state === "running");
+    if (running && !ticker) ticker = setInterval(onTick, 1000);
+    else if (!running && ticker) { clearInterval(ticker); ticker = null; }
+  }
+  async function updateWake() {
+    const active = timers.some((t) => t.state === "running" || t.state === "ringing");
+    try {
+      if (active && !timerWake && navigator.wakeLock) timerWake = await navigator.wakeLock.request("screen");
+      else if (!active && timerWake) { timerWake.release(); timerWake = null; }
+    } catch (e) {}
+  }
+  function onTick() {
+    for (const t of timers) {
+      if (t.state !== "running") continue;
+      t.left -= 1;
+      if (t.left <= 0) { t.left = 0; t.state = "ringing"; }
+      updateCard(t);
+    }
+    syncTicker(); syncAlarm(); updateWake();
+  }
+  function updateCard(t) {
+    if (t.chip && t.chip.classList) { t.chip.classList.toggle("ringing", t.state === "ringing"); t.chip.classList.toggle("running", t.state === "running" || t.state === "paused"); }
+    const c = t.cardEl; if (!c || !c.querySelector) return;
+    c.className = "recipe-tcard" + (t.state === "ringing" ? " ringing" : t.state === "paused" ? " paused" : "");
+    if (t.clockEl) t.clockEl.textContent = t.state === "ringing" ? L.timerDone : recipeClock(t.left);
+    const pause = c.querySelector(".tc-pause"), dismiss = c.querySelector(".tc-dismiss"), stop = c.querySelector(".tc-stop");
+    const show = (el, on) => { if (el) el.hidden = !on; };
+    show(pause, t.state !== "ringing"); show(dismiss, t.state !== "ringing"); show(stop, t.state === "ringing");
+    if (pause) pause.textContent = t.state === "paused" ? "▶ " + L.resume : "⏸ " + L.pause;
+    if (dismiss) { dismiss.textContent = t.confirm ? L.removeConfirm : "✕"; if (dismiss.classList) dismiss.classList.toggle("confirm", !!t.confirm); }
+    if (stop) stop.textContent = "⏹ " + L.stop;
+  }
+  function makeCard(t) {
+    const card = doc.createElement("div");
+    card.className = "recipe-tcard";
+    card.innerHTML =
+      '<div class="tc-top"><div class="tc-info"><div class="tc-step"></div><div class="tc-label"></div></div>' +
+      '<div class="tc-clock"></div></div>' +
+      '<div class="tc-bottom"><span class="tc-total"></span><div class="tc-actions">' +
+      '<button type="button" class="tc-btn tc-pause"></button>' +
+      '<button type="button" class="tc-btn tc-dismiss" aria-label="dismiss timer"></button>' +
+      '<button type="button" class="tc-btn tc-stop"></button></div></div>';
+    t.cardEl = card; t.clockEl = card.querySelector(".tc-clock");
+    const stepEl = card.querySelector(".tc-step"), labelEl = card.querySelector(".tc-label"), totalEl = card.querySelector(".tc-total");
+    if (stepEl) stepEl.textContent = t.n ? L.step + " " + t.n : "";
+    if (labelEl) labelEl.textContent = t.label || "";
+    if (totalEl) totalEl.textContent = L.totalWord + " " + recipeClock(t.total);
+    const pause = card.querySelector(".tc-pause"), dismiss = card.querySelector(".tc-dismiss"), stop = card.querySelector(".tc-stop");
+    if (pause && pause.addEventListener) pause.addEventListener("click", () => {       // reversible → no confirm
+      t.state = t.state === "running" ? "paused" : "running"; t.confirm = false; updateCard(t); syncTicker(); updateWake();
+    });
+    if (dismiss && dismiss.addEventListener) dismiss.addEventListener("click", () => {  // destructive → two-tap confirm
+      if (!t.confirm) { t.confirm = true; updateCard(t); setTimeout(() => { t.confirm = false; updateCard(t); }, 2500); return; }
+      removeTimer(t);
+    });
+    if (stop && stop.addEventListener) stop.addEventListener("click", () => removeTimer(t));  // ringing → stop the alarm
+    return card;
+  }
+  function removeTimer(t) {
+    const i = timers.indexOf(t); if (i >= 0) timers.splice(i, 1);
+    if (t.cardEl && t.cardEl.remove) t.cardEl.remove();
+    if (t.chip) { if (t.chip.classList) t.chip.classList.remove("running", "ringing"); t.chip._timer = null; }
+    maybeHideTray(); syncTicker(); syncAlarm(); updateWake();
+  }
+  function startTimer(chip) {
+    if (chip._timer) return;                                // this chip already owns a live timer
+    const sec = parseInt(chip.getAttribute("data-sec"), 10);
+    if (!sec) return;
+    primeAudio();
+    let n = 0, label = "";
+    const stepEl = chip.closest ? chip.closest(".step") : null;
+    if (stepEl) {
+      const all = mount.querySelectorAll(".recipe-steps .step");
+      for (let i = 0; i < all.length; i++) if (all[i] === stepEl) { n = i + 1; break; }
+      const bodyEl = stepEl.querySelector(".step-body");
+      if (bodyEl) label = (bodyEl.textContent || "").replace(/⏱\s*\d+:\d\d(?::\d\d)?/g, "").replace(/\s+/g, " ").trim();
+    }
+    const t = { id: ++seq, n: n, label: label, total: sec, left: sec, state: "running", chip: chip, confirm: false, cardEl: null, clockEl: null };
+    chip._timer = t; if (chip.classList) chip.classList.add("running");
+    timers.push(t);
+    ensureTray().appendChild(makeCard(t));
+    updateCard(t); syncTicker(); syncAlarm(); updateWake();
+  }
+
+  RECIPE_LIVE.push(() => {                                  // teardown for a later re-attach
+    if (ticker) clearInterval(ticker);
+    if (alarmIv) clearInterval(alarmIv);
+    try { if (timerWake) timerWake.release(); } catch (e) {}
+    try { if (cookWake) cookWake.release(); } catch (e) {}
+  });
 
   mount.addEventListener("click", (e) => {
     const t = e.target.closest ? e.target.closest("button, .step, .ing") : null;
     if (!t) return;
+    if (t.closest && t.closest(".recipe-tray")) return;     // tray buttons wire their own handlers
     if (t.classList.contains("serves-dec")) { if (target > 1) { target -= 1; rescale(); } return; }
     if (t.classList.contains("serves-inc")) { target += 1; rescale(); return; }
     if (t.classList.contains("serves-reset")) { target = base; rescale(); return; }
