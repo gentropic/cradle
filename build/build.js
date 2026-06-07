@@ -41,6 +41,7 @@ const DICTS = [
   ["index.html",        "DICT_BIO",       "bio"],
   ["bio/index.html",    "DICT_BIO",       "bio"],
   ["index.html",        "DICT_RECIPE",    "recipe"],
+  ["recipe/index.html", "DICT_RECIPE",    "recipe"],
 ];
 
 // the canonical 50-game library lives in arcr/index.html; pull it out as static
@@ -85,7 +86,7 @@ function build() {
   // shared safe-inline text core (escapeHtml + renderInline) -> bootloader + every editor.
   // The substrate the field-shaped renderers use for text; carries the link-scheme allowlist.
   const inlineSrc = read("ext/shared/inline.js");
-  for (const f of ["index.html", "menu/index.html", "bio/index.html", "contact/index.html"]) {
+  for (const f of ["index.html", "menu/index.html", "bio/index.html", "contact/index.html", "recipe/index.html"]) {
     out[f] = inlineBetween(get(f), "@build:inline:start", "@build:inline:end", inlineSrc, "inline-core");
   }
 
@@ -117,11 +118,13 @@ function build() {
     out[f] = inlineBetween(get(f), "@build:bio-templates:start", "@build:bio-templates:end", bioTemplatesSrc, "bio-templates");
   }
 
-  // shared recipe renderer + template CSS -> bootloader (single source; editor lands later)
+  // shared recipe renderer + template CSS -> bootloader + editor (single source)
   const recipeRendererSrc = read("ext/recipe/renderer.js");
   const recipeTemplatesSrc = read("ext/recipe/templates.css");
-  out["index.html"] = inlineBetween(get("index.html"), "@build:recipe-renderer:start", "@build:recipe-renderer:end", recipeRendererSrc, "recipe-renderer");
-  out["index.html"] = inlineBetween(get("index.html"), "@build:recipe-templates:start", "@build:recipe-templates:end", recipeTemplatesSrc, "recipe-templates");
+  for (const f of ["index.html", "recipe/index.html"]) {
+    out[f] = inlineBetween(get(f), "@build:recipe-renderer:start", "@build:recipe-renderer:end", recipeRendererSrc, "recipe-renderer");
+    out[f] = inlineBetween(get(f), "@build:recipe-templates:start", "@build:recipe-templates:end", recipeTemplatesSrc, "recipe-templates");
+  }
 
   // doc: the first SEPARATELY-CACHED renderer. Its engine isn't inlined into the bootloader;
   // it lives under doc/ (served at /cradle/doc/), copied verbatim from the ext/doc/ sources,

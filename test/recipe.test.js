@@ -113,6 +113,13 @@ test("step links go through the shared allowlist: https kept, javascript dropped
   assert.ok(/<a href="https:\/\/e\.com"/.test(linky) && !/recipe-timer/.test(linky), "[dur](url) stays a link");
 });
 
+test("editor emits the !recipe1+ magic line and the q:d.recipe_ capsule prefix", () => {
+  const editor = require("fs").readFileSync(path.join(__dirname, "..", "recipe", "index.html"), "utf8");
+  assert.match(editor, /"!recipe1\+"/, "editor builds a !recipe1+ source");
+  assert.match(editor, /"q:d\.recipe_"/, "editor mints a q:d.recipe_ capsule");
+  assert.ok(/renderRecipeHTML\(/.test(editor) && /recipeAttach\(/.test(editor), "editor previews via the shared renderer (WYSIWYG + live scaler)");
+});
+
 test("round-trips: capsule body decodes back to the exact source", () => {
   const cap = buildDictCapsule(EX, "recipe", sb.__dicts["recipe"]);
   const bytes = sb.__resolve(cap, sb.__dicts);

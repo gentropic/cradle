@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>recipe · cradle</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script>window.QR_LIB = window.QRCode && window.QRCode.CorrectLevel ? "qrcodejs" : null;</script>
+<style>
+  :root {
+    --bg: #fff; --fg: #1a1a1a; --fg-muted: #666; --fg-faint: #999;
+    --border: rgba(0,0,0,0.14); --panel: #f6f7f8; --accent: #6b4423;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: var(--font-sans); color: var(--fg); background: var(--bg); line-height: 1.5; }
+  header { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem;
+           border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+  header .spacer { flex: 1; }
+  .h-btn { font: inherit; font-size: 0.85rem; background: none; border: 1px solid var(--border);
+           border-radius: 6px; padding: 0.35rem 0.7rem; cursor: pointer; color: var(--fg); text-decoration: none; }
+  .h-btn:hover { border-color: var(--fg); }
+  .wrap { display: grid; grid-template-columns: 1fr; gap: 0; }
+  @media (min-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .form { padding: 1.1rem 1.25rem 3rem; max-width: 560px; }
+  .preview-pane { background: #d7d7db; padding: 1.5rem 1rem; }
+  @media (min-width: 860px) { .preview-pane { position: sticky; top: 49px; height: calc(100vh - 49px); overflow: auto; } }
+  .group { margin-bottom: 1.4rem; }
+  .group h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-faint);
+              font-weight: 700; margin: 0 0 0.6rem; }
+  .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
+  .row label { flex: 0 0 6.5rem; font-size: 0.85rem; color: var(--fg-muted); }
+  .row input, .row select, .row textarea { flex: 1; font: inherit; font-size: 0.9rem; padding: 0.4rem 0.55rem;
+              border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); min-width: 0; }
+  .row input:focus, .row select:focus, .row textarea:focus { outline: none; border-color: var(--accent); }
+  .row textarea { resize: vertical; }
+  .row.col { flex-direction: column; align-items: stretch; }
+  .row.col label { flex: none; margin-bottom: 0.2rem; }
+  .row.split { gap: 0.5rem; }
+  .row.split input { flex: 1; }
+  #f-body { min-height: 13rem; font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.5; }
+  .ins { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.4rem 0 0.2rem; }
+  .ins button { font: inherit; font-size: 0.76rem; padding: 0.25rem 0.6rem; border: 1px solid var(--border);
+                border-radius: 999px; background: var(--panel); color: var(--fg); cursor: pointer; }
+  .ins button:hover { border-color: var(--fg); }
+  .hint { font-size: 0.74rem; color: var(--fg-faint); margin: 0.3rem 0 0; }
+  .swatch { display: inline-block; width: 1.6rem; height: 1.6rem; border-radius: 6px; border: 1px solid var(--border); flex: 0 0 auto; }
+  .phone { width: 360px; max-width: 100%; margin: 0 auto 1.25rem; border-radius: 28px; background: #fff;
+           box-shadow: 0 6px 26px rgba(0,0,0,0.28); overflow: hidden; border: 8px solid #111; }
+  .phone-screen { max-height: 600px; overflow: auto; }
+  .share { max-width: 360px; margin: 0 auto; }
+  .qrbox { background: #fff; border-radius: 12px; padding: 1rem; display: flex; justify-content: center; }
+  .qrbox > div, .qrbox img, .qrbox canvas { width: 200px !important; height: 200px !important; }
+  .share .b { display: block; width: 100%; text-align: center; font: inherit; font-size: 0.9rem; margin-top: 0.6rem;
+              padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg);
+              cursor: pointer; text-decoration: none; }
+  .share .b:hover { border-color: var(--fg); }
+  .url { width: 100%; margin-top: 0.6rem; font: 0.72rem/1.35 var(--font-mono); color: var(--fg-muted);
+         word-break: break-all; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem; max-height: 5rem; overflow: auto; }
+  .meta { font-size: 0.74rem; color: var(--fg-faint); text-align: center; margin-top: 0.6rem; }
+
+  /* ---------- recipe visuals — single source: ext/recipe/templates.css ---------- */
+  /* @build:recipe-templates:start */
+/* Recipe visuals — the SINGLE SOURCE for how a recipe renders. Scoped to a `.recipe`
+   root so the bootloader render and the (future) editor preview are pixel-identical.
+   Inlined into index.html by build/build.js (between @build:recipe-templates markers).
+   Edit here, then `npm run build`.
+
+   Each template sets its palette via --recipe-* custom properties; an author's @accent
+   overrides --recipe-accent inline (consumer-applied). No web fonts. */
+
+.recipe {
+  --recipe-accent: #6b4423;
+  --recipe-bg: #ffffff;
+  --recipe-fg: #23201c;
+  --recipe-muted: #6f6a63;
+  --recipe-faint: #a8a29a;
+  --recipe-rule: rgba(0, 0, 0, 0.1);
+  --recipe-panel: #f7f5f1;
+  --recipe-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --recipe-serif: Georgia, "Times New Roman", serif;
+  --recipe-font: var(--recipe-sans);
+  box-sizing: border-box;
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 3rem;
+  background: var(--recipe-bg);
+  color: var(--recipe-fg);
+  font-family: var(--recipe-font);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+.recipe * { box-sizing: border-box; }
+.recipe a { color: var(--recipe-accent); }
+
+/* ---- header ---- */
+.recipe-head { border-bottom: 1px solid var(--recipe-rule); padding-bottom: 1.1rem; margin-bottom: 1.3rem; }
+.recipe-title { font-size: 1.85rem; line-height: 1.15; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
+.recipe-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; color: var(--recipe-muted); font-size: 0.86rem; margin-bottom: 0.9rem; }
+.recipe-serves {
+  display: inline-flex; align-items: center; gap: 0.1rem;
+  border: 1px solid var(--recipe-rule); border-radius: 999px; padding: 0.15rem 0.35rem; margin: 0.2rem 0.6rem 0.2rem 0; vertical-align: middle;
+}
+.serves-btn {
+  font: inherit; font-size: 1.1rem; line-height: 1; width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  border: none; background: none; color: var(--recipe-accent); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.serves-btn:hover { background: var(--recipe-panel); }
+.serves-label { font-size: 0.92rem; padding: 0 0.55rem; white-space: nowrap; }
+.serves-label b { font-variant-numeric: tabular-nums; }
+.serves-reset {
+  font: inherit; font-size: 0.78rem; margin-left: 0.2rem; padding: 0.2rem 0.5rem; border-radius: 999px;
+  border: 1px solid var(--recipe-rule); background: none; color: var(--recipe-muted); cursor: pointer;
+}
+.recipe-cook {
+  font: inherit; font-size: 0.82rem; padding: 0.35rem 0.8rem; border-radius: 999px; vertical-align: middle;
+  border: 1px solid var(--recipe-rule); background: none; color: var(--recipe-fg); cursor: pointer;
+}
+.recipe-cook:hover, .recipe-cook.on { border-color: var(--recipe-accent); color: var(--recipe-accent); }
+
+/* ---- sections / notes ---- */
+.recipe-section { font-size: 1.1rem; margin: 1.8rem 0 0.7rem; color: var(--recipe-accent); letter-spacing: 0.01em; }
+.recipe-note { color: var(--recipe-fg); margin: 0.9rem 0; }
+.recipe hr { border: none; border-top: 1px solid var(--recipe-rule); margin: 1.6rem 0; }
+
+/* ---- ingredients ---- */
+.recipe-ings { list-style: none; padding: 0; margin: 0.4rem 0 1.2rem; }
+.ing {
+  display: flex; gap: 0.5rem; padding: 0.4rem 0.2rem 0.4rem 1.6rem; position: relative;
+  border-bottom: 1px solid var(--recipe-rule); cursor: pointer;
+}
+.ing:last-child { border-bottom: none; }
+.ing::before {
+  content: ""; position: absolute; left: 0; top: 0.7rem; width: 0.85rem; height: 0.85rem;
+  border: 1.5px solid var(--recipe-faint); border-radius: 4px; transition: background 0.12s, border-color 0.12s;
+}
+.ing.done::before { background: var(--recipe-accent); border-color: var(--recipe-accent); }
+.ing.done { color: var(--recipe-faint); }
+.ing.done .ing-item { text-decoration: line-through; }
+.ing-amt { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ing-item { color: inherit; }
+
+/* ---- steps ---- */
+.recipe-steps { list-style: none; padding: 0; margin: 0.4rem 0 1.2rem; counter-reset: step; }
+.step {
+  display: flex; gap: 0.8rem; padding: 0.7rem 0; align-items: baseline;
+  border-bottom: 1px solid var(--recipe-rule); cursor: pointer;
+}
+.step:last-child { border-bottom: none; }
+.step-check {
+  counter-increment: step; flex: 0 0 1.7rem; width: 1.7rem; height: 1.7rem; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; align-self: flex-start;
+  background: var(--recipe-panel); color: var(--recipe-accent); font-size: 0.85rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; transition: background 0.12s, color 0.12s;
+}
+.step-check::before { content: counter(step); }
+.step.done .step-check { background: var(--recipe-accent); color: #fff; }
+.step.done .step-check::before { content: "✓"; }
+.step.done .step-body { color: var(--recipe-faint); text-decoration: line-through; }
+.step-body { flex: 1; }
+
+/* ---- timer chips ---- */
+.recipe-timer {
+  font: inherit; font-size: 0.86rem; display: inline-flex; align-items: center; gap: 0.25rem; vertical-align: baseline;
+  padding: 0.1rem 0.5rem; margin: 0 0.1rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--recipe-accent); background: none; color: var(--recipe-accent); font-variant-numeric: tabular-nums;
+}
+.recipe-timer:hover { background: var(--recipe-panel); }
+.recipe-timer.running { background: var(--recipe-accent); color: #fff; }
+.recipe-timer.done { border-color: var(--recipe-faint); color: var(--recipe-faint); animation: recipe-flash 0.5s ease 3; }
+@keyframes recipe-flash { 50% { background: var(--recipe-accent); color: #fff; } }
+@media (prefers-reduced-motion: reduce) { .recipe-timer.done { animation: none; } }
+
+/* ---- footer ---- */
+.recipe-foot { margin-top: 2rem; padding-top: 1.1rem; border-top: 1px solid var(--recipe-rule); font-size: 0.85rem; color: var(--recipe-muted); }
+.recipe-source { font-weight: 600; text-decoration: none; }
+.recipe-socials { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.5rem; }
+.recipe-socials a { text-decoration: none; }
+.recipe .attribution { margin-top: 0.8rem; color: var(--recipe-faint); font-size: 0.74rem; }
+
+/* ---- cook mode: bigger, calmer, across-the-counter ---- */
+.recipe.cook { max-width: 44rem; font-size: 1.18rem; }
+.recipe.cook .step { padding: 1rem 0; }
+.recipe.cook .recipe-meta, .recipe.cook .recipe-foot { display: none; }
+
+/* ================= templates ================= */
+.recipe.tmpl-card { --recipe-bg: #ffffff; }
+.recipe.tmpl-card .recipe-body { }
+
+.recipe.tmpl-paper {
+  --recipe-accent: #8a5a2b; --recipe-bg: #fbf7ee; --recipe-fg: #312a20; --recipe-panel: #f0e8d8;
+  --recipe-rule: rgba(80, 60, 30, 0.16); --recipe-font: var(--recipe-serif);
+}
+.recipe.tmpl-paper .recipe-title { font-style: normal; }
+
+.recipe.tmpl-dark {
+  --recipe-accent: #e8a866; --recipe-bg: #17150f; --recipe-fg: #ece7dd; --recipe-muted: #a59c8d;
+  --recipe-faint: #6d655a; --recipe-rule: rgba(255, 255, 255, 0.12); --recipe-panel: #241f17;
+}
+
+.recipe.tmpl-warm {
+  --recipe-accent: #c0532b; --recipe-bg: #fff6f0; --recipe-fg: #3a261d;
+  --recipe-muted: #97705c; --recipe-faint: #c4a292; --recipe-rule: rgba(150, 80, 50, 0.16); --recipe-panel: #ffe9dd;
+}
+
+.recipe.tmpl-kitchen {
+  --recipe-accent: #1f7a4d; --recipe-bg: #ffffff; --recipe-fg: #14130f; --recipe-muted: #4a4a44;
+  --recipe-faint: #8a8a82; --recipe-rule: rgba(0, 0, 0, 0.16); --recipe-panel: #eef6f0;
+  font-size: 1.1rem;
+}
+.recipe.tmpl-kitchen .recipe-title { font-weight: 800; }
+.recipe.tmpl-kitchen .step { padding: 0.95rem 0; }
+  /* @build:recipe-templates:end */
+</style>
+</head>
+<body>
+<header>
+  <h1>recipe · <span style="color:var(--fg-muted);font-weight:400">cradle</span></h1>
+  <span class="spacer"></span>
+  <button class="h-btn" id="load-sample" type="button">Load sample</button>
+  <a class="h-btn" href="../" title="cradle">↩ cradle</a>
+</header>
+
+<div class="wrap">
+  <div class="form">
+    <div class="group">
+      <h2>Recipe</h2>
+      <div class="row"><label for="f-locale">Language</label>
+        <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
+      <div class="row"><label for="f-title">Title</label><input id="f-title" type="text" placeholder="Brigadeiro"></div>
+      <div class="row split"><label for="f-serves">Serves</label>
+        <input id="f-serves" type="number" min="1" placeholder="4" style="flex:0 0 5rem">
+        <input id="f-yield" type="text" placeholder="yield noun (cookies…)"></div>
+      <div class="row split"><label for="f-time">Time</label>
+        <input id="f-time" type="text" placeholder="total (45m)">
+        <input id="f-prep" type="text" placeholder="prep">
+        <input id="f-cook" type="text" placeholder="cook"></div>
+    </div>
+
+    <div class="group">
+      <h2>Style</h2>
+      <div class="row"><label for="f-template">Template</label>
+        <select id="f-template"><option>card</option><option>paper</option><option>dark</option><option>warm</option><option>kitchen</option></select></div>
+      <div class="row"><label for="f-accent">Accent</label>
+        <input id="f-accent" type="text" placeholder="#6b4423 (optional)"><span class="swatch" id="accent-sw"></span></div>
+    </div>
+
+    <div class="group">
+      <h2>Content</h2>
+      <div class="row col"><label for="f-intro">Intro</label>
+        <textarea id="f-intro" placeholder="A line or two. *italic*, **bold**, [links](https://…) ok." style="min-height:3rem"></textarea></div>
+      <div class="row col"><label for="f-body">Ingredients &amp; steps</label>
+        <textarea id="f-body" spellcheck="false" placeholder="## Ingredients
+- 2 cup | flour
+- 200 g | butter, softened
+- 3 | eggs
+- | a pinch of salt
+
+## Method
+1. Cream the butter and sugar.
+2. [10m] Stir until it thickens.
+3. Fold in the flour *gently*."></textarea></div>
+      <div class="ins">
+        <button type="button" data-ins="## ">+ Section</button>
+        <button type="button" data-ins="- 1 cup | ">+ Ingredient</button>
+        <button type="button" data-ins="1. ">+ Step</button>
+        <button type="button" data-ins="[10m] ">+ Timer</button>
+      </div>
+      <p class="hint"><b>Ingredients</b> <code>- amount | item</code> — the part before <code>|</code> scales
+      (write <code>- salt to taste</code> with no <code>|</code> to never scale). <b>Steps</b> start with
+      <code>1.</code> (auto-renumbered); a <code>[10m]</code> token anywhere in a step becomes a timer.</p>
+    </div>
+
+    <div class="group">
+      <h2>Footer</h2>
+      <div class="row"><label for="f-source">Source URL</label><input id="f-source" type="text" placeholder="https://… (original recipe)"></div>
+      <div class="row col"><label for="f-social">Socials</label><input id="f-social" type="text" placeholder="ig=docedaana, yt=channel"></div>
+      <p class="hint">prefixes: ig · x · yt · tt · ws (WhatsApp digits) · web (hostname)</p>
+    </div>
+  </div>
+
+  <div class="preview-pane">
+    <div class="phone"><div class="phone-screen"><div id="preview"></div></div></div>
+    <div class="share">
+      <div class="qrbox" id="qr"></div>
+      <button class="b" id="copy-url" type="button">Copy share link</button>
+      <a class="b" id="open-url" target="_blank" rel="noopener">Open in cradle ↗</a>
+      <a class="b" id="dl-qr" download="recipe-qr.png">Download QR (PNG)</a>
+      <div class="row" style="margin:0.6rem 0 0"><label for="f-base" style="flex:0 0 5rem;font-size:0.74rem">decoder</label>
+        <input id="f-base" type="text" style="font-size:0.74rem"></div>
+      <div class="url" id="url"></div>
+      <div class="meta" id="size"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// @build:inline:start  (generated from ext/shared/inline.js — do not hand-edit)
+// Shared safe-inline text core: escapeHtml + renderInline. Single source for the
+// bootloader and every editor (inlined by build/build.js between @build:inline
+// markers). The substrate the field-shaped renderers — menu, contact, bio, recipe —
+// use for all text fields.
+//
+// Security invariant: escape-first-then-decorate. Author text is HTML-escaped BEFORE
+// any markup, and only a fixed set of tags is inserted, so a parser slip degrades
+// formatting, never injects. The one author-controlled attribute — a link href — is
+// scheme-allowlisted to https/http/mailto/tel (or an in-page #anchor); anything else
+// (javascript:, data:, vbscript:, or tab/newline-obfuscated schemes a browser would
+// still run) renders as plain text. Mirrors doc's reviewed link policy (SPEC-doc §3.3,
+// SPEC-recipe §3.2). Kept as two self-contained function declarations (no module-level
+// helpers) so each host inlines them verbatim and the tests extract them by name.
+// Edit here, then `npm run build`.
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderInline(text) {
+  let s = escapeHtml(text);
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+    // url is already HTML-escaped → it can't break the attribute or inject a tag. Detect the
+    // scheme as a browser would (ignore leading ASCII control/space chars, so java\tscript:
+    // can't slip past a naive check); allow the allowlist or an in-page #anchor; a schemeless
+    // /relative target is safe (no scheme to abuse); anything else drops to plain text.
+    const probe = url.replace(/[\x00-\x20]+/g, "");
+    const scheme = probe.match(/^[a-z][a-z0-9+.-]*:/i);
+    const ok = probe.charAt(0) === "#" || !scheme || /^(https?|mailto|tel):/i.test(probe);
+    return ok ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>` : label;
+  });
+  return s;
+}
+// @build:inline:end
+
+// @build:recipe-renderer:start
+// Shared recipe render logic — single source for the bootloader's recipeRenderer
+// (and the future editor preview). Inlined into index.html between
+// @build:recipe-renderer markers. Uses escapeHtml + renderInline from the host
+// (ext/shared/inline.js). renderRecipeHTML(body, locale, attribution) ->
+// { html, template, accent, lang }. The consumer sets mount.className = "recipe
+// tmpl-<t>", applies --recipe-accent, mounts `html`, then calls recipeAttach(mount,
+// locale) to wire the scaler / timers / cook-mode / check-off. Edit here, then
+// `npm run build`.
+//
+// `recipe` is menu's STRUCTURAL cousin (SPEC-recipe.md): a sigil-typed line grammar
+// (`-` ingredient, `\d+.` step) whose parsed structure powers interactions prose
+// can't — a serving scaler, [duration] step timers, cook-mode wake-lock, tap-to-check.
+// Magic line: !recipe1+<locale>. Text fields use the shared safe-inline renderer
+// (escape-first + link-scheme allowlist); no block markdown or images in v1.
+const RECIPE_LOCALES = {
+  "pt-BR": { decimal: ",", servesPrefix: "Rende", servesSuffix: "porções", makesPrefix: "Rende",
+             prepLabel: "preparo", cookLabel: "cozimento", cookmode: "Modo cozinha",
+             timerDone: "Pronto!", source: "Receita original", reset: "1×" },
+  "en-US": { decimal: ".", servesPrefix: "Serves", servesSuffix: "", makesPrefix: "Makes",
+             prepLabel: "prep", cookLabel: "cook", cookmode: "Cook mode",
+             timerDone: "Done!", source: "Original recipe", reset: "1×" },
+};
+const RECIPE_TEMPLATES = { card: 1, paper: 1, dark: 1, warm: 1, kitchen: 1 };
+const RECIPE_VULGAR = { "½": .5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": .25, "¾": .75, "⅕": .2, "⅖": .4, "⅗": .6, "⅘": .8, "⅙": 1 / 6, "⅚": 5 / 6, "⅛": .125, "⅜": .375, "⅝": .625, "⅞": .875 };
+// tiny social map (text links only — recipe footers are light); prefix=handle
+const RECIPE_SOCIAL = {
+  ig: (h) => ["Instagram", "https://instagram.com/" + h], x: (h) => ["X", "https://x.com/" + h],
+  yt: (h) => ["YouTube", "https://youtube.com/@" + h], tt: (h) => ["TikTok", "https://tiktok.com/@" + h],
+  ws: (h) => ["WhatsApp", "https://wa.me/" + h], web: (h) => [h, "https://" + h],
+};
+
+// ---- quantity parsing + scaling (pure; also used client-side by recipeAttach) ----
+// leading numeric token of an amount string -> [value, charsConsumed] | null
+function recipeNum(s) {
+  let m = s.match(/^(\d+)\s+(\d+)\/(\d+)/);                       // mixed "1 1/2"
+  if (m) return [(+m[1]) + (+m[2]) / (+m[3]), m[0].length];
+  m = s.match(/^(\d+)([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])/);                       // int + vulgar "1½"
+  if (m) return [(+m[1]) + RECIPE_VULGAR[m[2]], m[0].length];
+  m = s.match(/^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])/);                            // lone vulgar "½"
+  if (m) return [RECIPE_VULGAR[m[1]], m[0].length];
+  m = s.match(/^(\d+)\/(\d+)/);                                   // fraction "3/4"
+  if (m) return [(+m[1]) / (+m[2]), m[0].length];
+  m = s.match(/^(\d+(?:[.,]\d+)?)/);                              // decimal/int "0,5" "200"
+  if (m) return [parseFloat(m[1].replace(",", ".")), m[0].length];
+  return null;
+}
+// amount string -> { lo, hi|null, unit } | null (null = no leading number → don't scale)
+function recipeParseQty(amount) {
+  const s = String(amount == null ? "" : amount);
+  const a = recipeNum(s);
+  if (!a) return null;
+  let consumed = a[1], hi = null;
+  const rm = s.slice(consumed).match(/^\s*[-–]\s*/);              // range "2-3"
+  if (rm) {
+    const b = recipeNum(s.slice(consumed + rm[0].length));
+    if (b) { hi = b[0]; consumed += rm[0].length + b[1]; }
+  }
+  return { lo: a[0], hi: hi, unit: s.slice(consumed) };           // unit keeps its leading space
+}
+// pretty-print a scaled number: integers bare, common fractions as glyphs, else 2dp (locale decimal)
+function recipeFmtNum(v, dec) {
+  if (!isFinite(v)) return "";
+  const r = Math.round(v * 1000) / 1000;
+  if (Math.abs(r - Math.round(r)) < 1e-6) return String(Math.round(r));
+  const whole = Math.floor(r), frac = r - whole;
+  const tbl = [[.5, "½"], [1 / 3, "⅓"], [2 / 3, "⅔"], [.25, "¼"], [.75, "¾"], [.125, "⅛"], [.375, "⅜"], [.625, "⅝"], [.875, "⅞"]];
+  for (let i = 0; i < tbl.length; i++) if (Math.abs(frac - tbl[i][0]) < 0.02) return (whole ? whole : "") + tbl[i][1];
+  const str = r.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  return dec === "," ? str.replace(".", ",") : str;
+}
+function recipeFmtQty(p, factor, dec) {
+  const lo = recipeFmtNum(p.lo * factor, dec);
+  const hi = p.hi == null ? null : recipeFmtNum(p.hi * factor, dec);
+  return (hi == null ? lo : lo + "–" + hi) + (p.unit || "");
+}
+
+// ---- timers ----
+function recipeDurSecs(str) {
+  let sec = 0, m, re = /(\d+)([hms])/g;
+  while ((m = re.exec(str))) sec += (+m[1]) * (m[2] === "h" ? 3600 : m[2] === "m" ? 60 : 1);
+  return sec;
+}
+function recipeClock(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60, p = (n) => (n < 10 ? "0" : "") + n;
+  return h ? h + ":" + p(m) + ":" + p(s) : m + ":" + p(s);
+}
+
+// ---- parsing ----
+function recipeParseBody(body) {
+  const directives = {}, blocks = [];
+  let inDir = true;
+  for (const raw of body.split("\n")) {
+    const t = raw.trim();
+    if (inDir) {
+      const dm = t.match(/^@(\w+)[:\s]\s*(.*)$/);
+      if (dm) { directives[dm[1].toLowerCase()] = dm[2].trim(); continue; }
+      inDir = false;
+    }
+    if (!t) continue;
+    if (t === "---") { blocks.push({ type: "hr" }); continue; }
+    if (t.startsWith("## ")) { blocks.push({ type: "h2", text: t.slice(3) }); continue; }
+    if (t.startsWith("# ")) { blocks.push({ type: "h1", text: t.slice(2) }); continue; }
+    if (t.startsWith("- ")) {
+      const c = t.slice(2), pipe = c.indexOf("|");
+      blocks.push(pipe < 0 ? { type: "ing", amount: null, item: c }
+                           : { type: "ing", amount: c.slice(0, pipe).trim(), item: c.slice(pipe + 1).trim() });
+      continue;
+    }
+    const sm = t.match(/^\d+\.\s+(.*)$/);
+    if (sm) { blocks.push({ type: "step", text: sm[1] }); continue; }
+    blocks.push({ type: "p", text: t });
+  }
+  return { directives, blocks };
+}
+
+// ---- one ingredient <li> (escaped; scalable amount carries data-* for the client scaler) ----
+function recipeIngHtml(b, dec) {
+  const item = b.item ? `<span class="ing-item">${renderInline(b.item)}</span>` : "";
+  if (b.amount == null) return `<li class="ing">${item}</li>`;
+  const p = recipeParseQty(b.amount);
+  if (!p) {
+    const a = b.amount ? `<span class="ing-amt">${escapeHtml(b.amount)}</span> ` : "";
+    return `<li class="ing">${a}${item}</li>`;
+  }
+  return `<li class="ing"><span class="ing-amt amt" data-lo="${p.lo}" data-hi="${p.hi == null ? "" : p.hi}"` +
+    ` data-unit="${escapeHtml(p.unit)}">${escapeHtml(recipeFmtQty(p, 1, dec))}</span> ${item}</li>`;
+}
+
+// ---- one step <li> (renderInline first so real [text](url) links win; surviving
+// [10m] tokens then become timer chips — a bracket+`(` was already consumed as a link) ----
+function recipeStepHtml(text) {
+  let body = renderInline(text);
+  body = body.replace(/\[((?:\d+[hms])+)\]/g, (m, d) => {
+    const sec = recipeDurSecs(d);
+    return sec ? `<button type="button" class="recipe-timer" data-sec="${sec}"><span class="t-icon">⏱</span> <span class="t-clock">${recipeClock(sec)}</span></button>` : m;
+  });
+  return `<li class="step"><span class="step-check" aria-hidden="true"></span><div class="step-body">${body}</div></li>`;
+}
+
+// body text (after the magic line) + locale + attribution -> rendered recipe HTML + hints
+function renderRecipeHTML(body, locale, attribution) {
+  const L = RECIPE_LOCALES[locale] || RECIPE_LOCALES["pt-BR"];
+  const { directives: d, blocks } = recipeParseBody(body);
+
+  // header: title, meta (time/prep/cook), serves scaler, cook-mode toggle
+  const titleBlock = blocks.find((b) => b.type === "h1");
+  const title = titleBlock ? `<h1 class="recipe-title">${renderInline(titleBlock.text)}</h1>` : "";
+  const meta = [];
+  if (d.time) meta.push(`<span>⏱ ${escapeHtml(d.time)}</span>`);
+  if (d.prep) meta.push(`<span>${L.prepLabel} ${escapeHtml(d.prep)}</span>`);
+  if (d.cook) meta.push(`<span>${L.cookLabel} ${escapeHtml(d.cook)}</span>`);
+  const metaHtml = meta.length ? `<div class="recipe-meta">${meta.join("")}</div>` : "";
+
+  let servesHtml = "";
+  const base = parseInt(d.serves, 10);
+  if (base >= 1) {
+    const yld = d.yield;
+    const prefix = yld ? L.makesPrefix : L.servesPrefix;
+    const suffix = yld ? yld : L.servesSuffix;
+    servesHtml =
+      `<div class="recipe-serves" data-base="${base}">` +
+      `<button type="button" class="serves-btn serves-dec" aria-label="−">−</button>` +
+      `<span class="serves-label">${escapeHtml(prefix)} <b class="serves-n">${base}</b>${suffix ? " " + escapeHtml(suffix) : ""}</span>` +
+      `<button type="button" class="serves-btn serves-inc" aria-label="+">+</button>` +
+      `<button type="button" class="serves-reset" hidden>${escapeHtml(L.reset)}</button>` +
+      `</div>`;
+  }
+  const cookHtml = `<button type="button" class="recipe-cook">${escapeHtml(L.cookmode)}</button>`;
+  const header = `<header class="recipe-head">${title}${metaHtml}${servesHtml}${cookHtml}</header>`;
+
+  // body: group consecutive ingredients into <ul>, steps into <ol>; flush on other blocks
+  const out = [];
+  let kind = null, buf = [];
+  const flush = () => {
+    if (!buf.length) return;
+    out.push(kind === "ing" ? `<ul class="recipe-ings">${buf.join("")}</ul>` : `<ol class="recipe-steps">${buf.join("")}</ol>`);
+    buf = []; kind = null;
+  };
+  for (const b of blocks) {
+    if (b.type === "ing") { if (kind !== "ing") flush(); kind = "ing"; buf.push(recipeIngHtml(b, L.decimal)); continue; }
+    if (b.type === "step") { if (kind !== "step") flush(); kind = "step"; buf.push(recipeStepHtml(b.text)); continue; }
+    flush();
+    if (b.type === "h1") continue;                                 // already in the header
+    if (b.type === "h2") out.push(`<h2 class="recipe-section">${renderInline(b.text)}</h2>`);
+    else if (b.type === "p") out.push(`<p class="recipe-note">${renderInline(b.text)}</p>`);
+    else if (b.type === "hr") out.push(`<hr>`);
+  }
+  flush();
+  const bodyHtml = `<div class="recipe-body">${out.join("")}</div>`;
+
+  // footer: @source link + @social text links + attribution
+  const foot = [];
+  if (d.source) {
+    const u = escapeHtml(d.source);
+    if (/^https?:/i.test(u)) foot.push(`<a class="recipe-source" href="${u}" target="_blank" rel="noopener noreferrer">${escapeHtml(L.source)} →</a>`);
+  }
+  if (d.social) {
+    const links = [];
+    for (const pair of d.social.split(",")) {
+      const [pfx, handle] = pair.split("=").map((x) => (x || "").trim());
+      const f = RECIPE_SOCIAL[pfx];
+      if (f && handle) { const [label, url] = f(handle.replace(/^@/, "")); links.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`); }
+    }
+    if (links.length) foot.push(`<div class="recipe-socials">${links.join("")}</div>`);
+  }
+  if (attribution) foot.push(`<div class="attribution">${escapeHtml(attribution)}</div>`);
+  const footHtml = foot.length ? `<footer class="recipe-foot">${foot.join("")}</footer>` : "";
+
+  return {
+    html: header + bodyHtml + footHtml,
+    template: RECIPE_TEMPLATES[d.template] ? d.template : "card",
+    accent: d.accent || null,
+    lang: locale,
+  };
+}
+
+// ---- client behavior: scaler / timers / cook-mode / check-off (no-op headless) ----
+function recipeAttach(mount, locale) {
+  if (!mount || !mount.querySelectorAll || !mount.addEventListener) return;
+  const L = RECIPE_LOCALES[locale] || RECIPE_LOCALES["pt-BR"];
+  const servesEl = mount.querySelector(".recipe-serves");
+  const base = servesEl ? parseInt(servesEl.getAttribute("data-base"), 10) : 0;
+  let target = base;
+
+  function rescale() {
+    if (!(base >= 1)) return;
+    const factor = target / base;
+    const nEl = mount.querySelector(".serves-n");
+    if (nEl) nEl.textContent = String(target);
+    const reset = mount.querySelector(".serves-reset");
+    if (reset) reset.hidden = target === base;
+    const amts = mount.querySelectorAll(".amt");
+    for (let i = 0; i < amts.length; i++) {
+      const el = amts[i], lo = parseFloat(el.getAttribute("data-lo"));
+      const hiRaw = el.getAttribute("data-hi"), hi = hiRaw ? parseFloat(hiRaw) : null;
+      if (isFinite(lo)) el.textContent = recipeFmtQty({ lo: lo, hi: hi, unit: el.getAttribute("data-unit") || "" }, factor, L.decimal);
+    }
+  }
+
+  let wakeLock = null;
+  async function toggleCook(btn) {
+    const on = mount.classList.toggle("cook");
+    if (btn) btn.classList.toggle("on", on);
+    try {
+      if (on && mount.ownerDocument && mount.ownerDocument.defaultView && navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen");
+      else if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    } catch (e) { /* unsupported / denied — cook mode still styles */ }
+  }
+
+  function startTimer(btn) {
+    if (btn._iv) return;                                   // already running
+    let left = parseInt(btn.getAttribute("data-sec"), 10);
+    const clock = btn.querySelector(".t-clock");
+    btn.classList.add("running");
+    const tick = () => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(btn._iv); btn._iv = null;
+        btn.classList.remove("running"); btn.classList.add("done");
+        if (clock) clock.textContent = L.timerDone;
+        try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) { const a = new AC(), o = a.createOscillator(), g = a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value = 880; g.gain.value = 0.08; o.start(); o.stop(a.currentTime + 0.4); }
+        } catch (e) {}
+        return;
+      }
+      if (clock) clock.textContent = recipeClock(left);
+    };
+    btn._iv = setInterval(tick, 1000);
+  }
+
+  mount.addEventListener("click", (e) => {
+    const t = e.target.closest ? e.target.closest("button, .step, .ing") : null;
+    if (!t) return;
+    if (t.classList.contains("serves-dec")) { if (target > 1) { target -= 1; rescale(); } return; }
+    if (t.classList.contains("serves-inc")) { target += 1; rescale(); return; }
+    if (t.classList.contains("serves-reset")) { target = base; rescale(); return; }
+    if (t.classList.contains("recipe-cook")) { toggleCook(t); return; }
+    if (t.classList.contains("recipe-timer")) { startTimer(t); return; }
+    if (t.classList.contains("step") || t.classList.contains("ing")) t.classList.toggle("done");
+  });
+}
+
+if (typeof module !== "undefined" && module.exports) module.exports = { renderRecipeHTML, recipeAttach, recipeParseQty, recipeFmtQty, recipeFmtNum, recipeDurSecs };
+// @build:recipe-renderer:end
+
+const td = new TextEncoder();
+function fragmentEncode(s) { return s.replace(/%/g, "%25").replace(/ /g, "%20"); }
+function base45Encode(bytes) {
+  const A = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 2) {
+    if (i + 1 < bytes.length) {
+      const x = bytes[i] * 256 + bytes[i + 1];
+      out += A[x % 45] + A[Math.floor(x / 45) % 45] + A[Math.floor(x / 2025)];
+    } else {
+      out += A[bytes[i] % 45] + A[Math.floor(bytes[i] / 45)];
+    }
+  }
+  return out;
+}
+const DICT_RECIPE = "card paper dark warm kitchen colheres de sopa colher de sopa colheres de chá xícaras xícara gramas pitada lata dente tablespoon teaspoon tbsp tsp cups cup grams clove pinch Misture Adicione Mexa Acrescente Despeje Asse Cozinhe Aqueça Bata Reserve até Mix Add Stir Pour Bake Cook Heat Whisk until minutes min farinha açúcar manteiga ovos leite água sal óleo alho cebola fermento chocolate flour sugar butter eggs milk water salt oil garlic onion @source @social @prep @cook @yield @time @serves @accent #@template  | \n- \n1. \n## \n# \n[10m]\n@serves \n@time \n!recipe1+en-US\n!recipe1+pt-BR\n";
+const dictBytes = td.encode(DICT_RECIPE);
+// dict-keyed deflate -> q:d.recipe_<base45> (QR alphanumeric mode). The dict is
+// byte-identical to the bootloader's (single-sourced via build/build.js).
+function makeCapsule(program) {
+  return "q:d.recipe_" + base45Encode(pako.deflateRaw(td.encode(program), { level: 9, dictionary: dictBytes }));
+}
+
+const $ = (id) => document.getElementById(id);
+function val(id) { return $(id).value.trim(); }
+
+function buildSource() {
+  const locale = val("f-locale") || "pt-BR";
+  let s = "!recipe1+" + locale + "\n";
+  const dir = (k, v) => { if (v) s += "@" + k + " " + v + "\n"; };
+  const tmpl = val("f-template");
+  if (tmpl && tmpl !== "card") dir("template", tmpl);
+  dir("accent", val("f-accent"));
+  dir("serves", val("f-serves"));
+  dir("yield", val("f-yield"));
+  dir("time", val("f-time"));
+  dir("prep", val("f-prep"));
+  dir("cook", val("f-cook"));
+  dir("source", val("f-source"));
+  dir("social", val("f-social"));
+  s += "\n# " + (val("f-title") || "Untitled recipe") + "\n";
+  const intro = $("f-intro").value.trim();
+  if (intro) s += "\n" + intro + "\n";
+  const bodyTxt = $("f-body").value.replace(/\s+$/, "");
+  if (bodyTxt) s += "\n" + bodyTxt + "\n";
+  return s;
+}
+
+function buildQR(text, el) {
+  el.innerHTML = "";
+  if (window.QRCode && window.QRCode.CorrectLevel) {
+    new window.QRCode(el, { text, width: 200, height: 200, correctLevel: window.QRCode.CorrectLevel.M });
+  } else {
+    el.textContent = "(QR library unavailable)";
+  }
+}
+
+let lastURL = "";
+function update() {
+  const src = buildSource();
+  const body = src.slice(src.indexOf("\n") + 1);
+  const locale = (src.match(/^!recipe1\+(\S+)/) || [, "pt-BR"])[1];
+  const r = renderRecipeHTML(body, locale, "");
+
+  // fresh mount each render so recipeAttach's click listener never accumulates and
+  // its closure reads the current @serves base — the preview's scaler/timers are LIVE.
+  const stage = $("preview");
+  stage.innerHTML = "";
+  const mount = document.createElement("div");
+  mount.className = "recipe tmpl-" + r.template;
+  if (r.accent) mount.style.setProperty("--recipe-accent", r.accent);
+  mount.innerHTML = r.html;
+  stage.appendChild(mount);
+  try { recipeAttach(mount, locale); } catch (e) {}
+  $("accent-sw").style.background = r.accent || getComputedStyle(mount).getPropertyValue("--recipe-accent");
+
+  const cap = makeCapsule(src);
+  const base = val("f-base") || new URL("../", location.href).href;
+  lastURL = base + "#" + fragmentEncode(cap);
+  $("url").textContent = lastURL;
+  $("open-url").href = lastURL;
+  buildQR(lastURL, $("qr"));
+  $("size").textContent = "source " + td.encode(src).length + " B · capsule " + cap.length + " chars";
+  setTimeout(() => {
+    const img = $("qr").querySelector("img, canvas");
+    if (img) $("dl-qr").href = img.tagName === "IMG" ? img.src : img.toDataURL("image/png");
+  }, 60);
+}
+
+const SAMPLE = {
+  "f-locale": "pt-BR", "f-title": "Brigadeiro", "f-template": "card", "f-accent": "#6b4423",
+  "f-serves": "20", "f-yield": "brigadeiros", "f-time": "25m", "f-prep": "", "f-cook": "",
+  "f-source": "", "f-social": "ig=docedaana",
+  "f-intro": "Clássico, brilhante, no ponto de enrolar.",
+  "f-body": "## Ingredientes\n- 1 lata | leite condensado\n- 2 colheres de sopa | cacau em pó\n- 1 colher de sopa | manteiga\n- | granulado para enrolar\n\n## Modo de preparo\n1. Misture tudo numa panela em fogo médio.\n2. [10m] Mexa **sem parar** até desgrudar do fundo.\n3. Deixe esfriar, unte as mãos e enrole no granulado.",
+};
+function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
+
+document.querySelectorAll("input, select, textarea").forEach((el) => {
+  el.addEventListener("input", update);
+  el.addEventListener("change", update);
+});
+document.querySelectorAll(".ins button").forEach((b) => {
+  b.addEventListener("click", () => {
+    const ta = $("f-body"), v = ta.value, snip = b.getAttribute("data-ins");
+    ta.value = v + (v && !v.endsWith("\n") ? "\n" : "") + snip;
+    ta.focus(); update();
+  });
+});
+$("load-sample").addEventListener("click", loadSample);
+$("copy-url").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = "Copied ✓";
+        setTimeout(() => $("copy-url").textContent = "Copy share link", 1200); } catch (e) {}
+});
+
+$("f-base").value = new URL("../", location.href).href;
+loadSample();
+</script>
+</body>
+</html>
