@@ -55,6 +55,8 @@
   .share { max-width: 360px; margin: 0 auto; }
   .qrbox { background: #fff; border-radius: 12px; padding: 1rem; display: flex; justify-content: center; }
   .qrbox > div, .qrbox img, .qrbox canvas { width: 200px !important; height: 200px !important; }
+  .qr-toobig { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; text-align: center;
+               font-size: 0.82rem; color: var(--fg-muted); border: 1px dashed var(--border); border-radius: 8px; padding: 0.8rem; }
   .share .b { display: block; width: 100%; text-align: center; font: inherit; font-size: 0.9rem; margin-top: 0.6rem;
               padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg);
               cursor: pointer; text-decoration: none; }
@@ -1185,6 +1187,7 @@ const UI = {
     "grp.footer": "Footer", "f.source": "Source URL", "ph.source": "https://… (original recipe)", "f.social": "Socials", "ph.social": "ig=docedaana, yt=channel",
     "hint.social": "31 brand codes (same zoo as bio): ig · x · in · gh · yt · tt · tg · fb · th · bsky · ms · sp · sc · bc · sb · md · dev · gl · rd · be · pin · pt · bmc · pp · dc · itch · lb · gr · st · ko · tw — each renders its logo.",
     "share.copy": "Copy share link", "share.copied": "Copied ✓", "share.open": "Open in cradle ↗", "share.print": "Print recipe", "share.dlqr": "Download QR (PNG)", "share.decoder": "decoder",
+    "qr.toobig": "Too large for a QR (the photo) — use the share link.",
   },
   "pt-BR": {
     "app.title": "recipe · cradle", "uilang.title": "Idioma da interface", "hdr.sample": "Carregar exemplo",
@@ -1202,6 +1205,7 @@ const UI = {
     "grp.footer": "Rodapé", "f.source": "URL de origem", "ph.source": "https://… (receita original)", "f.social": "Redes", "ph.social": "ig=docedaana, yt=canal",
     "hint.social": "31 códigos de marca (mesmo conjunto do bio): ig · x · in · gh · yt · tt · tg · fb · th · bsky · ms · sp · sc · bc · sb · md · dev · gl · rd · be · pin · pt · bmc · pp · dc · itch · lb · gr · st · ko · tw — cada um mostra seu logo.",
     "share.copy": "Copiar link", "share.copied": "Copiado ✓", "share.open": "Abrir no cradle ↗", "share.print": "Imprimir receita", "share.dlqr": "Baixar QR (PNG)", "share.decoder": "decoder",
+    "qr.toobig": "Grande demais para QR (a foto) — use o link.",
   },
 };
 function detectUiLang() {
@@ -1268,10 +1272,15 @@ function buildSource() {
 
 function buildQR(text, el) {
   el.innerHTML = "";
-  if (window.QRCode && window.QRCode.CorrectLevel) {
+  if (!(window.QRCode && window.QRCode.CorrectLevel)) { el.textContent = "(QR library unavailable)"; return false; }
+  // a QR maxes out around ~2.9k chars; a baked @photo blows past that — fail gracefully
+  // (the share link still works) instead of leaving a blank box.
+  try {
     new window.QRCode(el, { text, width: 200, height: 200, correctLevel: window.QRCode.CorrectLevel.M });
-  } else {
-    el.textContent = "(QR library unavailable)";
+    return true;
+  } catch (e) {
+    el.innerHTML = '<div class="qr-toobig">' + t("qr.toobig") + "</div>";
+    return false;
   }
 }
 
@@ -1300,9 +1309,10 @@ function update() {
   lastURL = base + "#" + fragmentEncode(cap);
   $("url").textContent = lastURL;
   $("open-url").href = lastURL;
-  buildQR(lastURL, $("qr"));
+  const qrOk = buildQR(lastURL, $("qr"));
+  $("dl-qr").style.display = qrOk ? "" : "none";
   $("size").textContent = "source " + td.encode(src).length + " B · capsule " + cap.length + " chars";
-  setTimeout(() => {
+  if (qrOk) setTimeout(() => {
     const img = $("qr").querySelector("img, canvas");
     if (img) $("dl-qr").href = img.tagName === "IMG" ? img.src : img.toDataURL("image/png");
   }, 60);
