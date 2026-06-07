@@ -149,6 +149,7 @@
 .tc-btn:hover { border-color: var(--recipe-accent); }
 .tc-dismiss { padding: 0.4rem 0.7rem; }
 .tc-dismiss.confirm { border-color: #c0392b; color: #c0392b; background: transparent; }
+.tc-pause.confirm { border-color: var(--recipe-accent); color: var(--recipe-accent); background: transparent; }
 .tc-stop { background: var(--recipe-accent); color: #fff; border-color: var(--recipe-accent); font-weight: 600; }
 .recipe-tcard.paused { opacity: 0.8; }
 .recipe-tcard.paused .tc-clock { color: var(--recipe-faint); }

@@ -161,6 +161,16 @@ test("timer tray: tapping a chip opens a card (step + total + clock); dismiss ta
     assert.strictEqual(card.querySelector(".tc-label").textContent, "Stir until thick", "step text, timer token stripped");
     assert.ok(chip.classList.contains("running"), "chip reflects the live timer");
 
+    // pause is now a two-tap confirm (accidental-tap guard); resume is immediate
+    const pause = card.querySelector(".tc-pause");
+    pause.fire("click");
+    assert.ok(!/paused/.test(card.className), "one tap arms pause, doesn't pause yet");
+    assert.match(pause.textContent, /Pause\?/, "armed label");
+    pause.fire("click");
+    assert.match(card.className, /paused/, "second tap pauses");
+    pause.fire("click");
+    assert.ok(!/paused/.test(card.className), "resume takes a single tap");
+
     const dismiss = card.querySelector(".tc-dismiss");
     dismiss.fire("click");
     assert.ok(mount._kids.find((k) => k.className === "recipe-tray"), "one tap arms but does not remove (destructive → confirm)");

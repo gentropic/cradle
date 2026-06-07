@@ -227,6 +227,7 @@
 .tc-btn:hover { border-color: var(--recipe-accent); }
 .tc-dismiss { padding: 0.4rem 0.7rem; }
 .tc-dismiss.confirm { border-color: #c0392b; color: #c0392b; background: transparent; }
+.tc-pause.confirm { border-color: var(--recipe-accent); color: var(--recipe-accent); background: transparent; }
 .tc-stop { background: var(--recipe-accent); color: #fff; border-color: var(--recipe-accent); font-weight: 600; }
 .recipe-tcard.paused { opacity: 0.8; }
 .recipe-tcard.paused .tc-clock { color: var(--recipe-faint); }
@@ -481,11 +482,11 @@ const RECIPE_LOCALES = {
   "pt-BR": { decimal: ",", servesPrefix: "Rende", servesSuffix: "porções", makesPrefix: "Rende",
              prepLabel: "preparo", cookLabel: "cozimento", cookmode: "Modo cozinha",
              timerDone: "Tempo!", source: "Receita original", reset: "1×",
-             step: "Passo", totalWord: "total", pause: "Pausar", resume: "Retomar", stop: "Parar", removeConfirm: "Remover?" },
+             step: "Passo", totalWord: "total", pause: "Pausar", pauseConfirm: "Pausar?", resume: "Retomar", stop: "Parar", removeConfirm: "Remover?" },
   "en-US": { decimal: ".", servesPrefix: "Serves", servesSuffix: "", makesPrefix: "Makes",
              prepLabel: "prep", cookLabel: "cook", cookmode: "Cook mode",
              timerDone: "Time's up!", source: "Original recipe", reset: "1×",
-             step: "Step", totalWord: "total", pause: "Pause", resume: "Resume", stop: "Stop", removeConfirm: "Remove?" },
+             step: "Step", totalWord: "total", pause: "Pause", pauseConfirm: "Pause?", resume: "Resume", stop: "Stop", removeConfirm: "Remove?" },
 };
 // cleanup fns from prior recipeAttach calls — lets the editor's per-keystroke re-render stop
 // stale timer intervals/alarms (the bootloader attaches once, so this stays a no-op there).
@@ -803,7 +804,7 @@ function recipeAttach(mount, locale) {
     const pause = c.querySelector(".tc-pause"), dismiss = c.querySelector(".tc-dismiss"), stop = c.querySelector(".tc-stop");
     const show = (el, on) => { if (el) el.hidden = !on; };
     show(pause, t.state !== "ringing"); show(dismiss, t.state !== "ringing"); show(stop, t.state === "ringing");
-    if (pause) pause.textContent = t.state === "paused" ? "▶ " + L.resume : "⏸ " + L.pause;
+    if (pause) { pause.textContent = t.state === "paused" ? "▶ " + L.resume : (t.pconfirm ? "⏸ " + L.pauseConfirm : "⏸ " + L.pause); if (pause.classList) pause.classList.toggle("confirm", !!t.pconfirm); }
     if (dismiss) { dismiss.textContent = t.confirm ? L.removeConfirm : "✕"; if (dismiss.classList) dismiss.classList.toggle("confirm", !!t.confirm); }
     if (stop) stop.textContent = "⏹ " + L.stop;
   }
@@ -823,11 +824,13 @@ function recipeAttach(mount, locale) {
     if (labelEl) labelEl.textContent = t.label || "";
     if (totalEl) totalEl.textContent = L.totalWord + " " + recipeClock(t.total);
     const pause = card.querySelector(".tc-pause"), dismiss = card.querySelector(".tc-dismiss"), stop = card.querySelector(".tc-stop");
-    if (pause && pause.addEventListener) pause.addEventListener("click", () => {       // reversible → no confirm
-      t.state = t.state === "running" ? "paused" : "running"; t.confirm = false; updateCard(t); syncTicker(); updateWake();
+    if (pause && pause.addEventListener) pause.addEventListener("click", () => {
+      if (t.state === "paused") { t.state = "running"; t.pconfirm = false; updateCard(t); syncTicker(); updateWake(); return; }  // resume → immediate
+      if (!t.pconfirm) { t.pconfirm = true; t.confirm = false; updateCard(t); setTimeout(() => { t.pconfirm = false; updateCard(t); }, 2500); return; }  // arm
+      t.pconfirm = false; t.state = "paused"; updateCard(t); syncTicker(); updateWake();  // confirm → pause
     });
     if (dismiss && dismiss.addEventListener) dismiss.addEventListener("click", () => {  // destructive → two-tap confirm
-      if (!t.confirm) { t.confirm = true; updateCard(t); setTimeout(() => { t.confirm = false; updateCard(t); }, 2500); return; }
+      if (!t.confirm) { t.confirm = true; t.pconfirm = false; updateCard(t); setTimeout(() => { t.confirm = false; updateCard(t); }, 2500); return; }
       removeTimer(t);
     });
     if (stop && stop.addEventListener) stop.addEventListener("click", () => removeTimer(t));  // ringing → stop the alarm
