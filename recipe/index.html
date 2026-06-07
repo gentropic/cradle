@@ -57,6 +57,16 @@
   .qrbox > div, .qrbox img, .qrbox canvas { width: 200px !important; height: 200px !important; }
   .qr-toobig { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; text-align: center;
                font-size: 0.82rem; color: var(--fg-muted); border: 1px dashed var(--border); border-radius: 8px; padding: 0.8rem; }
+  select.h-btn { padding-right: 1.5rem; }
+  .modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); padding: 1rem; }
+  .modal[hidden] { display: none; }
+  .modal-box { background: var(--bg); border-radius: 12px; padding: 1.3rem; max-width: 30rem; width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+  .modal-box h2 { margin: 0 0 0.4rem; font-size: 1.05rem; }
+  .modal-desc { margin: 0 0 0.8rem; font-size: 0.86rem; color: var(--fg-muted); }
+  #import-text { width: 100%; min-height: 6rem; font: 0.78rem/1.4 var(--font-mono); padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; resize: vertical; }
+  .import-err { color: #c0392b; font-size: 0.82rem; margin: 0.5rem 0 0; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.9rem; }
+  .h-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   .share .b { display: block; width: 100%; text-align: center; font: inherit; font-size: 0.9rem; margin-top: 0.6rem;
               padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg);
               cursor: pointer; text-decoration: none; }
@@ -354,7 +364,15 @@
     <button type="button" class="uilang-btn" data-lang="en">EN</button>
     <button type="button" class="uilang-btn" data-lang="pt-BR">PT</button>
   </div>
+  <select class="h-btn" id="sample-pick" title="examples">
+    <option value="brigadeiro">Brigadeiro</option>
+    <option value="aglio">Aglio e olio</option>
+    <option value="cookies">Choc-chip cookies</option>
+    <option value="chai">Masala chai</option>
+  </select>
   <button class="h-btn" id="load-sample" type="button" data-i18n="hdr.sample">Load sample</button>
+  <button class="h-btn" id="open-import" type="button" data-i18n="hdr.import">Import link</button>
+  <button class="h-btn" id="clear-btn" type="button" data-i18n="hdr.clear">Clear</button>
   <a class="h-btn" href="../" title="cradle">↩ cradle</a>
 </header>
 
@@ -456,6 +474,19 @@
         <input id="f-base" type="text" style="font-size:0.74rem"></div>
       <div class="url" id="url"></div>
       <div class="meta" id="size"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="import-modal" hidden>
+  <div class="modal-box">
+    <h2 data-i18n="import.title">Load a recipe from a link</h2>
+    <p class="modal-desc" data-i18n="import.desc">Paste a cradle recipe link (or its capsule) to open it here and edit it.</p>
+    <textarea id="import-text" spellcheck="false" placeholder="https://gentropic.org/cradle/#q:d.recipe_…"></textarea>
+    <p class="import-err" id="import-err" hidden></p>
+    <div class="modal-actions">
+      <button class="h-btn" id="import-cancel" type="button" data-i18n="import.cancel">Cancel</button>
+      <button class="h-btn primary" id="import-go" type="button" data-i18n="import.go">Load</button>
     </div>
   </div>
 </div>
@@ -1165,6 +1196,35 @@ function makeCapsule(program) {
   return "q:d.recipe_" + base45Encode(pako.deflateRaw(td.encode(program), { level: 9, dictionary: dictBytes }));
 }
 
+// ---- import: a pasted link/capsule → the recipe source (reverse of makeCapsule) ----
+const B45_REV = (() => { const A = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:", r = {}; for (let i = 0; i < A.length; i++) r[A[i]] = i; return r; })();
+function base45Decode(s) {
+  const out = [];
+  for (let i = 0; i < s.length; i += 3) {
+    if (i + 2 < s.length) { const x = B45_REV[s[i]] + B45_REV[s[i + 1]] * 45 + B45_REV[s[i + 2]] * 2025; out.push((x >> 8) & 255, x & 255); }
+    else { const x = B45_REV[s[i]] + B45_REV[s[i + 1]] * 45; out.push(x & 255); }
+  }
+  return new Uint8Array(out);
+}
+// single left-to-right pass per SPEC-capsule §6.4.1 (NOT decodeURIComponent)
+function fragmentDecode(s) {
+  let out = "", i = 0;
+  while (i < s.length) {
+    if (s[i] === "%" && s[i + 1] === "2" && s[i + 2] === "5") { out += "%"; i += 3; }
+    else if (s[i] === "%" && s[i + 1] === "2" && s[i + 2] === "0") { out += " "; i += 3; }
+    else { out += s[i]; i += 1; }
+  }
+  return out;
+}
+function parseLink(input) {
+  let s = String(input).trim();
+  const h = s.indexOf("#"); if (h >= 0) s = s.slice(h + 1);
+  s = fragmentDecode(s);
+  const m = s.match(/^q:d\.recipe_([\s\S]+)$/);
+  if (!m) throw new Error("not a recipe capsule");
+  return pako.inflateRaw(base45Decode(m[1]), { dictionary: dictBytes, to: "string" });
+}
+
 const $ = (id) => document.getElementById(id);
 function val(id) { return $(id).value.trim(); }
 
@@ -1172,7 +1232,8 @@ function val(id) { return $(id).value.trim(); }
 const UILANG_KEY = "cradle_recipe_uilang";
 const UI = {
   en: {
-    "app.title": "recipe · cradle", "uilang.title": "Interface language", "hdr.sample": "Load sample",
+    "app.title": "recipe · cradle", "uilang.title": "Interface language", "hdr.sample": "Load sample", "hdr.import": "Import link", "hdr.clear": "Clear",
+    "import.title": "Load a recipe from a link", "import.desc": "Paste a cradle recipe link (or its capsule) to open it here and edit it.", "import.cancel": "Cancel", "import.go": "Load", "import.error": "Couldn't read that — paste a full cradle recipe link.",
     "grp.recipe": "Recipe", "f.recipelang": "Recipe language", "f.title": "Title", "f.serves": "Serves",
     "ph.yield": "yield noun (cookies…)", "f.time": "Time", "ph.timeTotal": "total (45m)", "ph.prep": "prep", "ph.cook": "cook",
     "f.tags": "Dietary tags", "tag.vegan": "Vegan", "tag.vegetarian": "Vegetarian", "tag.gf": "Gluten-free", "tag.df": "Dairy-free", "tag.spicy": "Spicy", "tag.nutfree": "Nut-free", "tag.quick": "Quick",
@@ -1190,7 +1251,8 @@ const UI = {
     "qr.toobig": "Too large for a QR (the photo) — use the share link.",
   },
   "pt-BR": {
-    "app.title": "recipe · cradle", "uilang.title": "Idioma da interface", "hdr.sample": "Carregar exemplo",
+    "app.title": "recipe · cradle", "uilang.title": "Idioma da interface", "hdr.sample": "Carregar exemplo", "hdr.import": "Importar link", "hdr.clear": "Limpar",
+    "import.title": "Carregar receita de um link", "import.desc": "Cole um link de receita do cradle (ou a cápsula) para abrir e editar aqui.", "import.cancel": "Cancelar", "import.go": "Carregar", "import.error": "Não consegui ler — cole um link de receita do cradle completo.",
     "grp.recipe": "Receita", "f.recipelang": "Idioma da receita", "f.title": "Título", "f.serves": "Porções",
     "ph.yield": "rendimento (biscoitos…)", "f.time": "Tempo", "ph.timeTotal": "total (45m)", "ph.prep": "preparo", "ph.cook": "cozimento",
     "f.tags": "Restrições", "tag.vegan": "Vegano", "tag.vegetarian": "Vegetariano", "tag.gf": "Sem glúten", "tag.df": "Sem lactose", "tag.spicy": "Picante", "tag.nutfree": "Sem nozes", "tag.quick": "Rápido",
@@ -1318,14 +1380,81 @@ function update() {
   }, 60);
 }
 
-const SAMPLE = {
-  "f-locale": "pt-BR", "f-title": "Brigadeiro", "f-template": "card", "f-accent": "#6b4423",
-  "f-serves": "20", "f-yield": "brigadeiros", "f-time": "25m", "f-prep": "", "f-cook": "",
-  "f-source": "", "f-social": "ig=docedaana",
-  "f-intro": "Clássico, brilhante, no ponto de enrolar.",
-  "f-body": "## Ingredientes\n- 1 lata | leite condensado\n- 2 colheres de sopa | cacau em pó\n- 1 colher de sopa | manteiga\n- | granulado para enrolar\n\n## Modo de preparo\n1. Misture tudo numa panela em fogo médio.\n2. [10m] Mexa **sem parar** até desgrudar do fundo.\n3. Deixe esfriar, unte as mãos e enrole no granulado.",
+const TEXT_FIELDS = ["f-title", "f-serves", "f-yield", "f-time", "f-prep", "f-cook", "f-accent", "f-source", "f-social", "f-intro", "f-body", "f-photo"];
+function clearForm(silent) {
+  TEXT_FIELDS.forEach((id) => { $(id).value = ""; });
+  $("f-template").value = "card"; $("f-photopal").value = "gray"; $("f-photodetail").value = "2"; $("f-photo-file").value = "";
+  document.querySelectorAll("#tags-pick button.on").forEach((b) => b.classList.remove("on"));
+  if (!silent) update();
+}
+
+const SAMPLES = {
+  brigadeiro: {
+    "f-locale": "pt-BR", "f-title": "Brigadeiro", "f-template": "card", "f-accent": "#6b4423",
+    "f-serves": "20", "f-yield": "brigadeiros", "f-time": "25m", "f-social": "ig=docedaana",
+    "f-intro": "Clássico, brilhante, no ponto de enrolar.",
+    "f-body": "## Ingredientes\n- 1 lata | leite condensado\n- 2 colheres de sopa | cacau em pó\n- 1 colher de sopa | manteiga\n- | granulado para enrolar\n\n## Modo de preparo\n1. Misture tudo numa panela em fogo médio.\n2. [10m] Mexa **sem parar** até desgrudar do fundo.\n3. Deixe esfriar, unte as mãos e enrole no granulado.",
+    _tags: [],
+  },
+  // multiple concurrent timers (12m boil ‖ 6m garlic ‖ 2m rest) → all stack in the tray
+  aglio: {
+    "f-locale": "en-US", "f-title": "Spaghetti aglio e olio", "f-template": "paper", "f-accent": "#8a5a2b",
+    "f-serves": "2", "f-time": "20m",
+    "f-intro": "Pantry pasta, done while the water boils.",
+    "f-body": "## Ingredients\n- 200 g | spaghetti\n- 4 | garlic cloves, thinly sliced\n- 1/2 cup | olive oil\n- 1 tsp | chili flakes\n- | parsley, chopped\n- | salt\n\n## Method\n1. [12m] Boil the spaghetti in well-salted water until al dente.\n2. Meanwhile, [6m] warm the garlic in the olive oil over low heat until pale gold.\n3. Add the chili flakes, then toss the drained pasta through the oil.\n4. [2m] Rest off the heat, finish with parsley, and serve.",
+    _tags: ["vegetarian", "spicy"],
+  },
+  cookies: {
+    "f-locale": "en-US", "f-title": "Chocolate-chip cookies", "f-template": "warm", "f-accent": "#c0532b",
+    "f-serves": "24", "f-yield": "cookies", "f-prep": "15m", "f-cook": "11m",
+    "f-intro": "Crisp edge, soft middle.",
+    "f-body": "## Ingredients\n- 1 cup | butter, softened\n- 3/4 cup | brown sugar\n- 1/2 cup | sugar\n- 2 | eggs\n- 2 1/4 cup | flour\n- 1 tsp | baking soda\n- 2 cup | chocolate chips\n\n## Method\n1. Cream the butter with both sugars, then beat in the eggs.\n2. Fold in the flour and baking soda, then the chocolate.\n3. [30m] Chill the dough.\n4. [11m] Bake at 180°C until the edges are golden.",
+    _tags: ["vegetarian"],
+  },
+  chai: {
+    "f-locale": "en-US", "f-title": "Masala chai", "f-template": "dark", "f-accent": "#e8a866",
+    "f-serves": "2", "f-time": "12m",
+    "f-intro": "Spiced, milky, properly strong.",
+    "f-body": "## Ingredients\n- 1 cup | water\n- 1 cup | milk\n- 2 tsp | black tea\n- 4 | cardamom pods, crushed\n- 1 | cinnamon stick\n- 2 tsp | sugar\n\n## Method\n1. [4m] Bring the water to a boil with the cardamom and cinnamon.\n2. Add the tea; [3m] simmer to draw out the colour.\n3. Add the milk and sugar; [2m] bring back to a gentle boil.\n4. Strain into cups.",
+    _tags: ["vegetarian", "quick"],
+  },
 };
-function loadSample() { for (const k in SAMPLE) $(k).value = SAMPLE[k]; update(); }
+function loadSample(key) {
+  const s = SAMPLES[key] || SAMPLES.brigadeiro;
+  clearForm(true);
+  for (const k in s) if (k !== "_tags") $(k).value = s[k];
+  (s._tags || []).forEach((tag) => { const b = document.querySelector('#tags-pick button[data-tag="' + tag + '"]'); if (b) b.classList.add("on"); });
+  update();
+}
+
+// import: directives → fields (+ tag chips + photo), `# ` line → title, the rest → body
+function importSource(src) {
+  clearForm(true);
+  const nl = src.indexOf("\n"), magic = nl < 0 ? src : src.slice(0, nl);
+  const lm = magic.match(/^!recipe1\+(\S+)/); if (lm) $("f-locale").value = lm[1];
+  const lines = (nl < 0 ? "" : src.slice(nl + 1)).split("\n");
+  const DMAP = { template: "f-template", accent: "f-accent", serves: "f-serves", yield: "f-yield", time: "f-time", prep: "f-prep", cook: "f-cook", source: "f-source", social: "f-social", photo: "f-photo", photopal: "f-photopal" };
+  let i = 0;
+  for (; i < lines.length; i++) {
+    const t = lines[i].trim();
+    const dm = t.match(/^@(\w+)[:\s]\s*(.*)$/);
+    if (!dm) { if (!t) continue; else break; }
+    const k = dm[1].toLowerCase(), v = dm[2].trim();
+    if (k === "tags") v.split(",").forEach((c) => { const b = document.querySelector('#tags-pick button[data-tag="' + c.trim() + '"]'); if (b) b.classList.add("on"); });
+    else if (DMAP[k]) $(DMAP[k]).value = v;
+  }
+  // title (first `# `) then everything after → body
+  let title = "", rest = [];
+  for (; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (!title && t.startsWith("# ")) { title = t.slice(2); rest = []; continue; }
+    if (title || t) rest.push(lines[i]);
+  }
+  $("f-title").value = title;
+  $("f-body").value = rest.join("\n").replace(/^\s+|\s+$/g, "");
+  if (val("f-photo")) { const d = photoB64ToBytes(val("f-photo"))[0]; if (d === 1 || d === 2) $("f-photodetail").value = String(d); }
+  update();
+}
 
 document.querySelectorAll("input, select, textarea").forEach((el) => {
   el.addEventListener("input", update);
@@ -1374,7 +1503,15 @@ $("f-photopal").addEventListener("change", update);
 $("photo-clear").addEventListener("click", () => { $("f-photo").value = ""; $("f-photo-file").value = ""; update(); });
 
 $("print-btn").addEventListener("click", () => window.print());
-$("load-sample").addEventListener("click", loadSample);
+$("load-sample").addEventListener("click", () => loadSample($("sample-pick").value));
+$("clear-btn").addEventListener("click", () => clearForm(false));
+$("open-import").addEventListener("click", () => { $("import-text").value = ""; $("import-err").hidden = true; $("import-modal").hidden = false; $("import-text").focus(); });
+$("import-cancel").addEventListener("click", () => { $("import-modal").hidden = true; });
+$("import-modal").addEventListener("click", (e) => { if (e.target === $("import-modal")) $("import-modal").hidden = true; });
+$("import-go").addEventListener("click", () => {
+  try { importSource(parseLink($("import-text").value)); $("import-modal").hidden = true; }
+  catch (e) { $("import-err").textContent = t("import.error"); $("import-err").hidden = false; }
+});
 $("copy-url").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = t("share.copied");
         setTimeout(() => $("copy-url").textContent = t("share.copy"), 1200); } catch (e) {}
@@ -1383,7 +1520,7 @@ $("copy-url").addEventListener("click", async () => {
 buildAccentSwatches();
 applyI18n();
 $("f-base").value = new URL("../", location.href).href;
-loadSample();
+loadSample("brigadeiro");
 </script>
 </body>
 </html>
