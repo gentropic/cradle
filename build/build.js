@@ -125,6 +125,12 @@ function build() {
     out[f] = inlineBetween(get(f), "@build:bio-templates:start", "@build:bio-templates:end", bioTemplatesSrc, "bio-templates");
   }
 
+  // shared dithered-photo codec (recipe @photo) -> bootloader + editor, ahead of the recipe renderer
+  const photoSrc = read("ext/shared/photo.js");
+  for (const f of ["index.html", "recipe/index.html"]) {
+    out[f] = inlineBetween(get(f), "@build:photo:start", "@build:photo:end", photoSrc, "photo");
+  }
+
   // shared recipe renderer + template CSS -> bootloader + editor (single source)
   const recipeRendererSrc = read("ext/recipe/renderer.js");
   const recipeTemplatesSrc = read("ext/recipe/templates.css");

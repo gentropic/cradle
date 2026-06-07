@@ -225,6 +225,16 @@ test("@social footer renders shared brand-logo icon links (the whole bio zoo)", 
   assert.ok(!/recipe-socials">[^<]*<a[^>]*>[A-Za-z]/.test(r.html), "icons, not text labels");
 });
 
+test("@photo decodes to a generated BMP header image; malformed → no image, no crash", () => {
+  const Ph = require(path.join(__dirname, "..", "ext", "shared", "photo.js"));
+  const side = 8, rgba = new Uint8Array(side * side * 4);
+  for (let i = 0; i < side * side; i++) { rgba[i * 4] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = (i * 30) % 255; rgba[i * 4 + 3] = 255; }
+  const payload = Ph.photoEncode(rgba, side, 2);
+  const r = renderRecipe("!recipe1+en-US\n@photo " + payload + "\n@photopal gb\n# Cake\n1. Bake");
+  assert.match(r.html, /<div class="recipe-photo"><img src="data:image\/bmp;base64,[A-Za-z0-9+/=]+" alt=""><\/div>/);
+  assert.ok(!/recipe-photo/.test(renderRecipe("!recipe1+en-US\n@photo not!a!valid!payload\n# X\n1. y").html), "malformed @photo → no image");
+});
+
 test("cook walkthrough: cook mode opens a step nav; Next advances, Done marks + advances", () => {
   const SI = global.setInterval, CI = global.clearInterval, ST = global.setTimeout, NAV = global.navigator;
   global.setInterval = () => 0; global.clearInterval = () => {}; global.setTimeout = () => 0;

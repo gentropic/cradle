@@ -151,6 +151,13 @@ function renderRecipeHTML(body, locale, attribution) {
   // header: title, meta (time/prep/cook), serves scaler, cook-mode toggle
   const titleBlock = blocks.find((b) => b.type === "h1");
   const title = titleBlock ? `<h1 class="recipe-title">${renderInline(titleBlock.text)}</h1>` : "";
+  // @photo: dithered header image — decoded to a renderer-GENERATED BMP data-URI (safe; the
+  // payload is only pixel indices, never raw image bytes). @photopal picks the duotone.
+  let photoHtml = "";
+  if (d.photo) {
+    const uri = photoDecode(d.photo, (d.photopal || "gray").toLowerCase());
+    if (uri) photoHtml = `<div class="recipe-photo"><img src="${uri}" alt=""></div>`;
+  }
   const meta = [];
   if (d.time) meta.push(`<span>⏱ ${escapeHtml(d.time)}</span>`);
   if (d.prep) meta.push(`<span>${L.prepLabel} ${escapeHtml(d.prep)}</span>`);
@@ -194,7 +201,7 @@ function renderRecipeHTML(body, locale, attribution) {
   // NB: a class-targeted <div>, not <header>/<footer> — render output mounts inside arbitrary
   // host pages (the editor styles a bare `header`), so bare semantic elements would inherit
   // host rules (the editor's `header{display:flex}` made this header overflow horizontally).
-  const header = `<div class="recipe-head">${title}${metaHtml}${tagsHtml}${servesHtml}${actions}</div>`;
+  const header = `<div class="recipe-head">${photoHtml}${title}${metaHtml}${tagsHtml}${servesHtml}${actions}</div>`;
 
   // body: group consecutive ingredients into <ul>, steps into <ol>; flush on other blocks
   const out = [];

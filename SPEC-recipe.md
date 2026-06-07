@@ -1,7 +1,7 @@
 # SPEC-recipe
 
 **Format:** `recipe` (versions: `recipe1`)
-**Status:** v0.2
+**Status:** v0.3
 **Editor:** Arthur Endlein Correia
 **Last revised:** 2026-06-07
 **Siblings:** `menu` (line-grammar lineage) · `doc` (shared inline-text safety policy)
@@ -96,6 +96,8 @@ unknown keys MUST be ignored (forward compatibility).
 | `@tags` | comma-list | none | Dietary tags as **universal codes** (`vegan vegetarian gf df spicy nutfree quick`), rendered as pills with a **locale-localized label** (so the code is portable, the label follows `<locale>`). Unknown codes ignored |
 | `@source` | URL | none | Link to the original recipe, rendered as a footer attribution (scheme-allowlisted, §3.2) |
 | `@social` | comma-list | none | `prefix=handle` pairs over the **shared 31-platform brand-logo zoo** (`ext/shared/social.js`, same codes as `bio`) — rendered as icon links |
+| `@photo` | base64 | none | A **dithered duotone header image**, baked as indexed pixels (`[depth, side, …packed]`), decoded to a renderer-**generated** BMP data-URI (`ext/shared/photo.js`). Carries no raw image bytes → no `data:`-URI XSS surface; cousin of `bio`'s `@face`. Grows the capsule (opt-in) |
+| `@photopal` | enum | `gray` | Duotone tint for `@photo`: `gray gb amber sepia ink` (render-time — the payload is unchanged) |
 
 ### 3.2 Inline text subset (and link policy)
 
@@ -297,8 +299,7 @@ that second data point.
 
 ## 10. Deferred (future versions)
 
-- `@photo` — a single small raster `data:` image (a duotone/dithered bake shot, à la `bio`'s
-  `@face`, to stay payload-honest), shown in the header.
+- ~~`@photo`~~ **shipped** (v0.3) — a dithered duotone header bake (§3.1 `@photo`/`@photopal`).
 - Unit conversion (metric ⇄ imperial) as a render-time toggle — locale-fraught, so deferred
   until the scaler proves out.
 - Per-section step renumbering for multi-component recipes (v1 renumbers continuously).
@@ -340,6 +341,12 @@ mirroring `menu` Appendix A.
 
 ## Appendix B — Changelog
 
+- **v0.3** (2026-06-08) — More render-side features: dietary `@tags` (universal codes →
+  localized pills), a printable fridge-card `@media print`, a hands-free cook-mode **step
+  walkthrough** (§5.3), a **copy-ingredients** shopping action (§5.5), and **`@photo`** — a
+  dithered duotone header image via the new shared codec `ext/shared/photo.js` (substrate piece
+  #3; generate-not-sanitize — the renderer builds the BMP from validated indices). Editor gained
+  tag chips, a Print button, a photo (file → dither) baker, and the tint/detail pickers.
 - **v0.2** (2026-06-08) — Shipped beyond the draft: serving scaler gained ½×/1×/2×/3×
   multipliers + an editable number field; `[duration]` timers became a bottom **timer tray**
   (rings, wake-lock, shows the step, stacks, two-tap confirm on pause/dismiss). `@social` moved

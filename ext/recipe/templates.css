@@ -32,6 +32,10 @@
 
 /* ---- header ---- */
 .recipe-head { border-bottom: 1px solid var(--recipe-rule); padding-bottom: 1.1rem; margin-bottom: 1.3rem; }
+.recipe-photo { margin: -1.75rem -1.25rem 1.1rem; }
+.recipe-photo img {
+  display: block; width: 100%; max-height: 16rem; object-fit: cover; image-rendering: pixelated;
+}
 .recipe-title { font-size: 1.85rem; line-height: 1.15; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
 .recipe-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; color: var(--recipe-muted); font-size: 0.86rem; margin-bottom: 0.9rem; }
 .recipe-serves {
