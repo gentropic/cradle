@@ -62,6 +62,17 @@
   .url { width: 100%; margin-top: 0.6rem; font: 0.72rem/1.35 var(--font-mono); color: var(--fg-muted);
          word-break: break-all; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem; max-height: 5rem; overflow: auto; }
   .meta { font-size: 0.74rem; color: var(--fg-faint); text-align: center; margin-top: 0.6rem; }
+  .uilang { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .uilang button { font: inherit; font-size: 0.76rem; padding: 0.3rem 0.6rem; border: none; background: none; color: var(--fg-muted); cursor: pointer; }
+  .uilang button.active { background: var(--accent); color: #fff; }
+  .tmpl-pick { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .tmpl-pick button { font: inherit; font-size: 0.82rem; padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--fg); cursor: pointer; }
+  .tmpl-pick button:hover { border-color: var(--fg); }
+  .tmpl-pick button.sel { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .accent-swrow { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.35rem 0 0; padding-left: 6.5rem; }
+  @media (max-width: 560px) { .accent-swrow { padding-left: 0; } }
+  .accent-swrow button { width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 1px solid var(--border); cursor: pointer; padding: 0; }
+  .accent-swrow button.sel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent); }
 
   /* ---------- recipe visuals — single source: ext/recipe/templates.css ---------- */
   /* @build:recipe-templates:start */
@@ -266,40 +277,52 @@
 <header>
   <h1>recipe · <span style="color:var(--fg-muted);font-weight:400">cradle</span></h1>
   <span class="spacer"></span>
-  <button class="h-btn" id="load-sample" type="button">Load sample</button>
+  <div class="uilang" id="uilang" role="group" data-i18n-title="uilang.title" title="Interface language">
+    <button type="button" class="uilang-btn" data-lang="en">EN</button>
+    <button type="button" class="uilang-btn" data-lang="pt-BR">PT</button>
+  </div>
+  <button class="h-btn" id="load-sample" type="button" data-i18n="hdr.sample">Load sample</button>
   <a class="h-btn" href="../" title="cradle">↩ cradle</a>
 </header>
 
 <div class="wrap">
   <div class="form">
     <div class="group">
-      <h2>Recipe</h2>
-      <div class="row"><label for="f-locale">Language</label>
+      <h2 data-i18n="grp.recipe">Recipe</h2>
+      <div class="row"><label data-i18n="f.recipelang" for="f-locale">Recipe language</label>
         <select id="f-locale"><option>pt-BR</option><option>en-US</option></select></div>
-      <div class="row"><label for="f-title">Title</label><input id="f-title" type="text" placeholder="Brigadeiro"></div>
-      <div class="row split"><label for="f-serves">Serves</label>
+      <div class="row"><label data-i18n="f.title" for="f-title">Title</label><input id="f-title" type="text" placeholder="Brigadeiro"></div>
+      <div class="row split"><label data-i18n="f.serves" for="f-serves">Serves</label>
         <input id="f-serves" type="number" min="1" placeholder="4" style="flex:0 0 5rem">
-        <input id="f-yield" type="text" placeholder="yield noun (cookies…)"></div>
-      <div class="row split"><label for="f-time">Time</label>
-        <input id="f-time" type="text" placeholder="total (45m)">
-        <input id="f-prep" type="text" placeholder="prep">
-        <input id="f-cook" type="text" placeholder="cook"></div>
+        <input id="f-yield" type="text" data-i18n-ph="ph.yield" placeholder="yield noun (cookies…)"></div>
+      <div class="row split"><label data-i18n="f.time" for="f-time">Time</label>
+        <input id="f-time" type="text" data-i18n-ph="ph.timeTotal" placeholder="total (45m)">
+        <input id="f-prep" type="text" data-i18n-ph="ph.prep" placeholder="prep">
+        <input id="f-cook" type="text" data-i18n-ph="ph.cook" placeholder="cook"></div>
     </div>
 
     <div class="group">
-      <h2>Style</h2>
-      <div class="row"><label for="f-template">Template</label>
-        <select id="f-template"><option>card</option><option>paper</option><option>dark</option><option>warm</option><option>kitchen</option></select></div>
-      <div class="row"><label for="f-accent">Accent</label>
-        <input id="f-accent" type="text" placeholder="#6b4423 (optional)"><span class="swatch" id="accent-sw"></span></div>
+      <h2 data-i18n="grp.style">Style</h2>
+      <div class="row col"><label data-i18n="f.template">Template</label>
+        <div class="tmpl-pick" id="tmpl-pick">
+          <button type="button" data-tmpl="card" data-i18n="tmpl.card">Card</button>
+          <button type="button" data-tmpl="paper" data-i18n="tmpl.paper">Paper</button>
+          <button type="button" data-tmpl="dark" data-i18n="tmpl.dark">Dark</button>
+          <button type="button" data-tmpl="warm" data-i18n="tmpl.warm">Warm</button>
+          <button type="button" data-tmpl="kitchen" data-i18n="tmpl.kitchen">Kitchen</button>
+        </div>
+        <input type="hidden" id="f-template" value="card"></div>
+      <div class="row"><label data-i18n="f.accent" for="f-accent">Accent</label>
+        <input id="f-accent" type="text" data-i18n-ph="ph.accent" placeholder="#6b4423 (optional)"><span class="swatch" id="accent-sw"></span></div>
+      <div class="accent-swrow" id="accent-swrow"></div>
     </div>
 
     <div class="group">
-      <h2>Content</h2>
-      <div class="row col"><label for="f-intro">Intro</label>
-        <textarea id="f-intro" placeholder="A line or two. *italic*, **bold**, [links](https://…) ok." style="min-height:3rem"></textarea></div>
-      <div class="row col"><label for="f-body">Ingredients &amp; steps</label>
-        <textarea id="f-body" spellcheck="false" placeholder="## Ingredients
+      <h2 data-i18n="grp.content">Content</h2>
+      <div class="row col"><label data-i18n="f.intro" for="f-intro">Intro</label>
+        <textarea id="f-intro" data-i18n-ph="ph.intro" placeholder="A line or two. *italic*, **bold**, [links](https://…) ok." style="min-height:3rem"></textarea></div>
+      <div class="row col"><label data-i18n="f.body" for="f-body">Ingredients &amp; steps</label>
+        <textarea id="f-body" spellcheck="false" data-i18n-ph="ph.body" placeholder="## Ingredients
 - 2 cup | flour
 - 200 g | butter, softened
 - 3 | eggs
@@ -310,21 +333,21 @@
 2. [10m] Stir until it thickens.
 3. Fold in the flour *gently*."></textarea></div>
       <div class="ins">
-        <button type="button" data-ins="## ">+ Section</button>
-        <button type="button" data-ins="- 1 cup | ">+ Ingredient</button>
-        <button type="button" data-ins="1. ">+ Step</button>
-        <button type="button" data-ins="[10m] ">+ Timer</button>
+        <button type="button" data-ins="## " data-i18n="ins.section">+ Section</button>
+        <button type="button" data-ins="- 1 cup | " data-i18n="ins.ingredient">+ Ingredient</button>
+        <button type="button" data-ins="1. " data-i18n="ins.step">+ Step</button>
+        <button type="button" data-ins="[10m] " data-i18n="ins.timer">+ Timer</button>
       </div>
-      <p class="hint"><b>Ingredients</b> <code>- amount | item</code> — the part before <code>|</code> scales
+      <p class="hint" data-i18n-html="hint.body"><b>Ingredients</b> <code>- amount | item</code> — the part before <code>|</code> scales
       (write <code>- salt to taste</code> with no <code>|</code> to never scale). <b>Steps</b> start with
       <code>1.</code> (auto-renumbered); a <code>[10m]</code> token anywhere in a step becomes a timer.</p>
     </div>
 
     <div class="group">
-      <h2>Footer</h2>
-      <div class="row"><label for="f-source">Source URL</label><input id="f-source" type="text" placeholder="https://… (original recipe)"></div>
-      <div class="row col"><label for="f-social">Socials</label><input id="f-social" type="text" placeholder="ig=docedaana, yt=channel"></div>
-      <p class="hint">31 brand codes (same zoo as bio): ig · x · in · gh · yt · tt · tg · fb · th · bsky · ms ·
+      <h2 data-i18n="grp.footer">Footer</h2>
+      <div class="row"><label data-i18n="f.source" for="f-source">Source URL</label><input id="f-source" type="text" data-i18n-ph="ph.source" placeholder="https://… (original recipe)"></div>
+      <div class="row col"><label data-i18n="f.social" for="f-social">Socials</label><input id="f-social" type="text" data-i18n-ph="ph.social" placeholder="ig=docedaana, yt=channel"></div>
+      <p class="hint" data-i18n-html="hint.social">31 brand codes (same zoo as bio): ig · x · in · gh · yt · tt · tg · fb · th · bsky · ms ·
       sp · sc · bc · sb · md · dev · gl · rd · be · pin · pt · bmc · pp · dc · itch · lb · gr · st · ko · tw —
       each renders its logo.</p>
     </div>
@@ -334,10 +357,10 @@
     <div class="phone"><div class="phone-screen"><div id="preview"></div></div></div>
     <div class="share">
       <div class="qrbox" id="qr"></div>
-      <button class="b" id="copy-url" type="button">Copy share link</button>
-      <a class="b" id="open-url" target="_blank" rel="noopener">Open in cradle ↗</a>
-      <a class="b" id="dl-qr" download="recipe-qr.png">Download QR (PNG)</a>
-      <div class="row" style="margin:0.6rem 0 0"><label for="f-base" style="flex:0 0 5rem;font-size:0.74rem">decoder</label>
+      <button class="b" id="copy-url" type="button" data-i18n="share.copy">Copy share link</button>
+      <a class="b" id="open-url" target="_blank" rel="noopener" data-i18n="share.open">Open in cradle ↗</a>
+      <a class="b" id="dl-qr" download="recipe-qr.png" data-i18n="share.dlqr">Download QR (PNG)</a>
+      <div class="row" style="margin:0.6rem 0 0"><label for="f-base" data-i18n="share.decoder" style="flex:0 0 5rem;font-size:0.74rem">decoder</label>
         <input id="f-base" type="text" style="font-size:0.74rem"></div>
       <div class="url" id="url"></div>
       <div class="meta" id="size"></div>
@@ -859,6 +882,75 @@ function makeCapsule(program) {
 const $ = (id) => document.getElementById(id);
 function val(id) { return $(id).value.trim(); }
 
+// ---- i18n: bilingual chrome (browser-detected + a header toggle), like the menu editor ----
+const UILANG_KEY = "cradle_recipe_uilang";
+const UI = {
+  en: {
+    "app.title": "recipe · cradle", "uilang.title": "Interface language", "hdr.sample": "Load sample",
+    "grp.recipe": "Recipe", "f.recipelang": "Recipe language", "f.title": "Title", "f.serves": "Serves",
+    "ph.yield": "yield noun (cookies…)", "f.time": "Time", "ph.timeTotal": "total (45m)", "ph.prep": "prep", "ph.cook": "cook",
+    "grp.style": "Style", "f.template": "Template", "tmpl.card": "Card", "tmpl.paper": "Paper", "tmpl.dark": "Dark", "tmpl.warm": "Warm", "tmpl.kitchen": "Kitchen",
+    "f.accent": "Accent", "ph.accent": "#6b4423 (optional)",
+    "grp.content": "Content", "f.intro": "Intro", "ph.intro": "A line or two. *italic*, **bold**, [links](https://…) ok.",
+    "f.body": "Ingredients & steps", "ph.body": "## Ingredients\n- 2 cup | flour\n- 200 g | butter, softened\n- 3 | eggs\n- | a pinch of salt\n\n## Method\n1. Cream the butter and sugar.\n2. [10m] Stir until it thickens.\n3. Fold in the flour *gently*.",
+    "ins.section": "+ Section", "ins.ingredient": "+ Ingredient", "ins.step": "+ Step", "ins.timer": "+ Timer",
+    "hint.body": "<b>Ingredients</b> <code>- amount | item</code> — the part before <code>|</code> scales (write <code>- salt to taste</code> with no <code>|</code> to never scale). <b>Steps</b> start with <code>1.</code> (auto-renumbered); a <code>[10m]</code> token anywhere in a step becomes a timer.",
+    "grp.footer": "Footer", "f.source": "Source URL", "ph.source": "https://… (original recipe)", "f.social": "Socials", "ph.social": "ig=docedaana, yt=channel",
+    "hint.social": "31 brand codes (same zoo as bio): ig · x · in · gh · yt · tt · tg · fb · th · bsky · ms · sp · sc · bc · sb · md · dev · gl · rd · be · pin · pt · bmc · pp · dc · itch · lb · gr · st · ko · tw — each renders its logo.",
+    "share.copy": "Copy share link", "share.copied": "Copied ✓", "share.open": "Open in cradle ↗", "share.dlqr": "Download QR (PNG)", "share.decoder": "decoder",
+  },
+  "pt-BR": {
+    "app.title": "recipe · cradle", "uilang.title": "Idioma da interface", "hdr.sample": "Carregar exemplo",
+    "grp.recipe": "Receita", "f.recipelang": "Idioma da receita", "f.title": "Título", "f.serves": "Porções",
+    "ph.yield": "rendimento (biscoitos…)", "f.time": "Tempo", "ph.timeTotal": "total (45m)", "ph.prep": "preparo", "ph.cook": "cozimento",
+    "grp.style": "Estilo", "f.template": "Modelo", "tmpl.card": "Cartão", "tmpl.paper": "Papel", "tmpl.dark": "Escuro", "tmpl.warm": "Quente", "tmpl.kitchen": "Cozinha",
+    "f.accent": "Cor de destaque", "ph.accent": "#6b4423 (opcional)",
+    "grp.content": "Conteúdo", "f.intro": "Introdução", "ph.intro": "Uma linha ou duas. *itálico*, **negrito**, [links](https://…).",
+    "f.body": "Ingredientes e preparo", "ph.body": "## Ingredientes\n- 2 xícaras | farinha\n- 200 g | manteiga\n- 3 | ovos\n- | uma pitada de sal\n\n## Modo de preparo\n1. Bata a manteiga com o açúcar.\n2. [10m] Mexa até engrossar.\n3. Incorpore a farinha *delicadamente*.",
+    "ins.section": "+ Seção", "ins.ingredient": "+ Ingrediente", "ins.step": "+ Passo", "ins.timer": "+ Timer",
+    "hint.body": "<b>Ingredientes</b> <code>- quantidade | item</code> — a parte antes de <code>|</code> escala (escreva <code>- sal a gosto</code> sem <code>|</code> para não escalar). <b>Passos</b> começam com <code>1.</code> (renumerados); um <code>[10m]</code> em qualquer ponto vira um timer.",
+    "grp.footer": "Rodapé", "f.source": "URL de origem", "ph.source": "https://… (receita original)", "f.social": "Redes", "ph.social": "ig=docedaana, yt=canal",
+    "hint.social": "31 códigos de marca (mesmo conjunto do bio): ig · x · in · gh · yt · tt · tg · fb · th · bsky · ms · sp · sc · bc · sb · md · dev · gl · rd · be · pin · pt · bmc · pp · dc · itch · lb · gr · st · ko · tw — cada um mostra seu logo.",
+    "share.copy": "Copiar link", "share.copied": "Copiado ✓", "share.open": "Abrir no cradle ↗", "share.dlqr": "Baixar QR (PNG)", "share.decoder": "decoder",
+  },
+};
+function detectUiLang() {
+  try { const s = localStorage.getItem(UILANG_KEY); if (s === "en" || s === "pt-BR") return s; } catch (e) {}
+  return (navigator.language || "").toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+}
+let uiLang = detectUiLang();
+function t(key) { const v = (UI[uiLang] || UI.en)[key]; return v !== undefined ? v : (UI.en[key] !== undefined ? UI.en[key] : key); }
+function applyI18n() {
+  document.documentElement.lang = uiLang;
+  document.title = t("app.title");
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll(".uilang-btn").forEach((b) => b.classList.toggle("active", b.dataset.lang === uiLang));
+}
+function setUiLang(lang) { if (lang !== "en" && lang !== "pt-BR") return; uiLang = lang; try { localStorage.setItem(UILANG_KEY, lang); } catch (e) {} applyI18n(); }
+
+// ---- visual pickers: template chips + curated accent swatches (the live preview is the rest) ----
+const ACCENTS = ["#6b4423", "#c0532b", "#1f7a4d", "#8a5a2b", "#b03a48", "#3b6ea5", "#7a5fb0", "#2d2a26", "#0f766e", "#a8324a"];
+function refreshTemplatePick() {
+  const cur = val("f-template") || "card";
+  document.querySelectorAll("#tmpl-pick button").forEach((b) => b.classList.toggle("sel", b.dataset.tmpl === cur));
+}
+function buildAccentSwatches() {
+  const row = $("accent-swrow"); row.innerHTML = "";
+  for (const c of ACCENTS) {
+    const b = document.createElement("button");
+    b.type = "button"; b.style.background = c; b.title = c; b.dataset.accent = c;
+    b.addEventListener("click", () => { $("f-accent").value = c; update(); });
+    row.appendChild(b);
+  }
+}
+function refreshAccentSwatches() {
+  const cur = (val("f-accent") || "").toLowerCase();
+  document.querySelectorAll("#accent-swrow button").forEach((b) => b.classList.toggle("sel", b.dataset.accent.toLowerCase() === cur));
+}
+
 function buildSource() {
   const locale = val("f-locale") || "pt-BR";
   let s = "!recipe1+" + locale + "\n";
@@ -908,6 +1000,7 @@ function update() {
   stage.appendChild(mount);
   try { recipeAttach(mount, locale); } catch (e) {}
   $("accent-sw").style.background = r.accent || getComputedStyle(mount).getPropertyValue("--recipe-accent");
+  refreshTemplatePick(); refreshAccentSwatches();
 
   const cap = makeCapsule(src);
   const base = val("f-base") || new URL("../", location.href).href;
@@ -942,12 +1035,18 @@ document.querySelectorAll(".ins button").forEach((b) => {
     ta.focus(); update();
   });
 });
+document.querySelectorAll("#tmpl-pick button").forEach((b) => {
+  b.addEventListener("click", () => { $("f-template").value = b.dataset.tmpl; update(); });
+});
+document.querySelectorAll(".uilang-btn").forEach((b) => b.addEventListener("click", () => setUiLang(b.dataset.lang)));
 $("load-sample").addEventListener("click", loadSample);
 $("copy-url").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = "Copied ✓";
-        setTimeout(() => $("copy-url").textContent = "Copy share link", 1200); } catch (e) {}
+  try { await navigator.clipboard.writeText(lastURL); $("copy-url").textContent = t("share.copied");
+        setTimeout(() => $("copy-url").textContent = t("share.copy"), 1200); } catch (e) {}
 });
 
+buildAccentSwatches();
+applyI18n();
 $("f-base").value = new URL("../", location.href).href;
 loadSample();
 </script>
