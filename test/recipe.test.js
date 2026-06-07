@@ -83,11 +83,14 @@ test("recipe dispatches via !recipe1 and renders header/template/accent/lang", (
   assert.match(r.html, /<h2 class="recipe-section">Ingredientes<\/h2>/);
 });
 
-test("serves control carries the base; yield noun makes the label", () => {
-  assert.match(renderRecipe(EX).html, /<div class="recipe-serves" data-base="20">[\s\S]*<b class="serves-n">20<\/b> brigadeiros/);
-  // no @yield → plain "Rende N porções" (pt) / "Serves N" (en)
-  assert.match(renderRecipe("!recipe1+en-US\n@serves 4\n# X\n1. step").html, /<b class="serves-n">4<\/b><\/span>/);
-  assert.match(renderRecipe("!recipe1+pt-BR\n@serves 4\n# X\n1. step").html, /<b class="serves-n">4<\/b> porções/);
+test("serves control: editable number (base) + ½×/1×/2×/3× multipliers; yield noun makes the label", () => {
+  const h = renderRecipe(EX).html;
+  assert.match(h, /<div class="recipe-serves" data-base="20">/);
+  assert.match(h, /<input class="serves-n" type="number"[^>]*value="20"[^>]*> brigadeiros/, "serves is an editable number field");
+  assert.match(h, /<button type="button" class="serves-mult" data-mult="0.5">½×<\/button>/);
+  assert.match(h, /data-mult="2">2×<\/button>[\s\S]*data-mult="3">3×<\/button>/, "quick multipliers present");
+  // no @yield → plain "Serves N" (en) / "Rende N porções" (pt)
+  assert.match(renderRecipe('!recipe1+pt-BR\n@serves 4\n# X\n1. step').html, /value="4"[^>]*> porções/);
   // no @serves → no scaler at all
   assert.ok(!/recipe-serves/.test(renderRecipe("!recipe1+en-US\n# X\n1. step").html));
 });

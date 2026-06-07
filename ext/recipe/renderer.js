@@ -161,10 +161,17 @@ function renderRecipeHTML(body, locale, attribution) {
     const suffix = yld ? yld : L.servesSuffix;
     servesHtml =
       `<div class="recipe-serves" data-base="${base}">` +
+      `<div class="serves-main">` +
       `<button type="button" class="serves-btn serves-dec" aria-label="−">−</button>` +
-      `<span class="serves-label">${escapeHtml(prefix)} <b class="serves-n">${base}</b>${suffix ? " " + escapeHtml(suffix) : ""}</span>` +
+      `<span class="serves-label">${escapeHtml(prefix)} <input class="serves-n" type="number" step="any" min="0.25" value="${base}" aria-label="${escapeHtml(prefix)}">${suffix ? " " + escapeHtml(suffix) : ""}</span>` +
       `<button type="button" class="serves-btn serves-inc" aria-label="+">+</button>` +
-      `<button type="button" class="serves-reset" hidden>${escapeHtml(L.reset)}</button>` +
+      `</div>` +
+      `<div class="serves-mults">` +
+      `<button type="button" class="serves-mult" data-mult="0.5">½×</button>` +
+      `<button type="button" class="serves-mult" data-mult="1">1×</button>` +
+      `<button type="button" class="serves-mult" data-mult="2">2×</button>` +
+      `<button type="button" class="serves-mult" data-mult="3">3×</button>` +
+      `</div>` +
       `</div>`;
   }
   const cookHtml = `<button type="button" class="recipe-cook">${escapeHtml(L.cookmode)}</button>`;
@@ -228,24 +235,33 @@ function recipeAttach(mount, locale) {
   // stop any timers/alarms left running by a previous attach (editor re-render)
   while (RECIPE_LIVE.length) { try { RECIPE_LIVE.pop()(); } catch (e) {} }
 
-  // ---- serving scaler ----
+  // ---- serving scaler: ½×/1×/2×/3× quick multipliers, ±1 steppers, AND an editable number ----
   const servesEl = mount.querySelector(".recipe-serves");
   const base = servesEl ? parseInt(servesEl.getAttribute("data-base"), 10) : 0;
+  const numEl = mount.querySelector(".serves-n");
   let target = base;
-  function rescale() {
-    if (!(base >= 1)) return;
+  const servesNumStr = (v) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000));
+  // set the target serving count and rescale every amount. fromInput = the user is typing in the
+  // number field, so don't write back into it (that would fight their cursor).
+  function setTarget(v, fromInput) {
+    if (!(base >= 1) || !isFinite(v) || v <= 0) return;
+    target = v;
     const factor = target / base;
-    const nEl = mount.querySelector(".serves-n");
-    if (nEl) nEl.textContent = String(target);
-    const reset = mount.querySelector(".serves-reset");
-    if (reset) reset.hidden = target === base;
     const amts = mount.querySelectorAll(".amt");
     for (let i = 0; i < amts.length; i++) {
       const el = amts[i], lo = parseFloat(el.getAttribute("data-lo"));
       const hiRaw = el.getAttribute("data-hi"), hi = hiRaw ? parseFloat(hiRaw) : null;
       if (isFinite(lo)) el.textContent = recipeFmtQty({ lo: lo, hi: hi, unit: el.getAttribute("data-unit") || "" }, factor, L.decimal);
     }
+    if (numEl && !fromInput) numEl.value = servesNumStr(target);
+    const mults = mount.querySelectorAll(".serves-mult");
+    for (let i = 0; i < mults.length; i++) {
+      const m = parseFloat(mults[i].getAttribute("data-mult"));
+      if (mults[i].classList) mults[i].classList.toggle("on", Math.abs(target - base * m) < 1e-6);
+    }
   }
+  if (numEl && numEl.addEventListener) numEl.addEventListener("input", () => setTarget(parseFloat(numEl.value), true));
+  if (base >= 1) setTarget(base);   // sync the 1× highlight on mount
 
   // ---- cook mode (own wake lock) ----
   let cookWake = null;
@@ -389,9 +405,9 @@ function recipeAttach(mount, locale) {
     const t = e.target.closest ? e.target.closest("button, .step, .ing") : null;
     if (!t) return;
     if (t.closest && t.closest(".recipe-tray")) return;     // tray buttons wire their own handlers
-    if (t.classList.contains("serves-dec")) { if (target > 1) { target -= 1; rescale(); } return; }
-    if (t.classList.contains("serves-inc")) { target += 1; rescale(); return; }
-    if (t.classList.contains("serves-reset")) { target = base; rescale(); return; }
+    if (t.classList.contains("serves-dec")) { setTarget(Math.max(1, Math.round(target) - 1)); return; }
+    if (t.classList.contains("serves-inc")) { setTarget(Math.round(target) + 1); return; }
+    if (t.classList.contains("serves-mult")) { setTarget(base * parseFloat(t.getAttribute("data-mult"))); return; }
     if (t.classList.contains("recipe-cook")) { toggleCook(t); return; }
     if (t.classList.contains("recipe-timer")) { startTimer(t); return; }
     if (t.classList.contains("step") || t.classList.contains("ing")) t.classList.toggle("done");
