@@ -1,0 +1,149 @@
+/* Recipe visuals — the SINGLE SOURCE for how a recipe renders. Scoped to a `.recipe`
+   root so the bootloader render and the (future) editor preview are pixel-identical.
+   Inlined into index.html by build/build.js (between @build:recipe-templates markers).
+   Edit here, then `npm run build`.
+
+   Each template sets its palette via --recipe-* custom properties; an author's @accent
+   overrides --recipe-accent inline (consumer-applied). No web fonts. */
+
+.recipe {
+  --recipe-accent: #6b4423;
+  --recipe-bg: #ffffff;
+  --recipe-fg: #23201c;
+  --recipe-muted: #6f6a63;
+  --recipe-faint: #a8a29a;
+  --recipe-rule: rgba(0, 0, 0, 0.1);
+  --recipe-panel: #f7f5f1;
+  --recipe-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --recipe-serif: Georgia, "Times New Roman", serif;
+  --recipe-font: var(--recipe-sans);
+  box-sizing: border-box;
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 3rem;
+  background: var(--recipe-bg);
+  color: var(--recipe-fg);
+  font-family: var(--recipe-font);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+.recipe * { box-sizing: border-box; }
+.recipe a { color: var(--recipe-accent); }
+
+/* ---- header ---- */
+.recipe-head { border-bottom: 1px solid var(--recipe-rule); padding-bottom: 1.1rem; margin-bottom: 1.3rem; }
+.recipe-title { font-size: 1.85rem; line-height: 1.15; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
+.recipe-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; color: var(--recipe-muted); font-size: 0.86rem; margin-bottom: 0.9rem; }
+.recipe-serves {
+  display: inline-flex; align-items: center; gap: 0.1rem;
+  border: 1px solid var(--recipe-rule); border-radius: 999px; padding: 0.15rem 0.35rem; margin: 0.2rem 0.6rem 0.2rem 0; vertical-align: middle;
+}
+.serves-btn {
+  font: inherit; font-size: 1.1rem; line-height: 1; width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  border: none; background: none; color: var(--recipe-accent); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.serves-btn:hover { background: var(--recipe-panel); }
+.serves-label { font-size: 0.92rem; padding: 0 0.55rem; white-space: nowrap; }
+.serves-label b { font-variant-numeric: tabular-nums; }
+.serves-reset {
+  font: inherit; font-size: 0.78rem; margin-left: 0.2rem; padding: 0.2rem 0.5rem; border-radius: 999px;
+  border: 1px solid var(--recipe-rule); background: none; color: var(--recipe-muted); cursor: pointer;
+}
+.recipe-cook {
+  font: inherit; font-size: 0.82rem; padding: 0.35rem 0.8rem; border-radius: 999px; vertical-align: middle;
+  border: 1px solid var(--recipe-rule); background: none; color: var(--recipe-fg); cursor: pointer;
+}
+.recipe-cook:hover, .recipe-cook.on { border-color: var(--recipe-accent); color: var(--recipe-accent); }
+
+/* ---- sections / notes ---- */
+.recipe-section { font-size: 1.1rem; margin: 1.8rem 0 0.7rem; color: var(--recipe-accent); letter-spacing: 0.01em; }
+.recipe-note { color: var(--recipe-fg); margin: 0.9rem 0; }
+.recipe hr { border: none; border-top: 1px solid var(--recipe-rule); margin: 1.6rem 0; }
+
+/* ---- ingredients ---- */
+.recipe-ings { list-style: none; padding: 0; margin: 0.4rem 0 1.2rem; }
+.ing {
+  display: flex; gap: 0.5rem; padding: 0.4rem 0.2rem 0.4rem 1.6rem; position: relative;
+  border-bottom: 1px solid var(--recipe-rule); cursor: pointer;
+}
+.ing:last-child { border-bottom: none; }
+.ing::before {
+  content: ""; position: absolute; left: 0; top: 0.7rem; width: 0.85rem; height: 0.85rem;
+  border: 1.5px solid var(--recipe-faint); border-radius: 4px; transition: background 0.12s, border-color 0.12s;
+}
+.ing.done::before { background: var(--recipe-accent); border-color: var(--recipe-accent); }
+.ing.done { color: var(--recipe-faint); }
+.ing.done .ing-item { text-decoration: line-through; }
+.ing-amt { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ing-item { color: inherit; }
+
+/* ---- steps ---- */
+.recipe-steps { list-style: none; padding: 0; margin: 0.4rem 0 1.2rem; counter-reset: step; }
+.step {
+  display: flex; gap: 0.8rem; padding: 0.7rem 0; align-items: baseline;
+  border-bottom: 1px solid var(--recipe-rule); cursor: pointer;
+}
+.step:last-child { border-bottom: none; }
+.step-check {
+  counter-increment: step; flex: 0 0 1.7rem; width: 1.7rem; height: 1.7rem; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; align-self: flex-start;
+  background: var(--recipe-panel); color: var(--recipe-accent); font-size: 0.85rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; transition: background 0.12s, color 0.12s;
+}
+.step-check::before { content: counter(step); }
+.step.done .step-check { background: var(--recipe-accent); color: #fff; }
+.step.done .step-check::before { content: "✓"; }
+.step.done .step-body { color: var(--recipe-faint); text-decoration: line-through; }
+.step-body { flex: 1; }
+
+/* ---- timer chips ---- */
+.recipe-timer {
+  font: inherit; font-size: 0.86rem; display: inline-flex; align-items: center; gap: 0.25rem; vertical-align: baseline;
+  padding: 0.1rem 0.5rem; margin: 0 0.1rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--recipe-accent); background: none; color: var(--recipe-accent); font-variant-numeric: tabular-nums;
+}
+.recipe-timer:hover { background: var(--recipe-panel); }
+.recipe-timer.running { background: var(--recipe-accent); color: #fff; }
+.recipe-timer.done { border-color: var(--recipe-faint); color: var(--recipe-faint); animation: recipe-flash 0.5s ease 3; }
+@keyframes recipe-flash { 50% { background: var(--recipe-accent); color: #fff; } }
+@media (prefers-reduced-motion: reduce) { .recipe-timer.done { animation: none; } }
+
+/* ---- footer ---- */
+.recipe-foot { margin-top: 2rem; padding-top: 1.1rem; border-top: 1px solid var(--recipe-rule); font-size: 0.85rem; color: var(--recipe-muted); }
+.recipe-source { font-weight: 600; text-decoration: none; }
+.recipe-socials { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.5rem; }
+.recipe-socials a { text-decoration: none; }
+.recipe .attribution { margin-top: 0.8rem; color: var(--recipe-faint); font-size: 0.74rem; }
+
+/* ---- cook mode: bigger, calmer, across-the-counter ---- */
+.recipe.cook { max-width: 44rem; font-size: 1.18rem; }
+.recipe.cook .step { padding: 1rem 0; }
+.recipe.cook .recipe-meta, .recipe.cook .recipe-foot { display: none; }
+
+/* ================= templates ================= */
+.recipe.tmpl-card { --recipe-bg: #ffffff; }
+.recipe.tmpl-card .recipe-body { }
+
+.recipe.tmpl-paper {
+  --recipe-accent: #8a5a2b; --recipe-bg: #fbf7ee; --recipe-fg: #312a20; --recipe-panel: #f0e8d8;
+  --recipe-rule: rgba(80, 60, 30, 0.16); --recipe-font: var(--recipe-serif);
+}
+.recipe.tmpl-paper .recipe-title { font-style: normal; }
+
+.recipe.tmpl-dark {
+  --recipe-accent: #e8a866; --recipe-bg: #17150f; --recipe-fg: #ece7dd; --recipe-muted: #a59c8d;
+  --recipe-faint: #6d655a; --recipe-rule: rgba(255, 255, 255, 0.12); --recipe-panel: #241f17;
+}
+
+.recipe.tmpl-warm {
+  --recipe-accent: #c0532b; --recipe-bg: #fff6f0; --recipe-fg: #3a261d;
+  --recipe-muted: #97705c; --recipe-faint: #c4a292; --recipe-rule: rgba(150, 80, 50, 0.16); --recipe-panel: #ffe9dd;
+}
+
+.recipe.tmpl-kitchen {
+  --recipe-accent: #1f7a4d; --recipe-bg: #ffffff; --recipe-fg: #14130f; --recipe-muted: #4a4a44;
+  --recipe-faint: #8a8a82; --recipe-rule: rgba(0, 0, 0, 0.16); --recipe-panel: #eef6f0;
+  font-size: 1.1rem;
+}
+.recipe.tmpl-kitchen .recipe-title { font-weight: 800; }
+.recipe.tmpl-kitchen .step { padding: 0.95rem 0; }

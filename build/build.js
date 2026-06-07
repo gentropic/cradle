@@ -15,7 +15,7 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), "utf8");
 const safeRead = (f) => { try { return read(f); } catch { return null; } };   // null for not-yet-existing targets
 const write = (f, s) => { const p = path.join(ROOT, f); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, s); };
 
-const dicts = { ...require("../ext/menu/dict.js"), ...require("../ext/arcr/dict.js"), ...require("../ext/contact/dict.js"), ...require("../ext/bio/dict.js") };
+const dicts = { ...require("../ext/menu/dict.js"), ...require("../ext/arcr/dict.js"), ...require("../ext/contact/dict.js"), ...require("../ext/bio/dict.js"), ...require("../ext/recipe/dict.js") };
 const { generateArcrRenderer } = require("./lib/arcr-renderer.js");
 
 // --- replace a `const <varName> = <...>;` definition with a single source ---
@@ -40,6 +40,7 @@ const DICTS = [
   ["contact/index.html","DICT_CONTACT",   "contact"],
   ["index.html",        "DICT_BIO",       "bio"],
   ["bio/index.html",    "DICT_BIO",       "bio"],
+  ["index.html",        "DICT_RECIPE",    "recipe"],
 ];
 
 // the canonical 50-game library lives in arcr/index.html; pull it out as static
@@ -115,6 +116,12 @@ function build() {
     out[f] = inlineBetween(get(f), "@build:bio-renderer:start", "@build:bio-renderer:end", bioRendererSrc, "bio-renderer");
     out[f] = inlineBetween(get(f), "@build:bio-templates:start", "@build:bio-templates:end", bioTemplatesSrc, "bio-templates");
   }
+
+  // shared recipe renderer + template CSS -> bootloader (single source; editor lands later)
+  const recipeRendererSrc = read("ext/recipe/renderer.js");
+  const recipeTemplatesSrc = read("ext/recipe/templates.css");
+  out["index.html"] = inlineBetween(get("index.html"), "@build:recipe-renderer:start", "@build:recipe-renderer:end", recipeRendererSrc, "recipe-renderer");
+  out["index.html"] = inlineBetween(get("index.html"), "@build:recipe-templates:start", "@build:recipe-templates:end", recipeTemplatesSrc, "recipe-templates");
 
   // doc: the first SEPARATELY-CACHED renderer. Its engine isn't inlined into the bootloader;
   // it lives under doc/ (served at /cradle/doc/), copied verbatim from the ext/doc/ sources,

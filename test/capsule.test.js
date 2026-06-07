@@ -9,8 +9,8 @@ const sb = loadBootloader();
 const td = new TextDecoder();
 const te = new TextEncoder();
 
-test("bootloader loads with all six renderers registered", () => {
-  assert.deepStrictEqual(Object.keys(sb.__R).sort(), ["arcr", "bio", "contact", "doc", "doorbell", "menu"]);
+test("bootloader loads with all seven renderers registered", () => {
+  assert.deepStrictEqual(Object.keys(sb.__R).sort(), ["arcr", "bio", "contact", "doc", "doorbell", "menu", "recipe"]);
 });
 
 test("fragmentDecode reverses §6.4.1 escaping with a single pass", () => {
