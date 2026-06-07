@@ -74,6 +74,10 @@ test("recipe dispatches via !recipe1 and renders header/template/accent/lang", (
   assert.deepStrictEqual(r.accent, { "--recipe-accent": "#6b4423" });
   assert.strictEqual(r.lang, "pt-BR");
   assert.match(r.html, /<h1 class="recipe-title">Brigadeiro<\/h1>/);
+  // head/foot are class-targeted divs, not bare <header>/<footer> — those inherit host
+  // element styles (the editor's `header{display:flex}` made the preview overflow sideways)
+  assert.match(r.html, /<div class="recipe-head">/);
+  assert.ok(!/<header|<footer/.test(r.html), "no bare semantic elements that host CSS can hijack");
   assert.match(r.html, /<div class="recipe-meta"><span>⏱ 25m<\/span><\/div>/);
   assert.match(r.html, /<p class="recipe-note">Clássico e brilhante\.<\/p>/);
   assert.match(r.html, /<h2 class="recipe-section">Ingredientes<\/h2>/);

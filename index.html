@@ -2005,7 +2005,10 @@ function renderRecipeHTML(body, locale, attribution) {
       `</div>`;
   }
   const cookHtml = `<button type="button" class="recipe-cook">${escapeHtml(L.cookmode)}</button>`;
-  const header = `<header class="recipe-head">${title}${metaHtml}${servesHtml}${cookHtml}</header>`;
+  // NB: a class-targeted <div>, not <header>/<footer> — render output mounts inside arbitrary
+  // host pages (the editor styles a bare `header`), so bare semantic elements would inherit
+  // host rules (the editor's `header{display:flex}` made this header overflow horizontally).
+  const header = `<div class="recipe-head">${title}${metaHtml}${servesHtml}${cookHtml}</div>`;
 
   // body: group consecutive ingredients into <ul>, steps into <ol>; flush on other blocks
   const out = [];
@@ -2043,7 +2046,7 @@ function renderRecipeHTML(body, locale, attribution) {
     if (links.length) foot.push(`<div class="recipe-socials">${links.join("")}</div>`);
   }
   if (attribution) foot.push(`<div class="attribution">${escapeHtml(attribution)}</div>`);
-  const footHtml = foot.length ? `<footer class="recipe-foot">${foot.join("")}</footer>` : "";
+  const footHtml = foot.length ? `<div class="recipe-foot">${foot.join("")}</div>` : "";
 
   return {
     html: header + bodyHtml + footHtml,
