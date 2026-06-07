@@ -167,6 +167,13 @@ test("timer tray: tapping a chip opens a card (step + total + clock); dismiss ta
   } finally { global.setInterval = SI; global.clearInterval = CI; global.setTimeout = ST; }
 });
 
+test("@social footer renders shared brand-logo icon links (the whole bio zoo)", () => {
+  const r = renderRecipe("!recipe1+en-US\n@social ig=docedaana, st=meu, dc=invite\n# X\n1. step");
+  assert.match(r.html, /<a class="recipe-social" href="https:\/\/instagram\.com\/docedaana"[^>]*aria-label="Instagram"><svg/);
+  assert.match(r.html, /href="https:\/\/steamcommunity\.com\/id\/meu"[^>]*aria-label="Steam"><svg/, "zoo codes beyond the old six resolve");
+  assert.ok(!/recipe-socials">[^<]*<a[^>]*>[A-Za-z]/.test(r.html), "icons, not text labels");
+});
+
 test("editor emits the !recipe1+ magic line and the q:d.recipe_ capsule prefix", () => {
   const editor = require("fs").readFileSync(path.join(__dirname, "..", "recipe", "index.html"), "utf8");
   assert.match(editor, /"!recipe1\+"/, "editor builds a !recipe1+ source");

@@ -90,6 +90,13 @@ function build() {
     out[f] = inlineBetween(get(f), "@build:inline:start", "@build:inline:end", inlineSrc, "inline-core");
   }
 
+  // shared social-platform zoo (brand logos) -> bootloader + bio/recipe editors (single source),
+  // inlined ahead of the bio + recipe renderers that reference SOCIAL_PLATFORMS
+  const socialSrc = read("ext/shared/social.js");
+  for (const f of ["index.html", "bio/index.html", "recipe/index.html"]) {
+    out[f] = inlineBetween(get(f), "@build:social:start", "@build:social:end", socialSrc, "social");
+  }
+
   // shared menu renderer -> bootloader + editor (single source)
   const menuRendererSrc = read("ext/menu/renderer.js");
   for (const f of ["index.html", "menu/index.html"]) {

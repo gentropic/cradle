@@ -150,8 +150,14 @@
 /* ---- footer ---- */
 .recipe-foot { margin-top: 2rem; padding-top: 1.1rem; border-top: 1px solid var(--recipe-rule); font-size: 0.85rem; color: var(--recipe-muted); }
 .recipe-source { font-weight: 600; text-decoration: none; }
-.recipe-socials { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.5rem; }
-.recipe-socials a { text-decoration: none; }
+.recipe-socials { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.7rem; }
+.recipe-social {
+  display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem;
+  border-radius: 50%; border: 1px solid var(--recipe-rule); color: var(--recipe-muted); text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+.recipe-social:hover { color: var(--recipe-accent); border-color: var(--recipe-accent); }
+.recipe-social svg { width: 1.1rem; height: 1.1rem; }
 .recipe .attribution { margin-top: 0.8rem; color: var(--recipe-faint); font-size: 0.74rem; }
 
 /* ---- cook mode: bigger, calmer, across-the-counter ---- */

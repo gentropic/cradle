@@ -27,12 +27,9 @@ const RECIPE_LOCALES = {
 const RECIPE_LIVE = [];
 const RECIPE_TEMPLATES = { card: 1, paper: 1, dark: 1, warm: 1, kitchen: 1 };
 const RECIPE_VULGAR = { "½": .5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": .25, "¾": .75, "⅕": .2, "⅖": .4, "⅗": .6, "⅘": .8, "⅙": 1 / 6, "⅚": 5 / 6, "⅛": .125, "⅜": .375, "⅝": .625, "⅞": .875 };
-// tiny social map (text links only — recipe footers are light); prefix=handle
-const RECIPE_SOCIAL = {
-  ig: (h) => ["Instagram", "https://instagram.com/" + h], x: (h) => ["X", "https://x.com/" + h],
-  yt: (h) => ["YouTube", "https://youtube.com/@" + h], tt: (h) => ["TikTok", "https://tiktok.com/@" + h],
-  ws: (h) => ["WhatsApp", "https://wa.me/" + h], web: (h) => [h, "https://" + h],
-};
+// @social uses the shared platform zoo (SOCIAL_PLATFORMS) — same 31 brand-logo codes as bio,
+// inlined ahead of this module by build/build.js. Referenced only inside renderRecipeHTML so
+// a bare Node `require` of this module (for the pure scaling-math tests) stays self-contained.
 
 // ---- quantity parsing + scaling (pure; also used client-side by recipeAttach) ----
 // leading numeric token of an amount string -> [value, charsConsumed] | null
@@ -206,8 +203,8 @@ function renderRecipeHTML(body, locale, attribution) {
     const links = [];
     for (const pair of d.social.split(",")) {
       const [pfx, handle] = pair.split("=").map((x) => (x || "").trim());
-      const f = RECIPE_SOCIAL[pfx];
-      if (f && handle) { const [label, url] = f(handle.replace(/^@/, "")); links.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`); }
+      const def = SOCIAL_PLATFORMS[(pfx || "").toLowerCase()];
+      if (def && handle) links.push(`<a class="recipe-social" href="${escapeHtml(def.url(handle))}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(def.name)}">${def.icon}</a>`);
     }
     if (links.length) foot.push(`<div class="recipe-socials">${links.join("")}</div>`);
   }
