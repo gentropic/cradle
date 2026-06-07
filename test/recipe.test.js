@@ -180,6 +180,44 @@ test("timer tray: tapping a chip opens a card (step + total + clock); dismiss ta
   } finally { global.setInterval = SI; global.clearInterval = CI; global.setTimeout = ST; }
 });
 
+test("dietary @tags render as localized pills (universal codes); unknown ignored", () => {
+  assert.match(renderRecipe("!recipe1+en-US\n@tags vegan, gf, bogus\n# X\n1. y").html,
+    /<div class="recipe-tags"><span class="recipe-tag">Vegan<\/span><span class="recipe-tag">Gluten-free<\/span><\/div>/);
+  assert.match(renderRecipe("!recipe1+pt-BR\n@tags vegan, gf\n# X\n1. y").html, /Vegano<\/span><span class="recipe-tag">Sem glúten/);
+  assert.ok(!/recipe-tags/.test(renderRecipe("!recipe1+en-US\n# X\n1. y").html), "no pills without @tags");
+});
+
+test("shopping: a Copy-ingredients button appears only when there are ingredients", () => {
+  assert.match(renderRecipe(EX).html, /<button type="button" class="recipe-shop">🛒 Copiar ingredientes<\/button>/);   // EX is pt-BR
+  assert.match(renderRecipe("!recipe1+en-US\n@serves 2\n# X\n- 1 | egg\n1. cook").html, /class="recipe-shop">🛒 Copy ingredients</);
+  assert.ok(!/recipe-shop/.test(renderRecipe("!recipe1+en-US\n# X\n1. just a step").html), "no shop button without ingredients");
+});
+
+test("shopping: tapping Copy ingredients writes the current scaled list to the clipboard", () => {
+  const SI = global.setInterval, CI = global.clearInterval, ST = global.setTimeout, NAV = global.navigator;
+  global.setInterval = () => 0; global.clearInterval = () => {}; global.setTimeout = () => 0;
+  let copied = null;
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: (s) => { copied = s; return Promise.resolve(); } } }, configurable: true });
+  try {
+    const ings = [{ textContent: "2 cups flour" }, { textContent: "3 eggs" }];
+    const title = { textContent: "Cake" };
+    const shopBtn = { textContent: "🛒 Copy ingredients", classList: { contains: (c) => c === "recipe-shop", toggle() {}, add() {}, remove() {} }, closest: (s) => (s.indexOf("button") >= 0 ? shopBtn : null) };
+    let clickH;
+    const mount = {
+      querySelector: (s) => (s === ".recipe-title" ? title : null),
+      querySelectorAll: (s) => (s === ".recipe-ings .ing" ? ings : []),
+      addEventListener: (tp, f) => { if (tp === "click") clickH = f; },
+      classList: { toggle() {}, add() {}, remove() {}, contains: () => false }, ownerDocument: { createElement: () => ({}) },
+    };
+    R.recipeAttach(mount, "en-US");
+    clickH({ target: shopBtn });
+    assert.strictEqual(copied, "Cake\n\n- 2 cups flour\n- 3 eggs", "title + scaled ingredient lines, clipboard-ready");
+  } finally {
+    global.setInterval = SI; global.clearInterval = CI; global.setTimeout = ST;
+    Object.defineProperty(globalThis, "navigator", { value: NAV, configurable: true });
+  }
+});
+
 test("@social footer renders shared brand-logo icon links (the whole bio zoo)", () => {
   const r = renderRecipe("!recipe1+en-US\n@social ig=docedaana, st=meu, dc=invite\n# X\n1. step");
   assert.match(r.html, /<a class="recipe-social" href="https:\/\/instagram\.com\/docedaana"[^>]*aria-label="Instagram"><svg/);

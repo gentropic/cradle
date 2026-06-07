@@ -16,11 +16,15 @@ const RECIPE_LOCALES = {
   "pt-BR": { decimal: ",", servesPrefix: "Rende", servesSuffix: "porções", makesPrefix: "Rende",
              prepLabel: "preparo", cookLabel: "cozimento", cookmode: "Modo cozinha",
              timerDone: "Tempo!", source: "Receita original", reset: "1×",
-             step: "Passo", totalWord: "total", pause: "Pausar", pauseConfirm: "Pausar?", resume: "Retomar", stop: "Parar", removeConfirm: "Remover?" },
+             step: "Passo", totalWord: "total", pause: "Pausar", pauseConfirm: "Pausar?", resume: "Retomar", stop: "Parar", removeConfirm: "Remover?",
+             copyIngredients: "Copiar ingredientes", copied: "Copiado ✓",
+             tags: { vegan: "Vegano", vegetarian: "Vegetariano", gf: "Sem glúten", df: "Sem lactose", spicy: "Picante", nutfree: "Sem nozes", quick: "Rápido" } },
   "en-US": { decimal: ".", servesPrefix: "Serves", servesSuffix: "", makesPrefix: "Makes",
              prepLabel: "prep", cookLabel: "cook", cookmode: "Cook mode",
              timerDone: "Time's up!", source: "Original recipe", reset: "1×",
-             step: "Step", totalWord: "total", pause: "Pause", pauseConfirm: "Pause?", resume: "Resume", stop: "Stop", removeConfirm: "Remove?" },
+             step: "Step", totalWord: "total", pause: "Pause", pauseConfirm: "Pause?", resume: "Resume", stop: "Stop", removeConfirm: "Remove?",
+             copyIngredients: "Copy ingredients", copied: "Copied ✓",
+             tags: { vegan: "Vegan", vegetarian: "Vegetarian", gf: "Gluten-free", df: "Dairy-free", spicy: "Spicy", nutfree: "Nut-free", quick: "Quick" } },
 };
 // cleanup fns from prior recipeAttach calls — lets the editor's per-keystroke re-render stop
 // stale timer intervals/alarms (the bootloader attaches once, so this stays a no-op there).
@@ -153,6 +157,14 @@ function renderRecipeHTML(body, locale, attribution) {
   if (d.cook) meta.push(`<span>${L.cookLabel} ${escapeHtml(d.cook)}</span>`);
   const metaHtml = meta.length ? `<div class="recipe-meta">${meta.join("")}</div>` : "";
 
+  // dietary tags: universal codes (vegan/vegetarian/gf/df/spicy/nutfree/quick), label localized
+  let tagsHtml = "";
+  if (d.tags) {
+    const pills = d.tags.split(",").map((x) => L.tags[x.trim().toLowerCase()]).filter(Boolean)
+      .map((label) => `<span class="recipe-tag">${escapeHtml(label)}</span>`);
+    if (pills.length) tagsHtml = `<div class="recipe-tags">${pills.join("")}</div>`;
+  }
+
   let servesHtml = "";
   const base = parseInt(d.serves, 10);
   if (base >= 1) {
@@ -174,11 +186,15 @@ function renderRecipeHTML(body, locale, attribution) {
       `</div>` +
       `</div>`;
   }
-  const cookHtml = `<button type="button" class="recipe-cook">${escapeHtml(L.cookmode)}</button>`;
+  const hasIngredients = blocks.some((b) => b.type === "ing");
+  const actions = `<div class="recipe-actions">` +
+    (hasIngredients ? `<button type="button" class="recipe-shop">🛒 ${escapeHtml(L.copyIngredients)}</button>` : "") +
+    `<button type="button" class="recipe-cook">${escapeHtml(L.cookmode)}</button>` +
+    `</div>`;
   // NB: a class-targeted <div>, not <header>/<footer> — render output mounts inside arbitrary
   // host pages (the editor styles a bare `header`), so bare semantic elements would inherit
   // host rules (the editor's `header{display:flex}` made this header overflow horizontally).
-  const header = `<div class="recipe-head">${title}${metaHtml}${servesHtml}${cookHtml}</div>`;
+  const header = `<div class="recipe-head">${title}${metaHtml}${tagsHtml}${servesHtml}${actions}</div>`;
 
   // body: group consecutive ingredients into <ul>, steps into <ol>; flush on other blocks
   const out = [];
@@ -262,6 +278,19 @@ function recipeAttach(mount, locale) {
   }
   if (numEl && numEl.addEventListener) numEl.addEventListener("input", () => setTarget(parseFloat(numEl.value), true));
   if (base >= 1) setTarget(base);   // sync the 1× highlight on mount
+
+  // ---- shopping list: copy the CURRENT (scaled) ingredient list to the clipboard ----
+  function copyIngredients(btn) {
+    const rows = mount.querySelectorAll(".recipe-ings .ing");
+    const lines = [];
+    for (let i = 0; i < rows.length; i++) { const s = (rows[i].textContent || "").replace(/\s+/g, " ").trim(); if (s) lines.push("- " + s); }
+    if (!lines.length) return;
+    const titleEl = mount.querySelector(".recipe-title");
+    const head = titleEl && titleEl.textContent ? titleEl.textContent.trim() + "\n\n" : "";
+    const text = head + lines.join("\n");
+    const done = () => { if (btn) { const old = btn.textContent; btn.textContent = "🛒 " + L.copied; setTimeout(() => { btn.textContent = old; }, 1400); } };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => {}); } catch (e) {}
+  }
 
   // ---- cook mode (own wake lock) ----
   let cookWake = null;
@@ -410,6 +439,7 @@ function recipeAttach(mount, locale) {
     if (t.classList.contains("serves-dec")) { setTarget(Math.max(1, Math.round(target) - 1)); return; }
     if (t.classList.contains("serves-inc")) { setTarget(Math.round(target) + 1); return; }
     if (t.classList.contains("serves-mult")) { setTarget(base * parseFloat(t.getAttribute("data-mult"))); return; }
+    if (t.classList.contains("recipe-shop")) { copyIngredients(t); return; }
     if (t.classList.contains("recipe-cook")) { toggleCook(t); return; }
     if (t.classList.contains("recipe-timer")) { startTimer(t); return; }
     if (t.classList.contains("step") || t.classList.contains("ing")) t.classList.toggle("done");

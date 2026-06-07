@@ -1,7 +1,7 @@
 # SPEC-recipe
 
 **Format:** `recipe` (versions: `recipe1`)
-**Status:** Draft v0.1
+**Status:** v0.2
 **Editor:** Arthur Endlein Correia
 **Last revised:** 2026-06-07
 **Siblings:** `menu` (line-grammar lineage) · `doc` (shared inline-text safety policy)
@@ -93,8 +93,9 @@ unknown keys MUST be ignored (forward compatibility).
 | `@yield` | text | "servings" / "porções" | Noun for the scaled count (e.g. `@yield cookies` → "Makes 12 cookies"). Cosmetic |
 | `@time` | duration | none | Total time shown in the header (e.g. `45m`, `1h30m`) |
 | `@prep` / `@cook` | duration | none | Optional prep / active-cook split, shown alongside `@time` |
+| `@tags` | comma-list | none | Dietary tags as **universal codes** (`vegan vegetarian gf df spicy nutfree quick`), rendered as pills with a **locale-localized label** (so the code is portable, the label follows `<locale>`). Unknown codes ignored |
 | `@source` | URL | none | Link to the original recipe, rendered as a footer attribution (scheme-allowlisted, §3.2) |
-| `@social` | comma-list | none | `prefix=handle` pairs, identical vocabulary to `menu` §3.1.1 (`ig fb x tk ws web`) |
+| `@social` | comma-list | none | `prefix=handle` pairs over the **shared 31-platform brand-logo zoo** (`ext/shared/social.js`, same codes as `bio`) — rendered as icon links |
 
 ### 3.2 Inline text subset (and link policy)
 
@@ -217,6 +218,13 @@ Progress is **view-local and ephemeral** — in-memory, or at most `sessionStora
 renderer MUST NOT write progress to persistent storage keyed to the recipe, and MUST NOT
 transmit it. (This is the §6 privacy guarantee applied to a stateful UI.)
 
+### 5.5 Copy ingredients (shopping list)
+
+When the recipe has ingredients, the renderer MAY offer a **"copy ingredients"** action that
+writes the **current (scaled) ingredient list** as plain text to the clipboard (`navigator.
+clipboard`, best-effort) — so a cook scales to their party size, copies, and pastes into a
+notes app or a chat. Clipboard-only; nothing is transmitted (§6).
+
 ## 6. Renderer behavior
 
 The renderer is registered under format-name `recipe`. It receives the parsed magic line
@@ -329,6 +337,12 @@ mirroring `menu` Appendix A.
 
 ## Appendix B — Changelog
 
+- **v0.2** (2026-06-08) — Shipped beyond the draft: serving scaler gained ½×/1×/2×/3×
+  multipliers + an editable number field; `[duration]` timers became a bottom **timer tray**
+  (rings, wake-lock, shows the step, stacks, two-tap confirm on pause/dismiss). `@social` moved
+  to the shared 31-platform brand-logo zoo (`ext/shared/social.js`). Added `@tags` (universal
+  codes → localized pills, §3.1) and **§5.5 copy-ingredients** (scaled list → clipboard). Editor
+  is bilingual (en/pt-BR) with template-chip + accent-swatch + tag-chip pickers.
 - **v0.1** (2026-06-07) — Initial draft. Sigil-typed line grammar (ingredients `-`, steps
   `\d+.`) with opt-in `|`-scaled quantities; `[duration]` step timers; directives
   (`@template @accent @serves @yield @time @prep @cook @source @social`); the §5 interactivity

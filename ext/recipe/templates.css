@@ -64,6 +64,17 @@
   border: 1px solid var(--recipe-rule); background: none; color: var(--recipe-fg); cursor: pointer;
 }
 .recipe-cook:hover, .recipe-cook.on { border-color: var(--recipe-accent); color: var(--recipe-accent); }
+.recipe-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 0.9rem; }
+.recipe-tag {
+  font-size: 0.74rem; font-weight: 600; padding: 0.18rem 0.6rem; border-radius: 999px;
+  background: var(--recipe-panel); color: var(--recipe-accent); border: 1px solid var(--recipe-rule);
+}
+.recipe-actions { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; vertical-align: middle; }
+.recipe-shop {
+  font: inherit; font-size: 0.82rem; padding: 0.35rem 0.8rem; border-radius: 999px;
+  border: 1px solid var(--recipe-rule); background: none; color: var(--recipe-fg); cursor: pointer;
+}
+.recipe-shop:hover { border-color: var(--recipe-accent); color: var(--recipe-accent); }
 
 /* ---- sections / notes ---- */
 .recipe-section { font-size: 1.1rem; margin: 1.8rem 0 0.7rem; color: var(--recipe-accent); letter-spacing: 0.01em; }
