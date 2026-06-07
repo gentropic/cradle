@@ -225,6 +225,40 @@ test("@social footer renders shared brand-logo icon links (the whole bio zoo)", 
   assert.ok(!/recipe-socials">[^<]*<a[^>]*>[A-Za-z]/.test(r.html), "icons, not text labels");
 });
 
+test("cook walkthrough: cook mode opens a step nav; Next advances, Done marks + advances", () => {
+  const SI = global.setInterval, CI = global.clearInterval, ST = global.setTimeout, NAV = global.navigator;
+  global.setInterval = () => 0; global.clearInterval = () => {}; global.setTimeout = () => 0;
+  Object.defineProperty(globalThis, "navigator", { value: {}, configurable: true });   // no wakeLock
+  try {
+    const mount = fakeEl("div"); mount.ownerDocument = { createElement: fakeEl };
+    const steps = [fakeEl("li"), fakeEl("li"), fakeEl("li")];
+    mount._qsa = steps;                                  // querySelectorAll(".recipe-steps .step")
+    const cook = fakeEl("button"); cook.classList.add("recipe-cook"); cook.closest = (s) => (s.indexOf("button") >= 0 ? cook : null);
+    R.recipeAttach(mount, "en-US");
+
+    mount.fire("click", { target: cook });               // enter cook mode
+    assert.ok(mount.classList.contains("cook"), "cook mode on");
+    const nav = mount._kids.find((k) => k.className === "recipe-cooknav");
+    assert.ok(nav, "a step-nav bar appears");
+    assert.ok(steps[0].classList.contains("cook-current"), "step 1 is focused");
+    assert.match(nav.querySelector(".cn-pos").textContent, /Step 1 \/ 3/);
+
+    nav.querySelector(".cn-next").fire("click");
+    assert.ok(steps[1].classList.contains("cook-current") && !steps[0].classList.contains("cook-current"), "Next advances focus");
+
+    nav.querySelector(".cn-done").fire("click");
+    assert.ok(steps[1].classList.contains("done"), "Done strikes the current step");
+    assert.ok(steps[2].classList.contains("cook-current"), "…and advances");
+
+    mount.fire("click", { target: cook });               // exit cook mode
+    assert.ok(!mount._kids.find((k) => k.className === "recipe-cooknav"), "nav removed");
+    assert.ok(!steps[2].classList.contains("cook-current"), "highlight cleared");
+  } finally {
+    global.setInterval = SI; global.clearInterval = CI; global.setTimeout = ST;
+    Object.defineProperty(globalThis, "navigator", { value: NAV, configurable: true });
+  }
+});
+
 test("editor emits the !recipe1+ magic line and the q:d.recipe_ capsule prefix", () => {
   const editor = require("fs").readFileSync(path.join(__dirname, "..", "recipe", "index.html"), "utf8");
   assert.match(editor, /"!recipe1\+"/, "editor builds a !recipe1+ source");

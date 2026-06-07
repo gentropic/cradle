@@ -17,13 +17,13 @@ const RECIPE_LOCALES = {
              prepLabel: "preparo", cookLabel: "cozimento", cookmode: "Modo cozinha",
              timerDone: "Tempo!", source: "Receita original", reset: "1×",
              step: "Passo", totalWord: "total", pause: "Pausar", pauseConfirm: "Pausar?", resume: "Retomar", stop: "Parar", removeConfirm: "Remover?",
-             copyIngredients: "Copiar ingredientes", copied: "Copiado ✓",
+             copyIngredients: "Copiar ingredientes", copied: "Copiado ✓", cookDone: "Feito",
              tags: { vegan: "Vegano", vegetarian: "Vegetariano", gf: "Sem glúten", df: "Sem lactose", spicy: "Picante", nutfree: "Sem nozes", quick: "Rápido" } },
   "en-US": { decimal: ".", servesPrefix: "Serves", servesSuffix: "", makesPrefix: "Makes",
              prepLabel: "prep", cookLabel: "cook", cookmode: "Cook mode",
              timerDone: "Time's up!", source: "Original recipe", reset: "1×",
              step: "Step", totalWord: "total", pause: "Pause", pauseConfirm: "Pause?", resume: "Resume", stop: "Stop", removeConfirm: "Remove?",
-             copyIngredients: "Copy ingredients", copied: "Copied ✓",
+             copyIngredients: "Copy ingredients", copied: "Copied ✓", cookDone: "Done",
              tags: { vegan: "Vegan", vegetarian: "Vegetarian", gf: "Gluten-free", df: "Dairy-free", spicy: "Spicy", nutfree: "Nut-free", quick: "Quick" } },
 };
 // cleanup fns from prior recipeAttach calls — lets the editor's per-keystroke re-render stop
@@ -292,11 +292,44 @@ function recipeAttach(mount, locale) {
     try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => {}); } catch (e) {}
   }
 
-  // ---- cook mode (own wake lock) ----
-  let cookWake = null;
+  // ---- cook mode: big type + wake lock + a hands-free step walkthrough ----
+  let cookWake = null, cookBar = null, cookStep = 0, stepEls = [];
+  function focusStep() {
+    for (let i = 0; i < stepEls.length; i++) if (stepEls[i].classList) stepEls[i].classList.toggle("cook-current", i === cookStep);
+    const cur = stepEls[cookStep];
+    if (cur && cur.scrollIntoView) { try { cur.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {} }
+    if (!cookBar || !cookBar.querySelector) return;
+    const pos = cookBar.querySelector(".cn-pos"), prev = cookBar.querySelector(".cn-prev"), next = cookBar.querySelector(".cn-next");
+    if (pos) pos.textContent = L.step + " " + (cookStep + 1) + " / " + stepEls.length;
+    if (prev) prev.disabled = cookStep === 0;
+    if (next) next.disabled = cookStep === stepEls.length - 1;
+  }
+  function enterCook() {
+    stepEls = [].slice.call(mount.querySelectorAll(".recipe-steps .step"));
+    if (!stepEls.length) return;                            // no steps → big-type cook mode only
+    cookStep = 0;
+    cookBar = doc.createElement("div");
+    cookBar.className = "recipe-cooknav";
+    cookBar.innerHTML = '<button type="button" class="cn-btn cn-prev" aria-label="previous step">◀</button>' +
+      '<span class="cn-pos"></span>' +
+      '<button type="button" class="cn-btn cn-done"></button>' +
+      '<button type="button" class="cn-btn cn-next" aria-label="next step">▶</button>';
+    mount.appendChild(cookBar);
+    const prev = cookBar.querySelector(".cn-prev"), next = cookBar.querySelector(".cn-next"), done = cookBar.querySelector(".cn-done");
+    if (prev && prev.addEventListener) prev.addEventListener("click", () => { if (cookStep > 0) { cookStep -= 1; focusStep(); } });
+    if (next && next.addEventListener) next.addEventListener("click", () => { if (cookStep < stepEls.length - 1) { cookStep += 1; focusStep(); } });
+    if (done) { done.textContent = L.cookDone; if (done.addEventListener) done.addEventListener("click", () => { const s = stepEls[cookStep]; if (s && s.classList) s.classList.add("done"); if (cookStep < stepEls.length - 1) { cookStep += 1; focusStep(); } }); }
+    focusStep();
+  }
+  function exitCook() {
+    if (cookBar && cookBar.remove) cookBar.remove();
+    cookBar = null;
+    for (let i = 0; i < stepEls.length; i++) if (stepEls[i].classList) stepEls[i].classList.remove("cook-current");
+  }
   async function toggleCook(btn) {
     const on = mount.classList.toggle("cook");
     if (btn) btn.classList.toggle("on", on);
+    if (on) enterCook(); else exitCook();
     try {
       if (on && navigator.wakeLock) cookWake = await navigator.wakeLock.request("screen");
       else if (cookWake) { cookWake.release(); cookWake = null; }

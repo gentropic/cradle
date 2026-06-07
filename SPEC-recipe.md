@@ -209,7 +209,10 @@ unavailable or disallowed. Timers are ephemeral; they MUST NOT persist or report
 
 A toggle that requests a screen **Wake Lock** (`navigator.wakeLock`, best-effort — graceful
 where unsupported) so the screen stays on while cooking, and SHOULD increase type size /
-step focus for across-the-counter reading (the `kitchen` template is the styled extreme).
+step focus for across-the-counter reading (the `kitchen` template is the styled extreme). The
+renderer MAY add a **hands-free walkthrough**: when cook mode is on and the recipe has steps,
+a fixed step-nav bar (◀ "Step N / M" ▶ + a "done" that strikes the current step and advances)
+highlights and scrolls to one step at a time — view-local, ephemeral, transmits nothing.
 
 ### 5.4 Tap-to-check progress
 

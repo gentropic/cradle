@@ -182,10 +182,28 @@
 .recipe-social svg { width: 1.1rem; height: 1.1rem; }
 .recipe .attribution { margin-top: 0.8rem; color: var(--recipe-faint); font-size: 0.74rem; }
 
-/* ---- cook mode: bigger, calmer, across-the-counter ---- */
-.recipe.cook { max-width: 44rem; font-size: 1.18rem; }
+/* ---- cook mode: bigger, calmer, across-the-counter + a hands-free step walkthrough ---- */
+.recipe.cook { max-width: 44rem; font-size: 1.18rem; padding-bottom: 5rem; }
 .recipe.cook .step { padding: 1rem 0; }
 .recipe.cook .recipe-meta, .recipe.cook .recipe-foot { display: none; }
+.recipe.cook .recipe-tray { bottom: 3.7rem; }   /* sit above the cook nav bar */
+.step.cook-current {
+  background: var(--recipe-panel); border-radius: 6px; box-shadow: inset 0.25rem 0 0 var(--recipe-accent);
+  padding-left: 0.7rem; margin-left: -0.7rem; scroll-margin: 6rem;
+}
+.recipe-cooknav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center; gap: 0.7rem;
+  padding: 0.6rem; padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  background: var(--recipe-accent); color: #fff;
+}
+.cn-btn {
+  font: inherit; font-size: 0.95rem; padding: 0.45rem 1rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.55); background: rgba(255, 255, 255, 0.14); color: #fff;
+}
+.cn-btn:hover { background: rgba(255, 255, 255, 0.26); }
+.cn-btn:disabled { opacity: 0.4; cursor: default; }
+.cn-pos { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 6rem; text-align: center; }
 
 /* ================= templates ================= */
 .recipe.tmpl-card { --recipe-bg: #ffffff; }

@@ -21,7 +21,7 @@
 // Bump CACHE_VERSION on any cached-asset change (still belt-and-suspenders for the
 // static set; the bootloader self-updates regardless now).
 
-const CACHE_VERSION = "cradle-v12";   // v12: recipe print card; v11:  + copy-ingredients; v10: timer pause-confirm
+const CACHE_VERSION = "cradle-v13";   // v13: recipe cook walkthrough; v12: print card; v11: tags+shopping
 
 const CORE_ASSETS = [
   "./",
