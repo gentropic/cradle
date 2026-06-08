@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { makeDocCapsule } from "./author.mjs";
 
-const ALLOW = { theme: ["paper", "article", "terminal", "dark", "book"], font: ["serif", "sans", "mono"], density: ["comfortable", "compact", "relaxed"], width: ["normal", "narrow", "wide"] };
+const ALLOW = { theme: ["paper", "article", "terminal", "dark", "book", "gcu"], font: ["serif", "sans", "mono"], density: ["comfortable", "compact", "relaxed"], width: ["normal", "narrow", "wide"] };
 const SCALAR = new Set(["title", "author", "date", "theme", "accent", "font", "density", "width", "images"]);
 const BOOL = new Set(["toc", "numbered"]);
 const KNOWN = new Set([...SCALAR, ...BOOL, "tags"]);

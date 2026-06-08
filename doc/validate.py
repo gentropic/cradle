@@ -12,7 +12,7 @@ import sys
 
 from author import make_doc_capsule
 
-ALLOW = {"theme": ["paper", "article", "terminal", "dark", "book"], "font": ["serif", "sans", "mono"],
+ALLOW = {"theme": ["paper", "article", "terminal", "dark", "book", "gcu"], "font": ["serif", "sans", "mono"],
          "density": ["comfortable", "compact", "relaxed"], "width": ["normal", "narrow", "wide"]}
 SCALAR = {"title", "author", "date", "theme", "accent", "font", "density", "width", "images"}
 BOOL = {"toc", "numbered"}

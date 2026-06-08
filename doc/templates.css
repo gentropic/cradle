@@ -172,6 +172,29 @@
   --doc-mark: #f1e3b0; --doc-callout-bg: rgba(100, 80, 40, 0.06); }
 .doc.theme-book .doc-title { font-variant: small-caps; letter-spacing: 0.01em; }
 
+/* gcu — Geoscientific Chaos Union house style: near-black, one signal accent, brutalist rules;
+   sans body with mono mastheads/datelines, a heavy masthead rule, a left-ticked item ledger,
+   and a weighty accent blockquote for the closing provocation. (per NOTE-GCU-BRIEF) */
+.doc.theme-gcu { --doc-bg: #0b0c0e; --doc-fg: #e7e4dd; --doc-muted: #9aa0a6; --doc-faint: #5f656d;
+  --doc-accent: #ff5a1f; --doc-rule: rgba(255, 255, 255, 0.14); --doc-code-bg: #14161a; --doc-code-fg: #e7e4dd;
+  --doc-mark: #4a2a10; --doc-callout-bg: rgba(255, 255, 255, 0.035); --doc-font: var(--doc-sans); }
+/* masthead — works whether the title is frontmatter (.doc-title) or a body H1 */
+.doc.theme-gcu .doc-head { border-bottom: 2px solid var(--doc-accent); padding-bottom: 0.9rem; }
+.doc.theme-gcu .doc-title, .doc.theme-gcu .doc-body h1 { font-weight: 800; letter-spacing: -0.02em; }
+.doc.theme-gcu .doc-body h1 { border-bottom: 2px solid var(--doc-accent); padding-bottom: 0.3em; margin-bottom: 0.5em; }
+.doc.theme-gcu .doc-byline { font: 0.78em var(--doc-mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--doc-faint); }
+/* dateline — the `_<date>_` line right under the masthead → a mono, accented dateline */
+.doc.theme-gcu .doc-body h1 + p { font: 0.8em var(--doc-mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--doc-accent); margin-top: -0.1em; }
+.doc.theme-gcu .doc-body h1 + p em { font-style: normal; }
+/* item headings — left-ticked ledger entries */
+.doc.theme-gcu .doc-body h2 { border-bottom-color: var(--doc-accent); }
+.doc.theme-gcu .doc-body h3 { border-left: 2px solid var(--doc-accent); padding-left: 0.6em; }
+/* provocation / koan — give the blockquote weight */
+.doc.theme-gcu .doc-body blockquote { border-left-width: 4px; background: var(--doc-callout-bg);
+  padding: 0.9em 1.2em; border-radius: 0 6px 6px 0; font-size: 1.08em; font-style: italic; color: var(--doc-fg); }
+.doc.theme-gcu .tok-str { color: #7ee787; }
+.doc.theme-gcu .tok-num { color: #79c0ff; }
+
 /* heading deep-link anchors (hover affordance, mainly desktop) */
 .doc-body :where(h1, h2, h3, h4, h5, h6) .doc-anchor {
   opacity: 0; margin-left: 0.35em; color: var(--doc-faint); font-weight: 400;

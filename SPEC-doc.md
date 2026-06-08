@@ -1,6 +1,6 @@
 # SPEC-doc — the `doc` body format (a self-contained rich document)
 
-> Status: v1.2 · License: CC0 · Part of the `@gcu/cradle` stack
+> Status: v1.3 · License: CC0 · Part of the `@gcu/cradle` stack
 > (`SPEC-capsule.md` = transport, `SPEC-cradle.md` = dispatch). This document
 > defines the **body grammar** for one renderer; transport/encoding are delegated
 > to capsule.
@@ -96,7 +96,7 @@ Styling keys (the curated subset, §4.1):
 
 | Key | Values | Meaning |
 |---|---|---|
-| `theme` | `paper` (default) · `article` · `terminal` · `dark` · `book` | Palette + overall look (Switchboard tokens). |
+| `theme` | `paper` (default) · `article` · `terminal` · `dark` · `book` · `gcu` | Palette + overall look (Switchboard tokens). |
 | `accent` | hex color | One accent (links, headings, rules, code). Validated; never piped into CSS. |
 | `font` | `serif` (default) · `sans` · `mono` | Body family (system stacks; no web fonts). |
 | `density` | `comfortable` (default) · `compact` · `relaxed` | Type scale + spacing. |
@@ -392,6 +392,11 @@ default → inline-`data:` only, external opt-in (§3.4); GUI editor deferred.
 
 ## Changelog
 
+- **v1.3** (2026-06-08) — **`gcu` theme.** A sixth `theme` (`gcu`) for the Geoscientific
+  Chaos Union house style — near-black, one signal accent, brutalist masthead/item rules and a
+  weighty provocation blockquote, sans body with mono datelines (added to the renderer +
+  validate-kit allowlists, `ext/doc/templates.css`, and the frontmatter docs). Requested by the
+  automation side for the GCU Daily Brief's `doc` capsules.
 - **v1.2** (2026-06-05) — **Explicit heading ids + validator polish** (from an end-to-end
   exercise report). Headings now accept a trailing `{#slug}` (§2.2 cross-refs) — used verbatim
   (constrained to `[A-Za-z][\w-]*`, 64 chars, adversarial tails fall back to the auto-slug),

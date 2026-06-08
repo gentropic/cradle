@@ -24,7 +24,7 @@ const DOC_LINK_SCHEMES = /^(https?|mailto|tel):/i;          // allowed for <a hr
 const DOC_IMG_DATA = /^data:image\/(png|jpe?g|gif|webp)[;,]/i;  // allowed inline image data — `;base64,…` or `,<url-encoded>` (NB: svg excluded)
 const DOC_HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 const DOC_ALLOW = {
-  theme: { paper: 1, article: 1, terminal: 1, dark: 1, book: 1 },
+  theme: { paper: 1, article: 1, terminal: 1, dark: 1, book: 1, gcu: 1 },
   font: { serif: 1, sans: 1, mono: 1 },
   density: { comfortable: 1, compact: 1, relaxed: 1 },
   width: { normal: 1, narrow: 1, wide: 1 },

@@ -42,7 +42,7 @@ must be quoted**; `true`/`false`/`null`/numbers are bare. (`yes`/`no` are NOT bo
 ```yaml
 ---
 title: "Field notes, Itomori"
-theme: "paper"          # paper | article | terminal | dark | book
+theme: "paper"          # paper | article | terminal | dark | book | gcu
 accent: "#9b8cff"        # a hex colour (optional)
 font: "serif"           # serif | sans | mono
 density: "comfortable"   # comfortable | compact | relaxed

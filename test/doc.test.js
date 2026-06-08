@@ -73,6 +73,7 @@ test("frontmatter → validated meta (allowlist fallback, hex accent, tags, bool
   assert.match(r.html, /<p class="doc-byline">Mitsuha · 2026-06-05<\/p>/);
   assert.match(r.html, /<span class="doc-tag">a<\/span><span class="doc-tag">b<\/span>/);
   // unknown / unsafe values fall back to defaults; non-hex accent dropped; title escaped
+  assert.match(renderDoc('---\ntheme: "gcu"\n---\nhi').html, /<article class="doc theme-gcu /, "gcu theme is allowlisted");
   const bad = renderDoc('---\ntheme: "evil"\naccent: "red; }"\ntitle: "<x>"\n---\nhi');
   assert.match(bad.html, /<article class="doc theme-paper font-serif/);   // theme fell back
   assert.ok(!/--doc-accent/.test(bad.html), "non-hex accent dropped");
